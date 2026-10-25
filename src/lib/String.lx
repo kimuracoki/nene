@@ -1,0 +1,10 @@
+module String where
+
+
+foreign import length :: String -> Int = "(s) => s.length"
+foreign import isEmpty :: String -> Bool = "(s) => s.length === 0"
+foreign import toUpper :: String -> String = "(s) => s.toUpperCase()"
+foreign import toLower :: String -> String = "(s) => s.toLowerCase()"
+foreign import contains :: String -> String -> Bool = "(part) => (s) => s.includes(part)"
+foreign import toInt :: String -> Maybe Int = "(s) => (/^-?\\d+$/.test(s.trim()) ? $rt.Just(parseInt(s, 10)) : $rt.Nothing)"
+foreign import toFloat :: String -> Maybe Float = "(s) => { const n = Number(s.trim()); return s.trim() !== '' && Number.isFinite(n) ? $rt.Just(n) : $rt.Nothing; }"

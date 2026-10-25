@@ -1,0 +1,5 @@
+module Cmd where
+
+
+foreign import none :: Cmd msg = "null"
+foreign import batch :: [Cmd msg] -> Cmd msg = "(cmds) => cmds"

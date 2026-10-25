@@ -1,0 +1,17 @@
+-- アイコン。名前から記号を選ぶだけの簡単なもの
+module Icon (icon) where
+
+
+icon :: { name :: String } -> Html msg
+icon { name } = <span style={look}>{glyph name}</span>
+  where
+    look = Style { font = M }
+
+
+glyph :: String -> String
+glyph "add"         = "＋"
+glyph "delete"      = "✕"
+glyph "close"       = "✕"
+glyph "star"        = "★"
+glyph "star_border" = "☆"
+glyph _             = "・"

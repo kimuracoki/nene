@@ -1,0 +1,177 @@
+-- elm-sample の「タスク」画面に相当するもの
+module Todo (main) where
+
+-- モジュールを import すると、その主部品をタグで使える（<Button> など）
+import Button (Variant(..))
+import Card
+import Chip
+import IconButton
+import TextField
+
+
+data Priority = High | Medium | Low
+
+data Filter = All | Active | Completed
+
+type Todo =
+  { id       :: Int
+  , title    :: String
+  , priority :: Priority
+  , done     :: Bool
+  }
+
+type Model =
+  { todos  :: [Todo]
+  , nextId :: Int
+  , draft  :: String
+  , error  :: Maybe String
+  , filter :: Filter
+  }
+
+data Msg
+  = DraftChanged String
+  | AddTodo
+  | ToggleTodo Int Bool
+  | Delete Int
+  | SetFilter Filter
+  | ClearCompleted
+
+
+init :: Model
+init =
+  { todos  = [ sample 2 "牛乳を買う" High, sample 1 "企画書を読む" Low ]
+  , nextId = 3
+  , draft  = ""
+  , error  = Nothing
+  , filter = All
+  }
+  where
+    sample id title priority = { id, title, priority, done = False }
+
+
+-- UPDATE
+
+update :: Msg -> Model -> Model
+update (DraftChanged s) model = { model | draft = s, error = Nothing }
+update AddTodo model
+  | String.isEmpty title = { model | error = Just "タスク名を入力してください" }
+  | otherwise            =
+      { model
+      | todos  = newTodo : model.todos
+      , nextId = model.nextId + 1
+      , draft  = ""
+      }
+  where
+    title   = trim model.draft
+    newTodo = { id = model.nextId, title, priority = Medium, done = False }
+update (ToggleTodo id checked) model = { model | todos = map toggle model.todos }
+  where
+    toggle t
+      | t.id == id = { t | done = checked }
+      | otherwise  = t
+update (Delete id) model = { model | todos = filter keep model.todos }
+  where
+    keep t = t.id /= id
+update (SetFilter f) model  = { model | filter = f }
+update ClearCompleted model = { model | todos = filter (not . (.done)) model.todos }
+
+
+-- VIEW
+
+view :: Model -> Html Msg
+view model =
+  <Column gap={L} style={page}>
+    <h1>タスク</h1>
+
+    <Card>
+      <form onSubmit={AddTodo}>
+        <Row gap={S} align={End}>
+          <TextField label="新しいタスク" value={model.draft} onInput={DraftChanged} error={model.error} />
+          <Button startIcon={Just "add"} onClick={AddTodo}>追加</Button>
+        </Row>
+      </form>
+    </Card>
+
+    <Card flush>
+      <Row gap={S} align={Center} style={toolbar}>
+        <FilterChip filter={All} label="すべて" />
+        <FilterChip filter={Active} label="未完了" />
+        <FilterChip filter={Completed} label="完了" />
+        <Spacer />
+        <Button variant={TextButton} color={Danger} disabled={noneCompleted} onClick={ClearCompleted}>
+          完了済みを削除
+        </Button>
+      </Row>
+      <TodoList todos={visible} />
+    </Card>
+  </Column>
+  where
+    visible       = filter (matches model.filter) model.todos
+    noneCompleted = countOf Completed == 0
+    countOf f     = length (filter (matches f) model.todos)
+
+    page    = Style { padding = L }
+    toolbar = Style { padding = S }
+
+    -- where の中の部品も、タグで呼べる。model をそのまま使える
+    filterChip p =
+      <Chip selected={isSelected} onClick={select} color={Primary}>{chipLabel}</Chip>
+      where
+        isSelected = model.filter == p.filter
+        select     = Just (SetFilter p.filter)
+        chipLabel  = p.label ++ " " ++ show (countOf p.filter)
+
+
+-- このファイルの中だけで使う部品
+todoList :: { todos :: [Todo] } -> Html Msg
+todoList { todos = [] } =
+  <Column align={Center} style={empty}>
+    <p>表示するタスクはありません</p>
+  </Column>
+  where
+    empty = Style { padding = L, color = Muted }
+todoList { todos } =
+  <ul>
+    {map todoItem todos}
+  </ul>
+
+
+todoItem :: Todo -> Html Msg
+todoItem todo =
+  <li key={show todo.id} style={line}>
+    <Row gap={S} align={Center}>
+      <input type="checkbox" checked={todo.done} onCheck={ToggleTodo todo.id} />
+      <span style={title}>{todo.title}</span>
+      <Spacer />
+      <Chip color={priorityColor todo.priority}>{priorityLabel todo.priority}</Chip>
+      <IconButton icon="delete" label="削除" onClick={Delete todo.id} />
+    </Row>
+  </li>
+  where
+    line = Style { padding = S }
+
+    title
+      | todo.done = Style { color = Muted }
+      | otherwise = Style {}
+
+
+-- HELPERS
+
+matches :: Filter -> Todo -> Bool
+matches All       _ = True
+matches Active    t = not t.done
+matches Completed t = t.done
+
+priorityLabel :: Priority -> String
+priorityLabel High   = "高"
+priorityLabel Medium = "中"
+priorityLabel Low    = "低"
+
+priorityColor :: Priority -> Color
+priorityColor High   = Danger
+priorityColor Medium = Warning
+priorityColor Low    = Primary
+
+
+main :: Program Model Msg
+main = App.sandbox { init, update, view }

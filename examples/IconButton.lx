@@ -1,0 +1,12 @@
+module IconButton (iconButton) where
+
+import Icon
+
+
+iconButton :: { icon :: String, label :: String, onClick :: msg } -> Html msg
+iconButton props =
+  <button style={look} type="button" title={props.label} onClick={props.onClick}>
+    <Icon name={props.icon} />
+  </button>
+  where
+    look = Style { padding = XS, radius = XL, color = Muted, hover = Style { background = Background, color = Text } }

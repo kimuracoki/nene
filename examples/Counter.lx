@@ -1,0 +1,46 @@
+module Counter (main) where
+
+import Button (Variant(..))
+
+
+data Msg = Increment | Decrement | Reset
+
+type Model = Int
+
+
+init :: Model
+init = 0
+
+
+update :: Msg -> Model -> Model
+update Increment n = n + 1
+update Decrement n
+  | n > 0     = n - 1
+  | otherwise = 0
+update Reset _ = 0
+
+
+view :: Model -> Html Msg
+view n =
+  <Column gap={M} align={Center} style={page}>
+    <h1>カウンター</h1>
+    <p style={count}>{show n}</p>
+    <Row gap={S}>
+      <Button onClick={Decrement} disabled={atZero}>-</Button>
+      <Button onClick={Increment}>+</Button>
+      <Button variant={Outlined} onClick={Reset}>リセット</Button>
+    </Row>
+  </Column>
+  where
+    atZero = n == 0
+
+    count
+      | n >= 10   = { big | color = Danger }
+      | otherwise = big
+
+    big  = Style { font = XL, weight = Bold }
+    page = Style { padding = XL }
+
+
+main :: Program Model Msg
+main = App.sandbox { init, update, view }

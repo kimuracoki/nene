@@ -1,0 +1,19 @@
+module List where
+
+
+head :: [a] -> Maybe a
+head (x : _) = Just x
+head []      = Nothing
+
+last :: [a] -> Maybe a
+last [x]      = Just x
+last (_ : xs) = last xs
+last []       = Nothing
+
+find :: (a -> Bool) -> [a] -> Maybe a
+find p (x : xs)
+  | p x       = Just x
+  | otherwise = find p xs
+find _ [] = Nothing
+
+foreign import indexedMap :: (Int -> a -> b) -> [a] -> [b] = "(f) => (xs) => xs.map((x, i) => f(i)(x))"

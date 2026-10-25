@@ -1,0 +1,19 @@
+module Card (CardProps, card) where
+
+
+type CardProps =
+  { flush :: Bool = False   -- True なら内側の余白をなくす
+  }
+
+
+card :: CardProps -> [Html msg] -> Html msg
+card props children =
+  <section style={look}>
+    {children}
+  </section>
+  where
+    look
+      | props.flush = base
+      | otherwise   = { base | padding = M }
+
+    base = Style { background = Surface, radius = M, shadow = S }

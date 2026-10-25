@@ -1,0 +1,36 @@
+-- レイアウトタグ（spec 8 章）。<Row> などのタグからだけ使える
+module Layout where
+
+
+type RowProps =
+  { gap     :: Size  = None
+  , align   :: Align = Stretch
+  , justify :: Align = Start
+  , wrap    :: Bool  = False
+  , style   :: Style = Style {}
+  }
+
+type GridProps =
+  { columns :: Int
+  , gap     :: Size  = None
+  , style   :: Style = Style {}
+  }
+
+type StackProps =
+  { align   :: Align = Stretch
+  , justify :: Align = Stretch
+  , style   :: Style = Style {}
+  }
+
+type ScrollProps =
+  { direction :: Direction = Vertical
+  , style     :: Style     = Style {}
+  }
+
+
+foreign import row :: RowProps -> [Html msg] -> Html msg = "$rt.layout('row')"
+foreign import column :: RowProps -> [Html msg] -> Html msg = "$rt.layout('column')"
+foreign import grid :: GridProps -> [Html msg] -> Html msg = "$rt.layout('grid')"
+foreign import stack :: StackProps -> [Html msg] -> Html msg = "$rt.layout('stack')"
+foreign import scroll :: ScrollProps -> [Html msg] -> Html msg = "$rt.layout('scroll')"
+foreign import spacer :: {} -> Html msg = "$rt.spacer"

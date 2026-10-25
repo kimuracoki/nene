@@ -1,0 +1,92 @@
+-- import しなくても使える標準の型と関数
+module Prelude where
+
+
+data Bool = False | True
+
+data Maybe a = Nothing | Just a
+
+data Result e a = Err e | Ok a
+
+
+-- デザイントークン（spec 9.2）
+
+data Size = None | XS | S | M | L | XL
+
+data Length = Fill | Shrink | Px Int
+
+data Weight = Regular | Bold
+
+data Color
+  = Primary | Success | Warning | Danger
+  | Text | Muted | Surface | Background | Border | Transparent
+
+data Align = Start | Center | End | Stretch
+
+data Direction = Horizontal | Vertical
+
+
+-- 基本
+
+otherwise :: Bool
+otherwise = True
+
+not :: Bool -> Bool
+not True  = False
+not False = True
+
+identity :: a -> a
+identity x = x
+
+always :: a -> b -> a
+always x _ = x
+
+fst :: (a, b) -> a
+fst (x, _) = x
+
+snd :: (a, b) -> b
+snd (_, y) = y
+
+foreign import show :: Show a => a -> String = "$rt.show"
+foreign import negate :: Num a => a -> a = "(x) => -x"
+foreign import abs :: Num a => a -> a = "(x) => Math.abs(x)"
+foreign import min :: Ord a => a -> a -> a = "(a) => (b) => (a <= b ? a : b)"
+foreign import max :: Ord a => a -> a -> a = "(a) => (b) => (a >= b ? a : b)"
+foreign import subtract :: Num a => a -> a -> a = "(a) => (b) => b - a"
+foreign import toFloat :: Int -> Float = "(x) => x"
+foreign import round :: Float -> Int = "(x) => Math.round(x)"
+foreign import floor :: Float -> Int = "(x) => Math.floor(x)"
+foreign import ceiling :: Float -> Int = "(x) => Math.ceil(x)"
+
+
+-- リスト
+
+foreign import map :: (a -> b) -> [a] -> [b] = "(f) => (xs) => xs.map((x) => f(x))"
+foreign import filter :: (a -> Bool) -> [a] -> [a] = "(f) => (xs) => xs.filter((x) => f(x))"
+foreign import foldl :: (b -> a -> b) -> b -> [a] -> b = "(f) => (z) => (xs) => xs.reduce((acc, x) => f(acc)(x), z)"
+foreign import foldr :: (a -> b -> b) -> b -> [a] -> b = "(f) => (z) => (xs) => xs.reduceRight((acc, x) => f(x)(acc), z)"
+foreign import length :: [a] -> Int = "(xs) => xs.length"
+foreign import null :: [a] -> Bool = "(xs) => xs.length === 0"
+foreign import reverse :: [a] -> [a] = "(xs) => xs.slice().reverse()"
+foreign import sum :: Num a => [a] -> a = "(xs) => xs.reduce((a, b) => a + b, 0)"
+foreign import product :: Num a => [a] -> a = "(xs) => xs.reduce((a, b) => a * b, 1)"
+foreign import concat :: [[a]] -> [a] = "(xss) => [].concat(...xss)"
+foreign import concatMap :: (a -> [b]) -> [a] -> [b] = "(f) => (xs) => [].concat(...xs.map((x) => f(x)))"
+foreign import any :: (a -> Bool) -> [a] -> Bool = "(f) => (xs) => xs.some((x) => f(x))"
+foreign import all :: (a -> Bool) -> [a] -> Bool = "(f) => (xs) => xs.every((x) => f(x))"
+foreign import take :: Int -> [a] -> [a] = "(n) => (xs) => xs.slice(0, Math.max(0, n))"
+foreign import drop :: Int -> [a] -> [a] = "(n) => (xs) => xs.slice(Math.max(0, n))"
+foreign import zip :: [a] -> [b] -> [(a, b)] = "(xs) => (ys) => xs.slice(0, Math.min(xs.length, ys.length)).map((x, i) => [x, ys[i]])"
+foreign import range :: Int -> Int -> [Int] = "(a) => (b) => Array.from({ length: Math.max(0, b - a + 1) }, (_, i) => a + i)"
+foreign import sort :: Ord a => [a] -> [a] = "(xs) => xs.slice().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))"
+foreign import sortOn :: Ord b => (a -> b) -> [a] -> [a] = "(f) => (xs) => xs.slice().sort((a, b) => { const x = f(a), y = f(b); return x < y ? -1 : x > y ? 1 : 0; })"
+foreign import elem :: a -> [a] -> Bool = "(x) => (xs) => xs.some((y) => $rt.eq(x, y))"
+
+
+-- 文字列
+
+foreign import trim :: String -> String = "(s) => s.trim()"
+foreign import words :: String -> [String] = "(s) => s.split(/\\s+/).filter((w) => w !== '')"
+foreign import unwords :: [String] -> String = "(ws) => ws.join(' ')"
+foreign import lines :: String -> [String] = "(s) => s.split('\\n')"
+foreign import unlines :: [String] -> String = "(ls) => ls.join('\\n')"

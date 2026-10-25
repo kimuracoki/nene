@@ -1,0 +1,12 @@
+module App where
+
+
+foreign import sandbox
+  :: { init :: model, update :: msg -> model -> model, view :: model -> Html msg }
+  -> Program model msg
+  = "(p) => ({ kind: 'sandbox', init: p.init, update: p.update, view: p.view })"
+
+foreign import element
+  :: { init :: (model, Cmd msg), update :: msg -> model -> (model, Cmd msg), view :: model -> Html msg }
+  -> Program model msg
+  = "(p) => ({ kind: 'element', init: p.init, update: p.update, view: p.view })"
