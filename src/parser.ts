@@ -20,6 +20,7 @@ import {
   type Pat,
   type Pos,
   type Rhs,
+  type StyleBlock,
   type TypeExpr,
   type TypeSig,
 } from "./syntax.ts";
@@ -60,19 +61,19 @@ export function parseTypeSource(src: string): TypeExpr {
 }
 
 class Parser {
-  lx: Lexer;
+  lexer: Lexer;
   offset = 0;
   private buffered: Token | null = null;
   private layouts: Layout[] = [];
 
   constructor(src: string, file: string) {
-    this.lx = new Lexer(src, file);
+    this.lexer = new Lexer(src, file);
   }
 
   // ---- 字句の読み出し ----
 
   peekRaw(): Token {
-    if (!this.buffered) this.buffered = this.lx.scan(this.offset);
+    if (!this.buffered) this.buffered = this.lexer.scan(this.offset);
     return this.buffered;
   }
 
@@ -99,12 +100,12 @@ class Parser {
   }
 
   describeEnd(t: Token): string {
-    return t.start >= this.lx.src.length ? "ファイルが途中で終わっています" : "インデントが足りません（式の途中で行が左に戻っています）";
+    return t.start >= this.lexer.src.length ? "ファイルが途中で終わっています" : "インデントが足りません（式の途中で行が左に戻っています）";
   }
 
   errorAt(t: Token | Pos, message: string): CompileError {
     const pos = "pos" in t ? t.pos : t;
-    return new CompileError(message, pos, this.lx.file);
+    return new CompileError(message, pos, this.lexer.file);
   }
 
   is(kind: Token["kind"], text?: string): boolean {
@@ -166,6 +167,7 @@ class Parser {
       datas: [],
       aliases: [],
       foreigns: [],
+      style: null,
       body: { bindings: [] },
       pos: head.pos,
     };
@@ -214,6 +216,11 @@ class Parser {
       if (!first && !t.firstOnLine) throw this.errorAt(t, "宣言は新しい行から書いてください");
       if (t.pos.col < col) break;
       if (t.pos.col > col) throw this.errorAt(t, "インデントがそろっていません");
+      if (top && mod && this.isStyleStart(t)) {
+        if (mod.style) throw this.errorAt(t, "style ブロックは 1 つのファイルに 1 つだけ書けます");
+        mod.style = this.styleBlock(t);
+        continue;
+      }
       first = false;
       this.withLayout(col, t.start, () => this.decl(top, mod, sigs, bindings));
     }
@@ -223,6 +230,37 @@ class Parser {
       b.sig = sig;
     }
     return { bindings };
+  }
+
+  // 1 列目に style だけが書かれた行は、style ブロックの始まり
+  isStyleStart(t: Token): boolean {
+    if (!(t.kind === "var" && t.text === "style")) return false;
+    const src = this.lexer.src;
+    let i = t.end;
+    while (i < src.length && (src[i] === " " || src[i] === "\t" || src[i] === "\r")) i++;
+    return i >= src.length || src[i] === "\n";
+  }
+
+  // style の次の行から、1 列目に何かが書かれた行の手前までが CSS
+  styleBlock(t: Token): StyleBlock {
+    const src = this.lexer.src;
+    let i = src.indexOf("\n", t.end);
+    if (i < 0) i = src.length;
+    const start = i + 1;
+    let end = start;
+    while (end < src.length) {
+      const lineEnd = src.indexOf("\n", end);
+      const line = src.slice(end, lineEnd < 0 ? src.length : lineEnd);
+      if (line.length > 0 && !/^\s/.test(line)) break;
+      end = lineEnd < 0 ? src.length : lineEnd + 1;
+    }
+    const raw = src.slice(Math.min(start, src.length), end);
+    const lines = raw.split("\n");
+    const indent = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^\s*/)![0].length));
+    const css = lines.map((l) => l.slice(Number.isFinite(indent) ? indent : 0)).join("\n").trimEnd();
+    if (!css.trim()) throw this.errorAt(t, "style ブロックの中身がありません");
+    this.seek(end);
+    return { css, pos: this.lexer.posAt(Math.min(start, src.length)) };
   }
 
   decl(top: boolean, mod: Module | null, sigs: Map<string, TypeSig>, bindings: Binding[]) {
@@ -242,6 +280,7 @@ class Parser {
       return;
     }
     if (t.kind !== "var") throw this.errorAt(t, `宣言が必要です。「${t.text}」がありました`);
+    if (top && t.text === "class") throw this.errorAt(t, "型クラスは定義できません");
     // 型注釈か等式か
     const save = this.offset;
     this.next();
@@ -293,12 +332,13 @@ class Parser {
     }
     let items: ExportItem[] | null = null;
     if (this.isPunct("(")) items = this.itemList();
-    return { module, qualified, alias, items, pos: kw.pos };
+    return { module, modulePos: m.pos, qualified, alias, items, pos: kw.pos };
   }
 
   dataDecl(): DataDecl {
     const kw = this.expect("kw", "data");
-    const name = this.expect("con", undefined, "型の名前").text;
+    const nameTok = this.expect("con", undefined, "型の名前");
+    const name = nameTok.text;
     const params: string[] = [];
     while (this.is("var")) params.push(this.next().text);
     this.expect("op", "=");
@@ -311,17 +351,18 @@ class Parser {
       if (!this.isOp("|")) break;
       this.next();
     }
-    return { name, params, ctors, pos: kw.pos };
+    return { name, namePos: nameTok.pos, params, ctors, pos: kw.pos };
   }
 
   aliasDecl(): AliasDecl {
     const kw = this.expect("kw", "type");
-    const name = this.expect("con", undefined, "型の名前").text;
+    const nameTok = this.expect("con", undefined, "型の名前");
+    const name = nameTok.text;
     const params: string[] = [];
     while (this.is("var")) params.push(this.next().text);
     this.expect("op", "=");
     const body = this.type();
-    return { name, params, body, pos: kw.pos };
+    return { name, namePos: nameTok.pos, params, body, pos: kw.pos };
   }
 
   foreignDecl(): ForeignDecl {
@@ -569,14 +610,14 @@ class Parser {
           return { k: "plist", items, pos: t.pos };
         }
         if (t.text === "{") {
-          const fields: { name: string; pat: Pat }[] = [];
+          const fields: { name: string; pat: Pat; pos: Pos }[] = [];
           for (;;) {
             const f = this.expect("var", undefined, "フィールド名");
             if (this.isOp("=")) {
               this.next();
-              fields.push({ name: f.text, pat: this.pat() });
+              fields.push({ name: f.text, pat: this.pat(), pos: f.pos });
             } else {
-              fields.push({ name: f.text, pat: { k: "pvar", name: f.text, pos: f.pos } });
+              fields.push({ name: f.text, pat: { k: "pvar", name: f.text, pos: f.pos }, pos: f.pos });
             }
             if (!this.isPunct(",")) break;
             this.next();
@@ -798,7 +839,7 @@ class Parser {
   // ( の直後の < が JSX の始まりか
   startsJsx(t: Token): boolean {
     if (t.text === "<>") return true;
-    return t.text === "<" && /[A-Za-z]/.test(this.lx.src[t.start + 1] ?? "");
+    return t.text === "<" && /[A-Za-z]/.test(this.lexer.src[t.start + 1] ?? "");
   }
 
   jsxExpr(): Expr {
@@ -809,15 +850,15 @@ class Parser {
   }
 
   jsxNode(start: number): { node: JsxNode; end: number } {
-    const s = this.lx.src;
-    const pos = this.lx.posAt(start);
+    const s = this.lexer.src;
+    const pos = this.lexer.posAt(start);
     let i = start + 1;
     if (s[i] === ">") {
       const { children, end } = this.jsxChildren(i + 1, null, start);
       return { node: { k: "fragment", children, pos }, end };
     }
     const nameEnd = this.readTagName(i);
-    if (nameEnd === i) throw this.lx.error("タグ名が必要です", i);
+    if (nameEnd === i) throw this.lexer.error("タグ名が必要です", i);
     const tag = s.slice(i, nameEnd);
     i = nameEnd;
     const attrs: JsxAttr[] = [];
@@ -827,29 +868,29 @@ class Parser {
         return { node: { k: "element", tag, attrs, children: null, pos }, end: i + 2 };
       }
       if (s[i] === ">") {
-        const { children, end } = this.jsxChildren(i + 1, tag, start);
-        return { node: { k: "element", tag, attrs, children, pos }, end };
+        const { children, end, closeAt } = this.jsxChildren(i + 1, tag, start);
+        return { node: { k: "element", tag, attrs, children, pos, closePos: this.lexer.posAt(closeAt) }, end };
       }
-      if (i >= s.length) throw this.lx.error(`<${tag}> が閉じられていません`, start);
-      if (!/[A-Za-z]/.test(s[i])) throw this.lx.error(`属性名が必要です。「${s[i]}」がありました`, i);
+      if (i >= s.length) throw this.lexer.error(`<${tag}> が閉じられていません`, start);
+      if (!/[A-Za-z]/.test(s[i])) throw this.lexer.error(`属性名が必要です。「${s[i]}」がありました`, i);
       const attrStart = i;
       while (/[A-Za-z0-9-]/.test(s[i] ?? "")) i++;
       const name = s.slice(attrStart, i);
-      const attrPos = this.lx.posAt(attrStart);
-      if (attrs.some((a) => a.name === name)) throw this.lx.error(`属性 ${name} が 2 つあります`, attrStart);
+      const attrPos = this.lexer.posAt(attrStart);
+      if (attrs.some((a) => a.name === name)) throw this.lexer.error(`属性 ${name} が 2 つあります`, attrStart);
       i = this.skipJsxSpace(i);
       if (s[i] === "=") {
         i = this.skipJsxSpace(i + 1);
         if (s[i] === '"') {
-          const { value, end } = this.lx.readString(i);
-          attrs.push({ name, value: { k: "lit", value, type: "String", pos: this.lx.posAt(i) }, pos: attrPos });
+          const { value, end } = this.lexer.readString(i);
+          attrs.push({ name, value: { k: "lit", value, type: "String", pos: this.lexer.posAt(i) }, pos: attrPos });
           i = end;
         } else if (s[i] === "{") {
           const { expr, end } = this.embedded(i);
           attrs.push({ name, value: expr, pos: attrPos });
           i = end;
         } else {
-          throw this.lx.error(`属性 ${name} の値は "..." か {...} で書いてください`, i);
+          throw this.lexer.error(`属性 ${name} の値は "..." か {...} で書いてください`, i);
         }
       } else {
         attrs.push({ name, value: { k: "con", name: "True", module: null, pos: attrPos }, pos: attrPos });
@@ -858,29 +899,29 @@ class Parser {
   }
 
   readTagName(i: number): number {
-    const s = this.lx.src;
+    const s = this.lexer.src;
     if (!/[A-Za-z]/.test(s[i] ?? "")) return i;
     while (/[A-Za-z0-9]/.test(s[i] ?? "")) i++;
     return i;
   }
 
   skipJsxSpace(i: number): number {
-    const s = this.lx.src;
+    const s = this.lexer.src;
     while (i < s.length && /\s/.test(s[i])) i++;
     return i;
   }
 
-  jsxChildren(start: number, tag: string | null, openAt: number): { children: JsxChild[]; end: number } {
-    const s = this.lx.src;
+  jsxChildren(start: number, tag: string | null, openAt: number): { children: JsxChild[]; end: number; closeAt: number } {
+    const s = this.lexer.src;
     const children: JsxChild[] = [];
     let i = start;
     let textStart = i;
     const flushText = (end: number) => {
       const text = normalizeJsxText(s.slice(textStart, end));
-      if (text) children.push({ k: "text", text, pos: this.lx.posAt(textStart) });
+      if (text) children.push({ k: "text", text, pos: this.lexer.posAt(textStart) });
     };
     for (;;) {
-      if (i >= s.length) throw this.lx.error(tag ? `<${tag}> が閉じられていません` : "<> が閉じられていません", openAt);
+      if (i >= s.length) throw this.lexer.error(tag ? `<${tag}> が閉じられていません` : "<> が閉じられていません", openAt);
       const c = s[i];
       if (c === "{") {
         flushText(i);
@@ -894,11 +935,11 @@ class Parser {
         const closing = s.slice(i + 2, nameEnd);
         if ((tag ?? "") !== closing) {
           const want = tag ? `</${tag}>` : "</>";
-          throw this.lx.error(`${want} が必要です。</${closing}> がありました`, i);
+          throw this.lexer.error(`${want} が必要です。</${closing}> がありました`, i);
         }
         const j = this.skipJsxSpace(nameEnd);
-        if (s[j] !== ">") throw this.lx.error("「>」が必要です", j);
-        return { children, end: j + 1 };
+        if (s[j] !== ">") throw this.lexer.error("「>」が必要です", j);
+        return { children, end: j + 1, closeAt: i };
       } else if (c === "<") {
         flushText(i);
         const { node, end } = this.jsxNode(i);
@@ -906,7 +947,7 @@ class Parser {
         i = end;
         textStart = i;
       } else if (c === "}" || c === ">") {
-        throw this.lx.error(`テキストに「${c}」を書くときは {"${c}"} と書いてください`, i);
+        throw this.lexer.error(`テキストに「${c}」を書くときは {"${c}"} と書いてください`, i);
       } else {
         i++;
       }
@@ -921,7 +962,7 @@ class Parser {
     if (!(close.kind === "punct" && close.text === "}")) {
       throw this.errorAt(close, `「}」が必要です。「${close.text}」がありました`);
     }
-    checkJsxExpr(expr, this.lx.file);
+    checkJsxExpr(expr, this.lexer.file);
     return { expr, end: close.end };
   }
 }

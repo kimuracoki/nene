@@ -1,0 +1,9 @@
+-- ウィンドウの大きさ（幅と高さ、ピクセル）
+module Window where
+
+
+foreign import size :: (Int -> Int -> msg) -> Cmd msg
+  = "(toMsg) => (dispatch) => dispatch(toMsg(window.innerWidth)(window.innerHeight))"
+
+foreign import onResize :: (Int -> Int -> msg) -> Sub msg
+  = "(toMsg) => $rt.sub('Window.onResize', (s) => toMsg(s[0])(s[1]), (emit) => { const f = () => emit([window.innerWidth, window.innerHeight]); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); })"

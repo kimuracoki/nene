@@ -1,9 +1,9 @@
-# lambda-jsx 言語仕様 v0.1
+# Tufa 言語仕様 v0.1
 
 ## 0. 原則
 
 1. **タグを見れば、画面に何がどう並ぶかが分かる。** 並び方はレイアウトタグで書く。
-2. **タグには名前だけを書く。** 計算・分岐・見た目の詳細は `where` に書く。
+2. **タグには名前だけを書く。** 計算・分岐は `where` に、見た目はファイル末尾の `style` ブロック（普通の CSS）に書く。
 3. **書き方は一つ。** 同じことを書く方法が二つあるなら、一つを削る。
 4. **型が通れば、実行時エラーは起きない。**
 
@@ -13,20 +13,19 @@
 | --- | --- |
 | `case` / `if` / `let ... in` / ラムダ | 等式のパターンマッチ・ガード・`where` |
 | `$` | 括弧 |
-| `class` 属性・CSS ファイル・`style="..."` | `Style` 値（9 章） |
-| margin | 親のレイアウトタグの `gap` |
+| CSS ファイルの読み込み・CSS-in-JS・`style="..."` | ファイル末尾の `style` ブロックと `class={css.名前}`（9 章） |
 | `null` / `undefined` / 例外 | `Maybe` / `Result` |
 | ユーザー定義の型クラス・演算子 | 組み込みのものだけ |
 | `{ ...props }` のスプレッド | 属性を 1 つずつ書く |
-
-`if` `then` `else` `case` `of` `let` `in` `do` `class` `instance` は予約語で、書くと代わりの書き方を案内するエラーになる。
 | 部品の外から見た目を上書きすること | 部品の見た目はその部品のファイルの中だけで決まる |
+
+`if` `then` `else` `case` `of` `let` `in` `do` `instance` は予約語で、書くと代わりの書き方を案内するエラーになる。トップレベルの `class` も同様（型クラスは定義できない）。
 
 ---
 
 ## 1. ファイルとモジュール
 
-- 拡張子は `.lx`。1 ファイル 1 モジュール。モジュール名はファイルのパスと一致させる（`Ui/Button.lx` → `Ui.Button`）。
+- 拡張子は `.tufa`。1 ファイル 1 モジュール。モジュール名はファイルのパスと一致させる（`Ui/Button.tufa` → `Ui.Button`）。
 
 ```haskell
 module Button (ButtonProps, Variant(..), button) where
@@ -39,7 +38,7 @@ import qualified Ui.Dialog as Modal
 - export の書き方は Haskell と同じ。`T(..)` で型とそのコンストラクタをすべて export する。
 - `import M` は M が export したものをすべて取り込む。`import M (a, B(..))` は指定したものだけを取り込む。
 - `import qualified M as N` は `N.x` の形でだけ使えるようにする。
-- 標準モジュール（14 章）のうち `Prelude` はつねに取り込まれている。`App` `Cmd` `List` `Maybe` `String` は import なしで `App.sandbox` のように修飾名で使う。
+- 標準モジュール（14 章）のうち `Prelude` はつねに取り込まれている。`App` `Cmd` `Sub` `List` `Maybe` `String` `Time` `Window` `Keyboard` `Nav` `Storage` は import なしで `App.app` のように修飾名で使う。
 
 ## 2. 字句
 
@@ -70,7 +69,7 @@ data Maybe a  = Nothing | Just a
 data Result e a = Err e | Ok a
 ```
 
-`Html msg` `Style` `Cmd msg` `Program model msg` は中身の見えない組み込み型。
+`Html msg` `Class` `Cmd msg` `Sub msg` `Program model msg` は中身の見えない組み込み型。
 
 ### 3.2 代数的データ型
 
@@ -119,8 +118,11 @@ type ButtonProps msg =
   }
 ```
 
-- デフォルト値は **定数式**（リテラル・コンストラクタとその適用）に限る。
-- デフォルト値が使われるのは、型の名前を明示して作るときと、JSX で部品を呼ぶとき（5.5）だけ。
+- デフォルト値に書けるのは、定数（リテラル・コンストラクタとその適用）と、トップレベルの名前（とその適用）。
+- デフォルト値が補われるのは、次の 3 つの場合。いずれも「型の名前が分かっている」ときに限る。
+  1. 型の名前を明示して作るとき: `ButtonProps { onClick = Save }`
+  2. JSX で部品を呼ぶとき（5.5）
+  3. 型注釈で引数の型がその型になっている関数に、レコードをそのまま渡すとき: `App.app { init, update, view }`（7 章）
 
 ```haskell
 ButtonProps { onClick = Save }   -- variant = Contained, disabled = False が補われる
@@ -315,9 +317,9 @@ view model =
 ### 5.7 脱糖
 
 ```haskell
-<p style={note}>こんにちは</p>
+<p class={css.note}>こんにちは</p>
 -- ↓
-Html.element "p" [("style", note)] [Html.text "こんにちは"]
+Html.element "p" [("class", css.note)] [Html.text "こんにちは"]
 
 <Button onClick={Save}>保存</Button>
 -- ↓
@@ -348,19 +350,87 @@ Button.button (ButtonProps { onClick = Save }) [Html.text "保存"]
 
 ## 7. アプリケーション
 
-The Elm Architecture。状態はアプリ全体で一つの `Model` だけが持つ。
+The Elm Architecture。状態はアプリ全体で一つの `Model` だけが持ち、`update` は純粋な関数のまま。入口は `App.app` 一つで、必要になったものだけを足していく。
 
 ```haskell
 main :: Program Model Msg
-main = App.sandbox { init, update, view }
+main = App.app { init, update, view }
 ```
 
-| 関数 | 型 |
-| --- | --- |
-| `App.sandbox` | `{ init :: model, update :: msg -> model -> model, view :: model -> Html msg } -> Program model msg` |
-| `App.element` | `{ init :: (model, Cmd msg), update :: msg -> model -> (model, Cmd msg), view :: model -> Html msg } -> Program model msg` |
+```haskell
+main =
+  App.app
+    { init
+    , update
+    , view
+    , effect                          -- update のあとに実行する副作用
+    , subscriptions                   -- 外から届くイベント
+    , onUrlChange = UrlChanged        -- URL が変わったとき
+    , onStart     = Storage.get "key" Loaded   -- 起動したときの副作用
+    }
+```
+
+```haskell
+type AppConfig model msg =
+  { init          :: model
+  , update        :: msg -> model -> model
+  , view          :: model -> Html msg
+  , effect        :: msg -> model -> Cmd msg = （何もしない）
+  , subscriptions :: model -> Sub msg        = （何も購読しない）
+  , onUrlChange   :: Url -> msg              = （URL を扱わない）
+  , onStart       :: Cmd msg                 = Cmd.none
+  }
+```
 
 `main` を持つモジュールが、アプリの入口になる。
+
+### 7.1 update と effect
+
+`update` は状態をどう変えるかだけを書く。外に対して何かをするのは `effect` で、`update` が返した**新しい** model と同じメッセージを受け取る。
+
+```haskell
+update :: Msg -> Model -> Model
+update (Open id) model = model
+update (UrlChanged url) model = { model | selected = photoIn url }
+
+effect :: Msg -> Model -> Cmd Msg
+effect (Open id) _ = Nav.pushUrl ("?photo=" ++ show id)
+effect _ _         = Cmd.none
+```
+
+### 7.2 サブスクリプション
+
+`subscriptions` は model から「いま受け取りたいイベント」を返す。model が変わるたびに呼ばれ、増えたものは購読を始め、なくなったものは止める。
+
+```haskell
+subscriptions :: Model -> Sub Msg
+subscriptions { running = True } = Time.every 1000 Tick
+subscriptions _                  = Sub.none
+```
+
+### 7.3 URL
+
+`onUrlChange` を書くと、URL が変わるたびに（起動したときにも）メッセージが届く。同じサイト内の `<a href="...">` を押したときは、ページを読み直さずに URL だけが変わる。
+
+```haskell
+type Url = { path :: [String], query :: [(String, String)], hash :: String }
+```
+
+画面の振り分けはパターンマッチで書く。
+
+```haskell
+route :: Url -> Route
+route { path = [] }            = Home
+route { path = ["todos"] }     = Todos
+route { path = ["todos", id] } = TodoDetail id
+route _                        = NotFound
+```
+
+URL を変えるときは `Nav.pushUrl` を `effect` から返す。
+
+### 7.4 色とテーマ
+
+テーマ専用の仕組みはない。色は CSS 変数で決め、入口のファイルの `style` ブロックに書く（9.3）。ダークモードも CSS のメディアクエリで書く。
 
 ## 8. レイアウトタグ
 
@@ -376,71 +446,104 @@ main = App.sandbox { init, update, view }
 | `<Spacer />` | Row / Column の中で、残りの空きを埋めて前後を押し離す |
 
 ```haskell
-type RowProps =                  -- Column も同じ
-  { gap     :: Size  = None      -- 子要素どうしの間隔
-  , align   :: Align = Stretch   -- 並ぶ向きと直角の揃え方
-  , justify :: Align = Start     -- 並ぶ向きの揃え方
-  , wrap    :: Bool  = False     -- 入りきらないときに折り返すか
-  , style   :: Style = Style {}
+type RowProps =
+  { gap      :: Size  = None      -- 子要素どうしの間隔
+  , align    :: Align = Stretch   -- 並ぶ向きと直角の揃え方
+  , justify  :: Align = Start     -- 並ぶ向きの揃え方
+  , wrap     :: Bool  = False     -- 入りきらないときに折り返すか
+  , collapse :: Size  = None      -- この画面幅より狭いと縦に並ぶ（8.1）
+  , class    :: Class = （なし）
   }
 
-type GridProps   = { columns :: Int, gap :: Size = None, style :: Style = Style {} }
-type StackProps  = { align :: Align = Stretch, justify :: Align = Stretch, style :: Style = Style {} }
-type ScrollProps = { direction :: Direction = Vertical, style :: Style = Style {} }
+type ColumnProps = { gap :: Size = None, align :: Align = Stretch, justify :: Align = Start, class :: Class }
+type GridProps   = { columns :: Int, gap :: Size = None, collapse :: Size = None, class :: Class }
+type StackProps  = { align :: Align = Stretch, justify :: Align = Stretch, class :: Class }
+type ScrollProps = { direction :: Direction = Vertical, class :: Class }
+
+data Size      = None | XS | S | M | L | XL   -- 4px, 8px, 16px, 24px, 32px。CSS からは var(--space-s) などで使える
 
 data Align     = Start | Center | End | Stretch
 data Direction = Horizontal | Vertical
 ```
 
+### 8.1 狭い画面（レスポンシブ）
+
+`<Row>` と `<Grid>` に `collapse` を書くと、画面幅がそれより狭いときに、Row は縦に並び、Grid は 1 列になる。
+
+```haskell
+<Row gap={M} collapse={M}>        -- 768px より狭いと縦に並ぶ
+<Grid columns={3} collapse={S}>   -- 480px より狭いと 1 列
+```
+
+| `collapse` | `XS` | `S` | `M` | `L` | `XL` |
+| --- | --- | --- | --- | --- | --- |
+| 画面幅 | 360px | 480px | 768px | 1024px | 1280px |
+
+画面幅によって中身そのものを変えたいときは、`Window.onResize` を購読して model に幅を持たせる。
+
 ## 9. スタイル
 
-見た目は `Style` 値で書く。`style` 属性に名前を渡し、中身は `where` に書く。
+見た目は **普通の CSS** で書き、ファイルの末尾の `style` ブロックに置く。当て方は `class={css.名前}` の一つだけ。
 
 ```haskell
-photo props =
-  <figure style={frame} onClick={props.onClick}>
-    <img src={props.src} alt={props.alt} />
-  </figure>
+card :: { title :: String, selected :: Bool } -> [Html msg] -> Html msg
+card props children =
+  <section class={look}>
+    <h2 class={css.title}>{props.title}</h2>
+    {children}
+  </section>
   where
-    frame
-      | props.selected = { base | border = Primary }
-      | otherwise      = base
+    look
+      | props.selected = classes [css.card, css.selected]
+      | otherwise      = css.card
 
-    base = Style { radius = M, shadow = S, hover = Style { shadow = M } }
+
+style
+  .card {
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgb(0 0 0 / .1);
+  }
+  .card:hover { box-shadow: 0 4px 12px rgb(0 0 0 / .15); }
+  .selected { outline: 2px solid var(--primary); }
+  .title { font-size: 1.25rem; }
 ```
 
-### 9.1 Style のフィールド
+### 9.1 style ブロック
 
-`Style` はすべてのフィールドが省略できるレコード。省略したものは指定なしになる。一部を変えるときはレコードの更新（`{ base | border = Primary }`）を使う。
+- 1 列目に `style` とだけ書いた行から、次に 1 列目から始まる行の手前（またはファイルの終わり）までが CSS。1 つのファイルに 1 つだけ書ける。
+- 中身は普通の CSS。ホバー、アニメーション、メディアクエリ、CSS 変数など、何でも書ける。
 
-| フィールド | 型 | 意味 |
-| --- | --- | --- |
-| `padding` | `Size` | 内側の余白（上下左右） |
-| `paddingX` `paddingY` | `Size` | 左右だけ・上下だけの内側の余白（`padding` より優先） |
-| `width` `height` | `Length` | 大きさ |
-| `background` | `Color` | 背景色 |
-| `color` | `Color` | 文字色 |
-| `border` | `Color` | 枠線の色（太さは 1px） |
-| `radius` | `Size` | 角の丸み。`XL` は完全な丸 |
-| `shadow` | `Size` | 影 |
-| `font` | `Size` | 文字の大きさ |
-| `weight` | `Weight` | 文字の太さ |
-| `hover` | `Style` | ポインターが乗ったときに上書きするスタイル |
+### 9.2 クラスの使い方
 
-### 9.2 デザイントークン
+- `style` ブロックに書いたクラスは、そのファイルの中で `css` というレコードのフィールドとして使える。`.item-title` は `css.itemTitle` になる。
+- `css` の型は、クラスを並べた閉じたレコード（`{ card :: Class, title :: Class, ... }`）。書いていないクラスを使うとコンパイルエラーになる。
+- クラス名はファイルごとに自動で書き換えられる（`.card` は `.Card__card` になる）ので、別のファイルの同じ名前のクラスとぶつからない。
+- 複数のクラスをまとめるときは `classes :: [Class] -> Class` を使い、`where` に書く。
+- `class` 属性は HTML 要素とレイアウトタグに書ける。部品のタグには書けない（部品の見た目は、その部品のファイルの中だけで決まる）。
+- `css` は予約された名前で、自分では定義できない。
 
-色や大きさは、トークンの名前で指定する。数値は書けない（`Px` を除く）。
+### 9.3 アプリ全体の見た目
 
-```haskell
-data Size   = None | XS | S | M | L | XL
-data Length = Fill | Shrink | Px Int
-data Weight = Regular | Bold
-data Color
-  = Primary | Success | Warning | Danger
-  | Text | Muted | Surface | Background | Border | Transparent
+クラス以外のセレクタ（`body`、`h1`、`:root` など）は書き換えずにそのまま全体に効く。アプリ全体の色やフォントは、入口のファイルの `style` ブロックに書く。
+
+```css
+style
+  :root {
+    --primary: #3563e9;
+    --text: #1f2328;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --text: #e6e8eb; }
+  }
+  body {
+    font-family: system-ui, sans-serif;
+    color: var(--text);
+  }
 ```
 
-実際の値（`M` が何ピクセルか、`Primary` が何色か）はテーマで決まる。テーマは標準のものを使う。
+### 9.4 CSS が入る順番
+
+ランタイムは、最小限のリセット（`box-sizing`、`margin: 0` など）→ レイアウトタグの CSS → 各ファイルの `style` ブロック、の順にページへ入れる。後のものほど優先されるので、自分で書いた CSS がいちばん強い。
 
 ## 10. HTML 要素
 
@@ -452,7 +555,7 @@ HTML 要素は **意味のため** に使う（見出し、リスト、ボタン
 
 | 属性 | 型 |
 | --- | --- |
-| `style` | `Style` |
+| `class` | `Class`（9 章） |
 | `key` | `String`（リストの要素を見分ける） |
 | `src` `alt` `href` `type` `value` `placeholder` `name` `id` `for` `title` | `String` |
 | `disabled` `checked` | `Bool` |
@@ -462,19 +565,19 @@ HTML 要素は **意味のため** に使う（見出し、リスト、ボタン
 
 ## 11. 副作用と JavaScript
 
-副作用は `Cmd msg` として `update` から返し、ランタイムが実行する。JavaScript の機能は `foreign import` で取り込む。
+副作用は `Cmd msg` として `effect`（7.1）から返し、ランタイムが実行する。標準モジュール（14 章）にない JavaScript の機能は `foreign import` で取り込む。
 
 ```haskell
-foreign import saveText :: String -> String -> Cmd msg
-  = "(key) => (text) => (dispatch) => localStorage.setItem(key, text)"
+foreign import copyText :: String -> Cmd msg
+  = "(text) => (dispatch) => navigator.clipboard.writeText(text)"
 
-foreign import now :: (Int -> msg) -> Cmd msg
-  = "(toMsg) => (dispatch) => dispatch(toMsg(Date.now()))"
+foreign import random :: (Float -> msg) -> Cmd msg
+  = "(toMsg) => (dispatch) => dispatch(toMsg(Math.random()))"
 ```
 
 - `foreign import` の結果の型は `Cmd msg` でなければならない。JavaScript から値を受け取るときは、メッセージとして `dispatch` してもらう。
 - `Cmd msg` を返す JavaScript 関数は、全引数を受け取ったあと `(dispatch) => void` を返す。
-- `Cmd.none :: Cmd msg`、`Cmd.batch :: [Cmd msg] -> Cmd msg`。
+- `Sub msg` を返す `foreign import` はまだ書けない（標準モジュールの `Time.every` などを使う）。
 
 ## 12. 実行時の意味
 
@@ -485,8 +588,9 @@ foreign import now :: (Int -> msg) -> Cmd msg
 ## 13. 文法（要約）
 
 ```
-module    ::= "module" ModName exports? "where" decl*
+module    ::= "module" ModName exports? "where" decl* style?
 decl      ::= import | data | type | sig | equation | foreign
+style     ::= "style" NEWLINE （次に 1 列目から始まる行の手前までの CSS）
 import    ::= "import" "qualified"? ModName ("as" Con)? ("(" items ")")?
 data      ::= "data" Con var* "=" ctor ("|" ctor)*
 ctor      ::= Con atype*
@@ -510,7 +614,7 @@ jsx       ::= "<" Name attr* ("/>" | ">" child* "</" Name ">") | "<>" child* "</
 
 | 分類 | 名前 |
 | --- | --- |
-| 基本 | `not` `otherwise` `identity` `always` `show` `negate` `abs` `min` `max` `subtract` `toFloat` `round` `floor` `ceiling` `fst` `snd` |
+| 基本 | `not` `otherwise` `identity` `always` `classes` `show` `negate` `abs` `min` `max` `subtract` `mod` `toFloat` `round` `floor` `ceiling` `fst` `snd` |
 | リスト | `map` `filter` `foldl` `foldr` `length` `null` `reverse` `sum` `product` `concat` `concatMap` `any` `all` `take` `drop` `zip` `range` `sort` `sortOn` `elem` |
 | 文字列 | `trim` `words` `unwords` `lines` `unlines` |
 
@@ -520,14 +624,20 @@ jsx       ::= "<" Name attr* ("/>" | ">" child* "</" Name ">") | "<>" child* "</
 
 | モジュール | 名前 |
 | --- | --- |
-| `List` | `head` `last` `find`（いずれも `Maybe` を返す）、`indexedMap` |
+| `List` | `head` `last` `find` `lookup`（いずれも `Maybe` を返す）、`indexedMap` |
 | `Maybe` | `map` `andThen` `withDefault` `isJust` |
 | `String` | `length` `isEmpty` `toUpper` `toLower` `contains` `toInt` `toFloat`（`toInt` と `toFloat` は `Maybe` を返す） |
-| `App` | `sandbox` `element` |
+| `App` | `app` |
 | `Cmd` | `none` `batch` |
+| `Sub` | `none` `batch` |
+| `Time` | `now :: (Int -> msg) -> Cmd msg`、`every :: Int -> (Int -> msg) -> Sub msg`（ミリ秒） |
+| `Window` | `size :: (Int -> Int -> msg) -> Cmd msg`、`onResize :: (Int -> Int -> msg) -> Sub msg` |
+| `Keyboard` | `onKeyDown :: (String -> msg) -> Sub msg`（キーの名前は `"Enter"` `"Escape"` `" "` など） |
+| `Nav` | `pushUrl :: String -> Cmd msg`、`replaceUrl`、`back` |
+| `Storage` | `get :: String -> (Maybe String -> msg) -> Cmd msg`、`set :: String -> String -> Cmd msg`、`remove` |
 
 `Prelude` `Layout` と上のモジュール名は予約されていて、ユーザーのモジュール名には使えない。
 
-標準ライブラリは lambda-jsx 自身で書かれている（`src/lib/*.lx`）。
+標準ライブラリは Tufa 自身で書かれている（`src/lib/*.tufa`）。
 
-`Style`・デザイントークン・レイアウトタグ・`Maybe`・`Result` の型とコンストラクタも `Prelude` に含まれる。
+`Class`・`Size`・`Align`・`Direction`・`Maybe`・`Result`・`Url` の型とコンストラクタも `Prelude` に含まれる。

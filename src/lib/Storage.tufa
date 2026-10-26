@@ -1,0 +1,12 @@
+-- ブラウザに文字列を保存する（localStorage）
+module Storage where
+
+
+foreign import get :: String -> (Maybe String -> msg) -> Cmd msg
+  = "(key) => (toMsg) => (dispatch) => { const v = localStorage.getItem(key); dispatch(toMsg(v === null ? $rt.Nothing : $rt.Just(v))); }"
+
+foreign import set :: String -> String -> Cmd msg
+  = "(key) => (value) => (dispatch) => localStorage.setItem(key, value)"
+
+foreign import remove :: String -> Cmd msg
+  = "(key) => (dispatch) => localStorage.removeItem(key)"

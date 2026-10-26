@@ -14,11 +14,12 @@ import type { Binding, CtorRef, Equation, Expr, JsxChild, JsxNode, Module, Pat }
 export function generateModule(mod: Module, checked: CheckResult): string {
   const g = new Gen();
   const lines: string[] = [];
-  for (const d of checked.defaults) {
-    const fields = d.fields.map((f) => `${fieldKey(f.name)}: ${g.expr(f.expr)}`).join(", ");
-    lines.push(`$rt.defaults[${JSON.stringify(d.key)}] = { ${fields} };`);
-  }
   const exported: string[] = [];
+  if (checked.style) {
+    lines.push(`$rt.css(${JSON.stringify(checked.style.css)});`);
+    const fields = [...checked.style.classes].map(([k, v]) => `${fieldKey(k)}: ${JSON.stringify(v)}`).join(", ");
+    lines.push(`const css = { ${fields} };`);
+  }
   for (const f of mod.foreigns) {
     const js = checked.iface.values.get(f.name)?.ref.js ?? f.name;
     lines.push(`const ${js} = (${f.code});`);
@@ -27,6 +28,11 @@ export function generateModule(mod: Module, checked: CheckResult): string {
   for (const b of mod.body.bindings) {
     lines.push(g.binding(b));
     exported.push(b.js!);
+  }
+  // デフォルト値はトップレベルの名前を参照できるので、定義のあとに置く
+  for (const d of checked.defaults) {
+    const fields = d.fields.map((f) => `${fieldKey(f.name)}: ${g.expr(f.expr)}`).join(", ");
+    lines.push(`$rt.defaults[${JSON.stringify(d.key)}] = { ${fields} };`);
   }
   lines.push(`return { ${exported.join(", ")} };`);
   return `const ${checked.iface.js} = (() => {\n${indent(lines.join("\n\n"))}\n})();`;
@@ -162,7 +168,7 @@ class Gen {
       case "unit":
         return "null";
       case "record":
-        return this.object(e.fields.map((f) => [f.name, this.expr(f.value)]), null);
+        return this.object(e.fields.map((f) => [f.name, this.expr(f.value)]), e.defaultsJs ?? null);
       case "update":
         return this.object(e.fields.map((f) => [f.name, this.expr(f.value)]), this.expr(e.target));
       case "jsx":

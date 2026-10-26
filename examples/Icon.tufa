@@ -3,9 +3,7 @@ module Icon (icon) where
 
 
 icon :: { name :: String } -> Html msg
-icon { name } = <span style={look}>{glyph name}</span>
-  where
-    look = Style { font = M }
+icon { name } = <span class={css.icon}>{glyph name}</span>
 
 
 glyph :: String -> String
@@ -15,3 +13,10 @@ glyph "close"       = "✕"
 glyph "star"        = "★"
 glyph "star_border" = "☆"
 glyph _             = "・"
+
+
+style
+  .icon {
+    font-size: 1rem;
+    line-height: 1;
+  }

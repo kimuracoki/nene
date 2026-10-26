@@ -1,0 +1,6 @@
+-- キーボード。キーの名前は KeyboardEvent.key と同じ（"Enter"、"Escape"、"a" など）
+module Keyboard where
+
+
+foreign import onKeyDown :: (String -> msg) -> Sub msg
+  = "(toMsg) => $rt.sub('Keyboard.onKeyDown', (k) => toMsg(k), (emit) => { const f = (e) => emit(e.key); document.addEventListener('keydown', f); return () => document.removeEventListener('keydown', f); })"

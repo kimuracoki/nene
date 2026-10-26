@@ -1,4 +1,4 @@
-// lambda-jsx のランタイム。仮想 DOM、Style から CSS への変換、The Elm Architecture の実行を受け持つ
+// Tufa のランタイム。仮想 DOM、レイアウトタグ、style ブロックの CSS の読み込み、The Elm Architecture の実行を受け持つ
 const $rt = (() => {
   // ---- 値 ----
 
@@ -7,7 +7,7 @@ const $rt = (() => {
     let value;
     return () => {
       if (state === 2) return value;
-      if (state === 1) throw new Error("lambda-jsx: 値の定義が自分自身を参照しています");
+      if (state === 1) throw new Error("tufa: 値の定義が自分自身を参照しています");
       state = 1;
       value = f();
       state = 2;
@@ -33,7 +33,7 @@ const $rt = (() => {
   const compose = (f, g) => (x) => f(g(x));
   const idiv = (a, b) => (b === 0 ? 0 : Math.trunc(a / b));
   const show = (x) => (typeof x === "boolean" ? (x ? "True" : "False") : String(x));
-  const fail = (name) => new Error(`lambda-jsx: ${name} のどのパターンにも合いませんでした`);
+  const fail = (name) => new Error(`tufa: ${name} のどのパターンにも合いませんでした`);
   const Just = (x) => ({ $: "Just", a: [x] });
   const Nothing = { $: "Nothing" };
   const defaults = {};
@@ -57,92 +57,69 @@ const $rt = (() => {
     tag,
     attrs,
     key: attrs.key,
-    cls: attrs.style ? styleClass(attrs.style, "") : "",
+    cls: attrs.class ?? "",
     children: norm(children),
   });
 
   const frag = (children) => ({ t: "frag", children: norm(children) });
 
-  // ---- デザイントークン ----
+  // ---- レイアウトタグで使う値 ----
 
   const tag = (v) => v.$;
   const SPACE = { None: "0", XS: "4px", S: "8px", M: "16px", L: "24px", XL: "32px" };
-  const RADIUS = { None: "0", XS: "2px", S: "4px", M: "8px", L: "16px", XL: "9999px" };
-  const FONT = { None: "inherit", XS: "12px", S: "14px", M: "16px", L: "20px", XL: "28px" };
-  const SHADOW = {
-    None: "none",
-    XS: "0 1px 2px rgba(15,23,42,.08)",
-    S: "0 1px 3px rgba(15,23,42,.12), 0 1px 2px rgba(15,23,42,.06)",
-    M: "0 4px 12px rgba(15,23,42,.12)",
-    L: "0 10px 24px rgba(15,23,42,.14)",
-    XL: "0 20px 48px rgba(15,23,42,.18)",
-  };
-  const color = (v) => (tag(v) === "Transparent" ? "transparent" : `var(--lx-${tag(v).toLowerCase()})`);
   const ALIGN = { Start: "flex-start", Center: "center", End: "flex-end", Stretch: "stretch" };
   const JUSTIFY = { Start: "flex-start", Center: "center", End: "flex-end", Stretch: "space-between" };
 
-  const length = (v, axis) => {
-    switch (tag(v)) {
-      case "Fill":
-        return axis === "width" ? "width:100%;flex:1 1 0%;min-width:0" : "height:100%";
-      case "Shrink":
-        return `${axis}:auto;flex:0 0 auto`;
-      case "Px":
-        return `${axis}:${v.a[0]}px;flex:0 0 auto`;
-    }
-    return "";
-  };
-
-  const styleDecls = (s) => {
-    const d = [];
-    if (s.padding) d.push(`padding:${SPACE[tag(s.padding)]}`);
-    if (s.paddingX) d.push(`padding-left:${SPACE[tag(s.paddingX)]};padding-right:${SPACE[tag(s.paddingX)]}`);
-    if (s.paddingY) d.push(`padding-top:${SPACE[tag(s.paddingY)]};padding-bottom:${SPACE[tag(s.paddingY)]}`);
-    if (s.width) d.push(length(s.width, "width"));
-    if (s.height) d.push(length(s.height, "height"));
-    if (s.background) d.push(`background:${color(s.background)}`);
-    if (s.color) d.push(`color:${color(s.color)}`);
-    if (s.border) d.push(`border:1px solid ${color(s.border)}`);
-    if (s.radius) d.push(`border-radius:${RADIUS[tag(s.radius)]}`);
-    if (s.shadow) d.push(`box-shadow:${SHADOW[tag(s.shadow)]}`);
-    if (s.font) d.push(`font-size:${FONT[tag(s.font)]}`);
-    if (s.weight) d.push(`font-weight:${tag(s.weight) === "Bold" ? 700 : 400}`);
-    return d.join(";");
-  };
-
   // ---- CSS の生成（同じ宣言には同じクラスを使い回す） ----
 
-  let sheet = null;
+  // ページに入れる順番を固定する: リセット → レイアウトタグ用 → 各ファイルの style ブロック。
+  // 後のものほど優先されるので、利用者の CSS がいちばん強い
+  const hasDocument = typeof document !== "undefined";
+  const styleElement = (name) => {
+    if (!hasDocument) return null;
+    const el = document.createElement("style");
+    el.setAttribute("data-tufa", name);
+    document.head.appendChild(el);
+    return el;
+  };
+  const baseStyle = styleElement("base");
+  const layoutStyle = styleElement("layout");
+  const userStyle = styleElement("components");
   const classes = new Map();
 
   const addRule = (rule) => {
-    if (!sheet) {
-      const el = document.createElement("style");
-      el.setAttribute("data-lambda-jsx", "");
-      document.head.appendChild(el);
-      sheet = el.sheet;
-    }
-    sheet.insertRule(rule, sheet.cssRules.length);
+    if (layoutStyle) layoutStyle.sheet.insertRule(rule, layoutStyle.sheet.cssRules.length);
   };
 
-  const classFor = (base, hover) => {
-    const key = `${base}|${hover}`;
+  // style ブロックの CSS（コンパイラがクラス名を部品ごとに書き換えたもの）
+  const css = (text) => {
+    if (userStyle) userStyle.textContent += text + "\n";
+  };
+
+  const BREAKPOINT = { XS: 360, S: 480, M: 768, L: 1024, XL: 1280 };
+
+  // narrow は「画面幅が狭いときに上書きする宣言」。[幅, 宣言] の組
+  const classFor = (base, hover, narrow = null) => {
+    const key = `${base}|${hover}|${narrow ? narrow.join(":") : ""}`;
     let cls = classes.get(key);
     if (cls) return cls;
-    cls = `lx${classes.size}`;
+    cls = `tufa${classes.size}`;
     classes.set(key, cls);
-    if (typeof document === "undefined") return cls;
-    const transition = hover ? ";transition:background-color .15s,box-shadow .15s,color .15s,border-color .15s" : "";
-    if (base || transition) addRule(`.${cls}{${base}${transition}}`);
-    if (hover) addRule(`.${cls}:hover:not(:disabled){${hover}}`);
+    if (!hasDocument) return cls;
+    if (base) addRule(`.${cls}{${base}}`);
+    if (hover) addRule(`.${cls}:hover{${hover}}`);
+    if (narrow) addRule(`@media (max-width: ${narrow[0] - 0.02}px){.${cls}{${narrow[1]}}}`);
     return cls;
   };
 
-  const styleClass = (style, extra) => {
-    const base = [extra, styleDecls(style)].filter(Boolean).join(";");
-    const hover = style.hover ? styleDecls(style.hover) : "";
-    if (!base && !hover) return "";
-    return classFor(base, hover);
+
+  // 狭い画面での並び方
+  const collapseDecls = (kind, p) => {
+    const width = p.collapse ? BREAKPOINT[tag(p.collapse)] : undefined;
+    if (!width) return null;
+    if (kind === "row") return [width, "flex-direction:column;align-items:stretch"];
+    if (kind === "grid") return [width, "grid-template-columns:minmax(0,1fr)"];
+    return null;
   };
 
   // ---- レイアウトタグ ----
@@ -174,7 +151,9 @@ const $rt = (() => {
     tag: "div",
     attrs: {},
     key: undefined,
-    cls: [kind === "stack" ? "lx-stack" : "", styleClass(props.style, layoutDecls(kind, props))].filter(Boolean).join(" "),
+    cls: [kind === "stack" ? "tufa-stack" : "", classFor(layoutDecls(kind, props), "", collapseDecls(kind, props)), props.class]
+      .filter(Boolean)
+      .join(" "),
     children: norm(children),
   });
 
@@ -186,10 +165,10 @@ const $rt = (() => {
 
   const createRenderer = (dispatch) => {
     const listen = (el, name) => {
-      el.$lx ??= {};
-      if (name in el.$lx) return;
+      el.$tufa ??= {};
+      if (name in el.$tufa) return;
       el.addEventListener(EVENTS[name], (ev) => {
-        const handler = el.$lx[name];
+        const handler = el.$tufa[name];
         if (handler === undefined) return;
         if (name === "onSubmit") ev.preventDefault();
         if (name === "onClick") ev.stopPropagation();
@@ -200,10 +179,10 @@ const $rt = (() => {
     };
 
     const setAttr = (el, name, value) => {
-      if (name === "style" || name === "key") return;
+      if (name === "class" || name === "key") return;
       if (name in EVENTS) {
         listen(el, name);
-        el.$lx[name] = value;
+        el.$tufa[name] = value;
       } else if (name === "value") {
         if (el.value !== value) el.value = value;
       } else if (name === "checked" || name === "disabled") {
@@ -215,7 +194,7 @@ const $rt = (() => {
 
     const removeAttr = (el, name) => {
       if (name in EVENTS) {
-        if (el.$lx) el.$lx[name] = undefined;
+        if (el.$tufa) el.$tufa[name] = undefined;
       } else if (name === "checked" || name === "disabled") {
         el[name] = false;
       } else if (name === "value") {
@@ -278,66 +257,130 @@ const $rt = (() => {
     return { patchChildren };
   };
 
+  // ---- 最小限のリセット ----
+  // 見た目（色・文字の大きさなど）は利用者の CSS に任せる。ここでは、ブラウザごとの違いをならすだけ
+
+  const BASE_CSS = `
+:root { --space-xs: 4px; --space-s: 8px; --space-m: 16px; --space-l: 24px; --space-xl: 32px; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+img { display: block; max-width: 100%; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.tufa-stack > * { grid-area: 1 / 1; }
+`;
+  if (baseStyle) baseStyle.textContent = BASE_CSS;
+
+  // ---- サブスクリプション ----
+
+  // key が同じあいだは購読を続け、メッセージを作る関数だけを最新のものに差し替える
+  const sub = (key, toMsg, start) => ({ $sub: true, key, toMsg, start });
+
+  const flattenSubs = (s, out = []) => {
+    if (s === null || s === undefined) return out;
+    if (Array.isArray(s)) s.forEach((x) => flattenSubs(x, out));
+    else out.push(s);
+    return out;
+  };
+
+  // ---- URL ----
+
+  let onNavigate = null;
+
+  const currentUrl = () => {
+    const u = new URL(location.href);
+    return {
+      path: u.pathname.split("/").filter(Boolean).map(decodeURIComponent),
+      query: [...u.searchParams.entries()],
+      hash: u.hash.replace(/^#/, ""),
+    };
+  };
+
+  const navigate = (url, replace) => {
+    if (replace) history.replaceState(null, "", url);
+    else history.pushState(null, "", url);
+    if (onNavigate) onNavigate();
+  };
+
   // ---- アプリの実行 ----
 
-  const BASE_CSS = [
-    ":root{--lx-primary:#3563e9;--lx-success:#1f9d55;--lx-warning:#c27c0e;--lx-danger:#d93f3f;--lx-text:#1f2328;--lx-muted:#6b7280;--lx-surface:#ffffff;--lx-background:#f3f4f6;--lx-border:#d0d5dd}",
-    "*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}",
-    "body{font-family:system-ui,-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;font-size:16px;line-height:1.5;color:var(--lx-text);background:var(--lx-background)}",
-    "ul,ol{list-style:none}",
-    "button,input,textarea{font:inherit;color:inherit}",
-    "button{background:none;border:none;cursor:pointer;text-align:inherit}",
-    "button:disabled{opacity:.45;cursor:default}",
-    "input,textarea{min-width:0}",
-    "img{display:block;max-width:100%}",
-    "h1{font-size:28px;line-height:1.3}",
-    "h2{font-size:20px;line-height:1.3}",
-    "h3{font-size:16px}",
-    "a{color:var(--lx-primary)}",
-    ".lx-stack>*{grid-area:1/1}",
-  ];
+  const run = (config, root) => {
 
-  const run = (program, root) => {
-    for (const rule of BASE_CSS) addRule(rule);
-    let model;
+    let model = config.init;
     let pending = false;
     let current = [];
-    const step = (result) => {
-      if (program.kind === "sandbox") {
-        model = result;
-      } else {
-        model = result[0];
-        runCmd(result[1]);
-      }
-    };
+    const running = new Map(); // key → { sub, stop }
+
     const runCmd = (cmd) => {
       if (cmd === null || cmd === undefined) return;
       if (Array.isArray(cmd)) cmd.forEach(runCmd);
       else queueMicrotask(() => cmd(dispatch));
     };
+
+    const updateSubs = () => {
+      const next = new Map(flattenSubs(config.subscriptions(model)).map((s) => [s.key, s]));
+      for (const [key, r] of running) {
+        if (!next.has(key)) {
+          r.stop();
+          running.delete(key);
+        }
+      }
+      for (const [key, s] of next) {
+        const r = running.get(key);
+        if (r) {
+          r.sub = s;
+        } else {
+          const entry = { sub: s, stop: () => {} };
+          entry.stop = s.start((value) => dispatch(entry.sub.toMsg(value))) ?? (() => {});
+          running.set(key, entry);
+        }
+      }
+    };
+
     const dispatch = (msg) => {
-      step(program.update(msg)(model));
+      model = config.update(msg)(model);
+      runCmd(config.effect(msg)(model));
+      updateSubs();
       if (!pending) {
         pending = true;
         requestAnimationFrame(draw);
       }
     };
+
     const renderer = createRenderer(dispatch);
     const draw = () => {
       pending = false;
-      const next = norm([program.view(model)]);
+      const next = norm([config.view(model)]);
       renderer.patchChildren(root, current, next);
       current = next;
     };
+
+    if (config.onUrlChange) {
+      const changed = () => dispatch(config.onUrlChange(currentUrl()));
+      onNavigate = changed;
+      window.addEventListener("popstate", changed);
+      // 同じサイト内のリンクは、ページを読み直さずに URL だけ変える
+      document.addEventListener("click", (ev) => {
+        const a = ev.target instanceof Element ? ev.target.closest("a[href]") : null;
+        if (!a || ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+        if (a.target && a.target !== "_self") return;
+        const url = new URL(a.href, location.href);
+        if (url.origin !== location.origin) return;
+        ev.preventDefault();
+        navigate(url.pathname + url.search + url.hash, false);
+      });
+    }
+
     root.replaceChildren();
-    step(program.init);
+    updateSubs();
     draw();
+    runCmd(config.onStart);
+    if (config.onUrlChange) dispatch(config.onUrlChange(currentUrl()));
   };
 
   return {
     lazy, eq, append, compose, idiv, show, fail, Just, Nothing, defaults,
-    h, frag, layout, spacer, run,
+    h, frag, layout, spacer, run, sub, navigate, css,
     // テスト用
-    styleDecls, norm,
+    norm,
   };
 })();

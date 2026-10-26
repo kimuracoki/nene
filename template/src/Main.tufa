@@ -1,0 +1,57 @@
+module Main (main) where
+
+
+type Model = Int
+
+data Msg = Increment | Decrement
+
+
+update :: Msg -> Model -> Model
+update Increment n = n + 1
+update Decrement n = n - 1
+
+
+view :: Model -> Html Msg
+view n =
+  <Column gap={L} align={Center} class={css.page}>
+    <h1>Tufa</h1>
+    <Row gap={M} align={Center}>
+      <CountButton label="-" onClick={Decrement} />
+      <p class={css.count}>{show n}</p>
+      <CountButton label="+" onClick={Increment} />
+    </Row>
+    <p class={css.hint}>src/Main.tufa を編集して保存すると、ここに反映されます</p>
+  </Column>
+
+
+-- このファイルの中だけで使う部品
+countButton :: { label :: String, onClick :: msg } -> Html msg
+countButton props =
+  <button class={css.button} onClick={props.onClick}>{props.label}</button>
+
+
+main :: Program Model Msg
+main = App.app { init = 0, update, view }
+
+
+style
+  body {
+    font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif;
+  }
+  .page { padding: var(--space-xl); }
+  .count {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  .hint {
+    font-size: .875rem;
+    color: #6b7280;
+  }
+  .button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #3563e9;
+    color: white;
+    font-weight: 700;
+  }

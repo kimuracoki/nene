@@ -2,35 +2,48 @@
 module Layout where
 
 
+-- collapse に画面幅を渡すと、それより狭い画面では縦に並ぶ（S: 480px, M: 768px, L: 1024px）
 type RowProps =
+  { gap      :: Size  = None
+  , align    :: Align = Stretch
+  , justify  :: Align = Start
+  , wrap     :: Bool  = False
+  , collapse :: Size  = None
+  , class    :: Class = noClass
+  }
+
+type ColumnProps =
   { gap     :: Size  = None
   , align   :: Align = Stretch
   , justify :: Align = Start
-  , wrap    :: Bool  = False
-  , style   :: Style = Style {}
+  , class   :: Class = noClass
   }
 
+-- collapse に画面幅を渡すと、それより狭い画面では 1 列になる
 type GridProps =
-  { columns :: Int
-  , gap     :: Size  = None
-  , style   :: Style = Style {}
+  { columns  :: Int
+  , gap      :: Size  = None
+  , collapse :: Size  = None
+  , class    :: Class = noClass
   }
 
 type StackProps =
   { align   :: Align = Stretch
   , justify :: Align = Stretch
-  , style   :: Style = Style {}
+  , class   :: Class = noClass
   }
 
 type ScrollProps =
   { direction :: Direction = Vertical
-  , style     :: Style     = Style {}
+  , class     :: Class     = noClass
   }
 
 
 foreign import row :: RowProps -> [Html msg] -> Html msg = "$rt.layout('row')"
-foreign import column :: RowProps -> [Html msg] -> Html msg = "$rt.layout('column')"
+foreign import column :: ColumnProps -> [Html msg] -> Html msg = "$rt.layout('column')"
 foreign import grid :: GridProps -> [Html msg] -> Html msg = "$rt.layout('grid')"
 foreign import stack :: StackProps -> [Html msg] -> Html msg = "$rt.layout('stack')"
 foreign import scroll :: ScrollProps -> [Html msg] -> Html msg = "$rt.layout('scroll')"
 foreign import spacer :: {} -> Html msg = "$rt.spacer"
+
+foreign import noClass :: Class = "''"

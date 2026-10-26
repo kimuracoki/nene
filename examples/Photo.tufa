@@ -1,0 +1,54 @@
+-- 主部品は photo。外部からは <Photo> として使える
+module Photo (PhotoProps, PhotoSize(..), photo) where
+
+
+data PhotoSize = Thumb | Large
+
+type PhotoProps msg =
+  { src     :: String
+  , alt     :: String
+  , onClick :: msg
+  , size    :: PhotoSize    = Thumb
+  , badge   :: Maybe String = Nothing
+  }
+
+
+photo :: PhotoProps msg -> Html msg
+photo props =
+  <figure class={css.frame} onClick={props.onClick}>
+    <Stack align={Start} justify={End}>
+      <img src={props.src} alt={props.alt} class={image} />
+      <Badge label={props.badge} />
+    </Stack>
+  </figure>
+  where
+    image = classes [css.image, sizeClass props.size]
+
+
+-- このファイルの中だけで使う部品
+badge :: { label :: Maybe String } -> Html msg
+badge { label = Just s } = <span class={css.badge}>{s}</span>
+badge { label = Nothing } = <></>
+
+
+sizeClass :: PhotoSize -> Class
+sizeClass Thumb = css.thumb
+sizeClass Large = css.large
+
+
+style
+  .frame {
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgb(0 0 0 / .12);
+    cursor: pointer;
+    transition: box-shadow .2s;
+  }
+  .frame:hover { box-shadow: 0 10px 24px rgb(0 0 0 / .18); }
+  .image { border-radius: 10px; }
+  .thumb { width: 200px; }
+  .large { width: min(640px, 90vw); }
+  .badge {
+    padding: 4px 8px;
+    font-size: 1.25rem;
+    color: #f5b301;
+  }

@@ -1,18 +1,36 @@
 #!/usr/bin/env node
-// lx コマンド
-//   lx build <Main.lx> [-o dist]   ブラウザで動く index.html と app.js を出力する
-//   lx check <File.lx>             型検査だけを行う
-//   lx dev <Main.lx> [--port 5173] 変更を監視して、ブラウザを自動で再読み込みする開発サーバー
+// tufa コマンド
+//
+//   tufa new <名前>      新しいプロジェクトを作る
+//   tufa dev            開発サーバーを起動する（保存すると自動で再読み込み）
+//   tufa build          dist/ に出力する
+//   tufa check [File]   型検査だけを行う（省略すると index.html の入口から）
+//   tufa lsp            言語サーバーを起動する（エディタから使う）
+//
+// dev と build は内部で Vite を使う。vite.config があれば、その設定も読み込む。
 
-import { mkdirSync, writeFileSync, watch } from "node:fs";
-import { createServer, type ServerResponse } from "node:http";
-import { basename, dirname, join, resolve } from "node:path";
-import { bundle, compileProgram, htmlPage } from "./compiler.ts";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { compileProgram } from "./compiler.ts";
 import { CompileError } from "./syntax.ts";
 
+const here = dirname(fileURLToPath(import.meta.url));
+const packageRoot = join(here, "..");
+
 function usage(): never {
-  console.error("使い方:\n  lx build <Main.lx> [-o dist]\n  lx check <File.lx>\n  lx dev <Main.lx> [--port 5173]");
+  console.error(`使い方:
+  tufa new <名前>      新しいプロジェクトを作る
+  tufa dev            開発サーバーを起動する
+  tufa build          dist/ に出力する
+  tufa check [File]   型検査だけを行う
+  tufa lsp            言語サーバーを起動する`);
   process.exit(2);
+}
+
+function fail(message: string): never {
+  console.error(message);
+  process.exit(1);
 }
 
 function option(args: string[], name: string): string | null {
@@ -20,81 +38,102 @@ function option(args: string[], name: string): string | null {
   return i >= 0 ? (args[i + 1] ?? usage()) : null;
 }
 
-function report(e: unknown): void {
-  if (e instanceof CompileError) console.error(`エラー ${e.format()}`);
-  else throw e;
+function report(e: unknown): never {
+  if (!(e instanceof CompileError)) throw e;
+  for (const err of e.all) console.error(`エラー ${err.format()}`);
+  process.exit(1);
 }
 
-const [command, file, ...rest] = process.argv.slice(2);
-if (!command || !file) usage();
-const entry = resolve(file);
+// index.html の <script src="/src/Main.tufa"> から入口のファイルを探す
+function entries(root: string): string[] {
+  const html = join(root, "index.html");
+  if (!existsSync(html)) fail("index.html が見つかりません。プロジェクトのフォルダで実行してください（新しく作るときは tufa new <名前>）");
+  const srcs = [...readFileSync(html, "utf8").matchAll(/<script[^>]*src="([^"]+\.tufa)"/g)].map((m) => m[1]);
+  if (srcs.length === 0) fail("index.html に .tufa を読み込む <script> がありません");
+  return srcs.map((src) => join(root, src.replace(/^\//, "")));
+}
+
+async function viteOptions(root: string) {
+  const { default: tufa } = await import("./vite.ts");
+  return { root, plugins: [tufa()], logLevel: "info" as const };
+}
+
+const [command, ...args] = process.argv.slice(2);
 
 switch (command) {
-  case "build": {
-    const out = resolve(option(rest, "-o") ?? "dist");
-    try {
-      const js = bundle(compileProgram(entry));
-      mkdirSync(out, { recursive: true });
-      writeFileSync(join(out, "app.js"), js);
-      writeFileSync(join(out, "index.html"), htmlPage(basename(entry, ".lx"), "./app.js"));
-      console.log(`${join(out, "index.html")} を出力しました`);
-    } catch (e) {
-      report(e);
-      process.exit(1);
-    }
-    break;
-  }
-  case "check": {
-    try {
-      compileProgram(entry, { requireMain: false });
-      console.log("OK");
-    } catch (e) {
-      report(e);
-      process.exit(1);
-    }
+  case "new": {
+    const name = args[0] ?? usage();
+    const dir = resolve(name);
+    if (existsSync(dir) && readdirSync(dir).length > 0) fail(`${name} はすでにあり、空ではありません`);
+    const version = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")).version;
+    // npm から入れたものではなく手元のリポジトリから動かしているときは、そのリポジトリを依存先にする
+    const real = realpathSync(packageRoot);
+    const local = !real.split(/[\\/]/).includes("node_modules");
+    const dependency = local ? `file:${real}` : `^${version}`;
+    copyTemplate(join(packageRoot, "template"), dir, { name: basename(dir), dependency });
+    if (local) console.log(`（手元の ${real} を使うプロジェクトとして作ります）\n`);
+    console.log(`${name} を作りました。
+
+  cd ${relative(process.cwd(), dir) || "."}
+  npm install
+  npm run dev
+`);
     break;
   }
   case "dev": {
-    const port = Number(option(rest, "--port") ?? 5173);
-    const clients = new Set<ServerResponse>();
-    const reloadScript = `new EventSource("/__lx_reload").onmessage = () => location.reload();`;
-    const errorPage = (message: string) =>
-      `document.body.innerHTML = ${JSON.stringify(`<pre style="padding:24px;color:#b42318;font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap">${escapeHtml(message)}</pre>`)};`;
-    const server = createServer((req, res) => {
-      if (req.url === "/__lx_reload") {
-        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
-        res.write("\n");
-        clients.add(res);
-        req.on("close", () => clients.delete(res));
-        return;
-      }
-      if (req.url === "/app.js") {
-        let js: string;
-        try {
-          js = bundle(compileProgram(entry));
-        } catch (e) {
-          if (!(e instanceof CompileError)) throw e;
-          console.error(`エラー ${e.format()}`);
-          js = errorPage(e.format());
-        }
-        res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
-        res.end(`${js}\n${reloadScript}\n`);
-        return;
-      }
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(htmlPage(basename(entry, ".lx"), "/app.js"));
-    });
-    watch(dirname(entry), { recursive: true }, (_event, name) => {
-      if (!name || !name.endsWith(".lx")) return;
-      for (const c of clients) c.write("data: reload\n\n");
-    });
-    server.listen(port, () => console.log(`http://localhost:${port}/ で起動しました（${basename(entry)} を監視中）`));
+    const { createServer } = await import("vite");
+    const root = process.cwd();
+    entries(root);
+    const port = Number(option(args, "--port") ?? 5173);
+    const server = await createServer({ ...(await viteOptions(root)), server: { port } });
+    await server.listen();
+    server.printUrls();
     break;
   }
+  case "build": {
+    const { build } = await import("vite");
+    const root = process.cwd();
+    for (const entry of entries(root)) {
+      try {
+        compileProgram(entry);
+      } catch (e) {
+        report(e);
+      }
+    }
+    await build({ ...(await viteOptions(root)), build: { outDir: option(args, "-o") ?? "dist", emptyOutDir: true } });
+    break;
+  }
+  case "check": {
+    const files = args[0] ? [resolve(args[0])] : entries(process.cwd());
+    for (const file of files) {
+      try {
+        compileProgram(file, { requireMain: !args[0] });
+      } catch (e) {
+        report(e);
+      }
+    }
+    console.log("OK");
+    break;
+  }
+  case "lsp":
+    await import("./lsp.ts");
+    break;
   default:
     usage();
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+// テンプレートを写す。{{name}} などを置き換え、gitignore は .gitignore にする
+// （npm はパッケージに .gitignore を含めないため、テンプレートでは名前を変えてある）
+function copyTemplate(from: string, to: string, vars: Record<string, string>) {
+  mkdirSync(to, { recursive: true });
+  for (const entry of readdirSync(from)) {
+    const src = join(from, entry);
+    const dest = join(to, entry === "gitignore" ? ".gitignore" : entry);
+    if (statSync(src).isDirectory()) {
+      copyTemplate(src, dest, vars);
+    } else {
+      const text = readFileSync(src, "utf8").replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
+      writeFileSync(dest, text);
+    }
+  }
 }

@@ -1,0 +1,27 @@
+module App where
+
+
+-- アプリの設定。init・update・view 以外は、使うときだけ書けばよい
+type AppConfig model msg =
+  { init          :: model
+  , update        :: msg -> model -> model
+  , view          :: model -> Html msg
+  , effect        :: msg -> model -> Cmd msg = noEffect         -- update のあとに実行する副作用
+  , subscriptions :: model -> Sub msg        = noSubscriptions  -- 外から届くイベント
+  , onUrlChange   :: Url -> msg              = noRouting        -- URL が変わったとき（起動時にも届く）
+  , onStart       :: Cmd msg                 = Cmd.none         -- 起動したときに実行する副作用
+  }
+
+
+app :: AppConfig model msg -> Program model msg
+app config = toProgram config
+
+
+noEffect :: msg -> model -> Cmd msg
+noEffect _ _ = Cmd.none
+
+noSubscriptions :: model -> Sub msg
+noSubscriptions _ = Sub.none
+
+foreign import noRouting :: Url -> msg = "null"
+foreign import toProgram :: AppConfig model msg -> Program model msg = "(config) => config"

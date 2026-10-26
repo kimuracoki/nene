@@ -1,0 +1,13 @@
+{
+  "name": "{{name}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tufa dev",
+    "build": "tufa build",
+    "check": "tufa check"
+  },
+  "devDependencies": {
+    "@tufa/tufa": "{{dependency}}"
+  }
+}

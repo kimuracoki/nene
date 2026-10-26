@@ -1,5 +1,50 @@
 // 型の表現と単一化（行多相レコードと組み込み型クラスを含む）
 
+import type { Pos } from "./syntax.ts";
+
+export interface FieldDef {
+  file: string;
+  pos: Pos;
+}
+
+// フィールドを宣言した場所（エディタの「定義へ移動」用）。
+// 単一化したレコードどうしをつないでおき、引くときは近いものから探す。
+// 型の名前のないレコードも、つながった先の宣言にたどり着ける
+export class FieldDefs {
+  own: Map<string, FieldDef>;
+  links = new Set<FieldDefs>();
+  constructor(own = new Map<string, FieldDef>()) {
+    this.own = own;
+  }
+
+  link(other: FieldDefs) {
+    if (other === this) return;
+    this.links.add(other);
+    other.links.add(this);
+  }
+
+  get(name: string): FieldDef | undefined {
+    const seen = new Set<FieldDefs>([this]);
+    let frontier: FieldDefs[] = [this];
+    while (frontier.length > 0) {
+      for (const g of frontier) {
+        const d = g.own.get(name);
+        if (d) return d;
+      }
+      const next: FieldDefs[] = [];
+      for (const g of frontier) {
+        for (const l of g.links) {
+          if (seen.has(l)) continue;
+          seen.add(l);
+          next.push(l);
+        }
+      }
+      frontier = next;
+    }
+    return undefined;
+  }
+}
+
 export type Type = TVar | TCon | TFun | TRec;
 
 export class TVar {
@@ -40,6 +85,7 @@ export interface TRec {
   fields: Map<string, Type>;
   rest: Type | null; // null は閉じたレコード。TVar なら残りのフィールドを表す
   alias?: AliasTag; // デフォルト値を補うための印。単一化では無視する
+  fieldDefs?: FieldDefs;
 }
 
 export interface Scheme {
@@ -68,7 +114,7 @@ export const tFloat = con("Float");
 export const tString = con("String");
 export const tBool = con("Bool");
 export const tUnit = con("()");
-export const tStyle = con("Style");
+export const tClass = con("Class");
 export const tList = (t: Type) => con("List", [t]);
 export const tHtml = (t: Type) => con("Html", [t]);
 export const tTuple = (items: Type[]) => con(`Tuple${items.length}`, items);
@@ -79,14 +125,28 @@ export function prune(t: Type): Type {
 }
 
 // レコードを、フィールドを全部集めた形にする
-export function flattenRecord(t: TRec): { fields: Map<string, Type>; rest: Type | null; alias?: AliasTag } {
+export function flattenRecord(t: TRec): {
+  fields: Map<string, Type>;
+  rest: Type | null;
+  alias?: AliasTag;
+  fieldDef: (name: string) => FieldDef | undefined;
+} {
   const fields = new Map(t.fields);
+  const groups = t.fieldDefs ? [t.fieldDefs] : [];
   let rest = t.rest ? prune(t.rest) : null;
   while (rest && rest.k === "rec") {
     for (const [k, v] of rest.fields) if (!fields.has(k)) fields.set(k, v);
+    if (rest.fieldDefs) groups.push(rest.fieldDefs);
     rest = rest.rest ? prune(rest.rest) : null;
   }
-  return { fields, rest, alias: t.alias };
+  const fieldDef = (name: string) => {
+    for (const g of groups) {
+      const d = g.get(name);
+      if (d) return d;
+    }
+    return undefined;
+  };
+  return { fields, rest, alias: t.alias, fieldDef };
 }
 
 // ---- 型クラス ----
@@ -205,6 +265,9 @@ function unifyRecords(a: TRec, b: TRec) {
     const u = fb.fields.get(k);
     if (u) unify(t, u);
   }
+  const ga = (a.fieldDefs ??= new FieldDefs());
+  const gb = (b.fieldDefs ??= new FieldDefs());
+  ga.link(gb);
   const onlyA = new Map([...fa.fields].filter(([k]) => !fb.fields.has(k)));
   const onlyB = new Map([...fb.fields].filter(([k]) => !fa.fields.has(k)));
   const restA = fa.rest;
@@ -218,14 +281,14 @@ function unifyRecords(a: TRec, b: TRec) {
     if (!restB || restB.k !== "var") throw missing(onlyA, b);
     const level = Math.min(restA.level, restB.level);
     const r = freshVar(level);
-    bindVar(restA, { k: "rec", fields: onlyB, rest: r });
-    bindVar(restB, { k: "rec", fields: onlyA, rest: r });
+    bindVar(restA, { k: "rec", fields: onlyB, rest: r, fieldDefs: gb });
+    bindVar(restB, { k: "rec", fields: onlyA, rest: r, fieldDefs: ga });
   } else if (onlyA.size > 0) {
     if (!restB || restB.k !== "var") throw missing(onlyA, b);
-    bindVar(restB, { k: "rec", fields: onlyA, rest: restA });
+    bindVar(restB, { k: "rec", fields: onlyA, rest: restA, fieldDefs: ga });
   } else if (onlyB.size > 0) {
     if (!restA || restA.k !== "var") throw missing(onlyB, a);
-    bindVar(restA, { k: "rec", fields: onlyB, rest: restB });
+    bindVar(restA, { k: "rec", fields: onlyB, rest: restB, fieldDefs: gb });
   } else if (restA && restB) {
     unify(restA, restB);
   } else if (restA) {
@@ -285,6 +348,7 @@ export function substitute(t: Type, f: (v: TVar) => Type | undefined): Type {
         fields: new Map([...t.fields].map(([k, v]) => [k, substitute(v, f)])),
         rest: t.rest ? substitute(t.rest, f) : null,
         alias: t.alias,
+        fieldDefs: (t.fieldDefs ??= new FieldDefs()), // 写しとも宣言の場所を共有する
       };
   }
 }

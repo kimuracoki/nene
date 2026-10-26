@@ -6,7 +6,7 @@ import { runInDom } from "./helpers.ts";
 
 const examples = join(import.meta.dirname, "..", "examples");
 const exampleFiles = (...names: string[]) =>
-  Object.fromEntries(names.map((n) => [n, readFileSync(join(examples, `${n}.lx`), "utf8")]));
+  Object.fromEntries(names.map((n) => [n, readFileSync(join(examples, `${n}.tufa`), "utf8")]));
 
 test("Counter: ボタンで数が増減する", async () => {
   const app = await runInDom(exampleFiles("Counter", "Button", "Icon"), "Counter");
@@ -78,4 +78,63 @@ test("Gallery: 写真を押すと大きく表示し、お気に入りにでき�
   assert.equal(app.document.querySelectorAll("img").length, 9);
   // 閉じたあとも一覧のバッジは残る
   assert.match(app.text(), /★/);
+});
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+test("Gallery: 開いた写真は URL に入り、Esc キーで閉じる", async () => {
+  const app = await runInDom(exampleFiles("Gallery", "Photo", "IconButton", "Icon"), "Gallery");
+  await app.click("figure", 2);
+  await wait(10);
+  await app.frame();
+  assert.equal(app.window.location.search, "?photo=46");
+  assert.equal(app.document.querySelectorAll("img").length, 10);
+  app.document.dispatchEvent(new app.window.KeyboardEvent("keydown", { key: "Escape" }));
+  await wait(10);
+  await app.frame();
+  assert.equal(app.window.location.search, "");
+  assert.equal(app.document.querySelectorAll("img").length, 9);
+});
+
+test("Stopwatch: タイマーで進み、ラップのベストを保存し、テーマを使う", async () => {
+  const app = await runInDom(exampleFiles("Stopwatch", "Button", "Icon"), "Stopwatch");
+  assert.match(app.text(), /00:00\.00/);
+  const button = (label: string) => [...app.document.querySelectorAll("button")].find((b) => b.textContent === label)!;
+  button("開始").click();
+  await wait(150);
+  await app.frame();
+  assert.doesNotMatch(app.text(), /^00:00\.00/);
+  button("ラップ").click();
+  await wait(10);
+  await app.frame();
+  assert.match(app.text(), /ラップ 1/);
+  assert.match(app.text(), /ベストラップ/);
+  assert.ok(Number(app.window.localStorage.getItem("stopwatch.best")) > 0);
+  // スペースキーで止まる
+  app.document.dispatchEvent(new app.window.KeyboardEvent("keydown", { key: " " }));
+  await app.frame();
+  assert.ok(button("開始"));
+  const css = [...app.document.styleSheets].flatMap((s) => [...s.cssRules].map((r) => r.cssText)).join("\n");
+  assert.match(css, /--primary: ?#22c55e/);
+  assert.ok(app.document.querySelector(".Stopwatch__clock"));
+});
+
+test("collapse: 狭い画面では Row を縦に、Grid を 1 列にする CSS を出す", async () => {
+  const app = await runInDom({
+    Main: `module Main (main) where
+
+main :: Program Int Int
+main = App.app { init = 0, update = always identity, view = always page }
+
+page :: Html Int
+page =
+  <Column>
+    <Row gap={S} collapse={M}><p>a</p><p>b</p></Row>
+    <Grid columns={3} collapse={S}><p>c</p></Grid>
+  </Column>
+`,
+  });
+  const css = [...app.document.styleSheets].flatMap((s) => [...s.cssRules].map((r) => r.cssText)).join("\n");
+  assert.match(css, /@media \(max-width: 767\.98px\)[^}]*flex-direction: column/);
+  assert.match(css, /@media \(max-width: 479\.98px\)[^}]*grid-template-columns: minmax\(0(px)?, ?1fr\)/);
 });

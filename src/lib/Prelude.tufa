@@ -9,21 +9,24 @@ data Maybe a = Nothing | Just a
 data Result e a = Err e | Ok a
 
 
--- デザイントークン（spec 9.2）
+-- レイアウトタグで使う値（spec 8 章）
 
+-- 間隔の大きさ。CSS からは var(--space-s) などで同じ値を使える
 data Size = None | XS | S | M | L | XL
-
-data Length = Fill | Shrink | Px Int
-
-data Weight = Regular | Bold
-
-data Color
-  = Primary | Success | Warning | Danger
-  | Text | Muted | Surface | Background | Border | Transparent
 
 data Align = Start | Center | End | Stretch
 
 data Direction = Horizontal | Vertical
+
+
+-- アプリ（spec 7 章）
+
+-- いまの URL。path は "/todos/3" なら ["todos", "3"]
+type Url =
+  { path  :: [String]
+  , query :: [(String, String)]
+  , hash  :: String
+  }
 
 
 -- 基本
@@ -47,12 +50,16 @@ fst (x, _) = x
 snd :: (a, b) -> b
 snd (_, y) = y
 
+-- 複数のクラスを 1 つにまとめる（class={look} の look を作るとき）
+foreign import classes :: [Class] -> Class = "(cs) => cs.filter((c) => c).join(' ')"
+
 foreign import show :: Show a => a -> String = "$rt.show"
 foreign import negate :: Num a => a -> a = "(x) => -x"
 foreign import abs :: Num a => a -> a = "(x) => Math.abs(x)"
 foreign import min :: Ord a => a -> a -> a = "(a) => (b) => (a <= b ? a : b)"
 foreign import max :: Ord a => a -> a -> a = "(a) => (b) => (a >= b ? a : b)"
 foreign import subtract :: Num a => a -> a -> a = "(a) => (b) => b - a"
+foreign import mod :: Int -> Int -> Int = "(a) => (b) => (b === 0 ? 0 : ((a % b) + b) % b)"
 foreign import toFloat :: Int -> Float = "(x) => x"
 foreign import round :: Float -> Int = "(x) => Math.round(x)"
 foreign import floor :: Float -> Int = "(x) => Math.floor(x)"

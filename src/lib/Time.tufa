@@ -1,0 +1,9 @@
+-- 時刻とタイマー。時刻は 1970-01-01 からのミリ秒
+module Time where
+
+
+foreign import now :: (Int -> msg) -> Cmd msg
+  = "(toMsg) => (dispatch) => dispatch(toMsg(Date.now()))"
+
+foreign import every :: Int -> (Int -> msg) -> Sub msg
+  = "(ms) => (toMsg) => $rt.sub('Time.every:' + ms, (t) => toMsg(t), (emit) => { const id = setInterval(() => emit(Date.now()), ms); return () => clearInterval(id); })"

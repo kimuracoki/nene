@@ -29,7 +29,7 @@ export interface Token {
 
 const KEYWORDS = new Set(["module", "where", "import", "qualified", "as", "data", "type", "foreign"]);
 
-// lambda-jsx にない構文。書かれたら代わりの書き方を案内する
+// Tufa にない構文。書かれたら代わりの書き方を案内する
 export const REMOVED: Record<string, string> = {
   if: "if はありません。ガード（| 条件 = 値）を使ってください",
   then: "if はありません。ガード（| 条件 = 値）を使ってください",
@@ -39,7 +39,6 @@ export const REMOVED: Record<string, string> = {
   let: "let はありません。where を使ってください",
   in: "let はありません。where を使ってください",
   do: "do 記法はありません",
-  class: "型クラスは定義できません",
   instance: "型クラスのインスタンスは定義できません",
 };
 const SYMBOL_CHARS = "+-*/<>=!&|:.\\^%$#@?~";

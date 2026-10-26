@@ -17,3 +17,9 @@ find p (x : xs)
 find _ [] = Nothing
 
 foreign import indexedMap :: (Int -> a -> b) -> [a] -> [b] = "(f) => (xs) => xs.map((x, i) => f(i)(x))"
+
+lookup :: a -> [(a, b)] -> Maybe b
+lookup key ((k, v) : rest)
+  | k == key  = Just v
+  | otherwise = lookup key rest
+lookup _ [] = Nothing

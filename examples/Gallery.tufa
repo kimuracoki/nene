@@ -1,0 +1,191 @@
+-- アルバムごとに写真が横に続くギャラリー。写真を押すと大きく表示する
+-- 開いている写真は URL（?photo=10）に入るので、ブラウザの戻るボタンで閉じられる
+module Gallery (main) where
+
+import IconButton
+import Photo (PhotoSize(..))
+
+
+type Image =
+  { id       :: Int
+  , src      :: String
+  , caption  :: String
+  , favorite :: Bool
+  }
+
+type Album =
+  { title  :: String
+  , images :: [Image]
+  }
+
+type Model =
+  { albums   :: [Album]
+  , selected :: Maybe Int
+  }
+
+data Msg
+  = Open Int
+  | Close
+  | ToggleFavorite Int
+  | KeyPressed String
+  | UrlChanged Url
+
+
+init :: Model
+init =
+  { albums =
+      [ { title = "山", images = map picture [ (10, "朝の稜線"), (29, "霧"), (46, "湖"), (54, "尾根道"), (57, "夕暮れ") ] }
+      , { title = "街", images = map picture [ (43, "交差点"), (48, "窓辺"), (76, "路地"), (103, "駅") ] }
+      ]
+  , selected = Nothing
+  }
+  where
+    picture (id, caption) =
+      { id
+      , src      = "https://picsum.photos/id/" ++ show id ++ "/640/420"
+      , caption
+      , favorite = False
+      }
+
+
+-- UPDATE
+
+update :: Msg -> Model -> Model
+update (UrlChanged url) model = { model | selected = photoIn url }
+  where
+    photoIn u = Maybe.andThen String.toInt (List.lookup "photo" u.query)
+update (ToggleFavorite id) model = { model | albums = map toggleIn model.albums }
+  where
+    toggleIn album = { album | images = map toggle album.images }
+
+    toggle image
+      | image.id == id = { image | favorite = not image.favorite }
+      | otherwise      = image
+update _ model = model
+
+
+-- 写真を開く・閉じるは URL を変えるだけ。URL が変わると UrlChanged が届く
+effect :: Msg -> Model -> Cmd Msg
+effect (Open id) _             = Nav.pushUrl ("?photo=" ++ show id)
+effect Close _                 = Nav.pushUrl "?"
+effect (KeyPressed "Escape") _ = Nav.pushUrl "?"
+effect _ _                     = Cmd.none
+
+
+-- 写真を開いているあいだだけ、キーボードを見る
+subscriptions :: Model -> Sub Msg
+subscriptions { selected = Just _ } = Keyboard.onKeyDown KeyPressed
+subscriptions _                     = Sub.none
+
+
+-- VIEW
+
+view :: Model -> Html Msg
+view model =
+  <Stack>
+    <Column gap={XL} class={css.page}>
+      <h1>ギャラリー</h1>
+      {map albumRow model.albums}
+    </Column>
+    <Viewer image={selectedImage} />
+  </Stack>
+  where
+    selectedImage  = Maybe.andThen findImage model.selected
+    findImage id   = List.find (hasId id) (concatMap (.images) model.albums)
+    hasId id image = image.id == id
+
+
+albumRow :: Album -> Html Msg
+albumRow album =
+  <section>
+    <Column gap={S}>
+      <Row align={Center}>
+        <h2>{album.title}</h2>
+        <Spacer />
+        <span class={css.muted}>{count}</span>
+      </Row>
+      <Scroll direction={Horizontal}>
+        <Row gap={M} class={css.strip}>
+          {map thumb album.images}
+        </Row>
+      </Scroll>
+    </Column>
+  </section>
+  where
+    count = show (length album.images) ++ " 枚"
+
+    -- リストの要素 1 つを描く関数
+    thumb image =
+      <Photo src={image.src} alt={image.caption} badge={favoriteBadge image} onClick={Open image.id} />
+
+    favoriteBadge image
+      | image.favorite = Just "★"
+      | otherwise      = Nothing
+
+
+-- 選んだ写真を、一覧の上に重ねて表示する
+viewer :: { image :: Maybe Image } -> Html Msg
+viewer { image = Nothing } = <></>
+viewer { image = Just image } =
+  <Column align={Center} class={css.backdrop}>
+    <Column gap={M} class={css.panel}>
+      <Photo src={image.src} alt={image.caption} size={Large} onClick={Close} />
+      <Row gap={S} align={Center}>
+        <p>{image.caption}</p>
+        <Spacer />
+        <IconButton icon={favoriteIcon} label="お気に入り" onClick={ToggleFavorite image.id} />
+        <IconButton icon="close" label="閉じる" onClick={Close} />
+      </Row>
+    </Column>
+  </Column>
+  where
+
+    favoriteIcon
+      | image.favorite = "star"
+      | otherwise      = "star_border"
+
+
+main :: Program Model Msg
+main = App.app { init, update, view, effect, subscriptions, onUrlChange = UrlChanged }
+
+
+style
+  :root {
+    --primary: #3563e9;
+    --warning: #c27c0e;
+    --danger: #d93f3f;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --surface: #ffffff;
+    --background: #f3f4f6;
+    --border: #d0d5dd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #e6e8eb;
+      --muted: #9aa3ae;
+      --surface: #1e2227;
+      --background: #15181c;
+      --border: #39404a;
+    }
+  }
+  body {
+    font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--background);
+  }
+  .page { padding: var(--space-l); }
+  .muted { color: var(--muted); }
+  .strip { padding: var(--space-s); }
+  .backdrop {
+    min-height: 100vh;
+    padding: var(--space-xl);
+    background: var(--background);
+  }
+  .panel {
+    padding: var(--space-m);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: 0 20px 48px rgb(0 0 0 / .2);
+  }

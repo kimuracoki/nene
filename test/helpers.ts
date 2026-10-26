@@ -6,8 +6,8 @@ const ROOT = "/virtual";
 
 // ファイル名と中身の組から、メモリ上だけでコンパイルする
 export function compile(files: Record<string, string>, entry = "Main"): ProgramResult {
-  const overrides = new Map(Object.entries(files).map(([name, src]) => [`${ROOT}/${name.replace(/\./g, "/")}.lx`, src]));
-  return compileProgram(`${ROOT}/${entry}.lx`, { overrides });
+  const overrides = new Map(Object.entries(files).map(([name, src]) => [`${ROOT}/${name.replace(/\./g, "/")}.tufa`, src]));
+  return compileProgram(`${ROOT}/${entry}.tufa`, { overrides });
 }
 
 // コンパイルエラーのメッセージを返す（成功したら例外）
@@ -21,6 +21,17 @@ export function compileError(files: Record<string, string>, entry = "Main"): str
   throw new Error("コンパイルが成功してしまいました");
 }
 
+// すべてのコンパイルエラーのメッセージ
+export function compileErrors(files: Record<string, string>, entry = "Main"): string[] {
+  try {
+    compile(files, entry);
+  } catch (e) {
+    if (e instanceof CompileError) return e.all.map((x) => x.message);
+    throw e;
+  }
+  throw new Error("コンパイルが成功してしまいました");
+}
+
 export function mainModule(body: string): Record<string, string> {
   return { Main: `module Main (main) where\n\n${body}\n` };
 }
@@ -28,6 +39,7 @@ export function mainModule(body: string): Record<string, string> {
 export async function runInDom(files: Record<string, string>, entry = "Main") {
   const js = bundle(compile(files, entry));
   const dom = new JSDOM(`<!doctype html><html><head></head><body><div id="app"></div></body></html>`, {
+    url: "http://localhost/",
     runScripts: "outside-only",
     pretendToBeVisual: true,
   });

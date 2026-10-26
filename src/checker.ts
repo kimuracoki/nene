@@ -36,10 +36,11 @@ import {
   tInt,
   tList,
   tString,
-  tStyle,
+  tClass,
   tTuple,
   tUnit,
   unify,
+  FieldDefs,
   type AliasTag,
   type Scheme,
   type TRec,
@@ -47,6 +48,7 @@ import {
   type TVar,
 } from "./types.ts";
 import { checkExhaustive } from "./exhaust.ts";
+import { scopeStyle, type ScopedStyle } from "./css.ts";
 
 // ---- モジュールの外から見える情報 ----
 
@@ -54,11 +56,35 @@ export interface ValueInfo {
   scheme: Scheme;
   ref: ValueRef;
   def?: Location; // 定義の場所（エディタの「定義へ移動」用）
+  param?: boolean; // パターンで束縛した引数
 }
 
 export interface Location {
   file: string;
   pos: Pos;
+}
+
+// エディタの色分け用。名前の種類
+export type SemType = "namespace" | "type" | "class" | "enumMember" | "function" | "variable" | "parameter" | "property" | "macro";
+
+export interface SemToken {
+  pos: Pos;
+  length: number;
+  type: SemType | (() => SemType);
+}
+
+// エディタの補完用。タグとして使える部品
+export interface TagCandidate {
+  name: string;
+  detail: string;
+  fields: { name: string; required: boolean; type: string }[];
+  children: boolean;
+}
+
+export interface CompletionInfo {
+  values: { name: string; detail: string }[]; // 修飾なしで使える名前
+  quals: Map<string, { name: string; detail: string }[]>; // List. などの後に使える名前
+  tags: TagCandidate[];
 }
 
 // エディタのホバー表示用。名前が出てくる場所と、その型
@@ -67,12 +93,15 @@ export interface HoverInfo {
   length: number;
   name: string;
   type: () => string;
-  def?: Location;
+  typeOf?: () => Type;
+  label?: () => string; // 「名前 :: 型」の代わりに出す説明（型やモジュールの名前など）
+  def?: Location | (() => Location | undefined); // 型が決まってから分かるものは関数にする
 }
 
 export interface CtorInfo {
   ref: CtorRef;
   scheme: Scheme; // 引数 -> ... -> 型
+  def?: Location;
 }
 
 export interface TypeInfo {
@@ -84,28 +113,37 @@ export interface TypeInfo {
   expand?: (args: Type[]) => Type; // 型の別名を展開する
   defaults?: Set<string>;
   defaultsKey?: string;
+  def?: Location;
+  params?: string[]; // 宣言での型変数の名前（ホバー用）
 }
 
 export interface ModuleIface {
   name: string;
+  file: string;
   js: string;
   values: Map<string, ValueInfo>;
   ctors: Map<string, CtorInfo>;
   types: Map<string, TypeInfo>;
 }
 
-export const STD_QUALIFIED = ["App", "Cmd", "List", "Maybe", "String"];
+// 依存される順に並べる（App は Cmd と Sub を使う）
+export const STD_QUALIFIED = ["Cmd", "Sub", "List", "Maybe", "String", "Time", "Window", "Keyboard", "Nav", "Storage", "App"];
 export const RESERVED_MODULES = ["Prelude", "Layout", ...STD_QUALIFIED];
 
-const HTML_ELEMENTS = new Set([
+export const HTML_ELEMENTS = new Set([
   "h1", "h2", "h3", "p", "span", "strong", "a", "ul", "ol", "li", "section", "header", "footer", "main", "nav",
   "article", "figure", "figcaption", "img", "button", "input", "label", "form", "textarea", "div",
 ]);
 
+export const HTML_ATTRS = [
+  "class", "key", "src", "alt", "href", "type", "value", "placeholder", "name", "id", "for", "title",
+  "disabled", "checked", "onClick", "onSubmit", "onInput", "onCheck",
+];
+
 function htmlAttrType(name: string, msg: Type): Type | null {
   switch (name) {
-    case "style":
-      return tStyle;
+    case "class":
+      return tClass;
     case "key":
     case "src":
     case "alt":
@@ -133,21 +171,6 @@ function htmlAttrType(name: string, msg: Type): Type | null {
   }
 }
 
-const STYLE_FIELDS: Record<string, string> = {
-  padding: "Size",
-  paddingX: "Size",
-  paddingY: "Size",
-  width: "Length",
-  height: "Length",
-  background: "Color",
-  color: "Color",
-  border: "Color",
-  radius: "Size",
-  shadow: "Size",
-  font: "Size",
-  weight: "Weight",
-  hover: "Style",
-};
 
 const JS_RESERVED = new Set(
   (
@@ -196,6 +219,9 @@ export interface CheckResult {
   iface: ModuleIface;
   defaults: { key: string; fields: { name: string; expr: Expr }[] }[];
   hovers: HoverInfo[];
+  tokens: SemToken[];
+  completion: CompletionInfo;
+  style: ScopedStyle | null;
 }
 
 export function checkModule(mod: Module, file: string, opts: CheckOptions): CheckResult {
@@ -215,6 +241,9 @@ class Checker {
   sigVarNames = new Map<TVar, string>();
   defaults: CheckResult["defaults"] = [];
   hovers: HoverInfo[] = [];
+  errors: CompileError[] = [];
+  tokens: SemToken[] = [];
+  style: ScopedStyle | null = null;
 
   constructor(mod: Module, file: string, opts: CheckOptions) {
     this.mod = mod;
@@ -245,10 +274,85 @@ class Checker {
     this.setupEnv();
     this.declareTypes();
     this.declareForeigns();
-    this.checkDefaults();
+    this.declareStyle();
     this.inferBlock(this.mod.body, this.top, true);
-    if (this.opts.entry) this.checkMain();
-    return { iface: this.buildIface(), defaults: this.defaults, hovers: this.hovers };
+    this.recover(() => this.checkDefaults());
+    if (this.opts.entry) this.recover(() => this.checkMain());
+    if (this.errors.length > 0) {
+      throw CompileError.of(this.errors.sort((a, b) => (a.pos?.line ?? 0) - (b.pos?.line ?? 0)));
+    }
+    const result: CheckResult = {
+      iface: this.buildIface(),
+      defaults: this.defaults,
+      hovers: this.hovers,
+      tokens: this.tokens,
+      completion: this.completionInfo(),
+      style: this.style,
+    };
+    // ほかのモジュールが型の別名を展開しても、このモジュールの結果に書き足さない
+    this.hovers = [];
+    this.tokens = [];
+    return result;
+  }
+
+  tok(pos: Pos, length: number, type: SemToken["type"]) {
+    this.tokens.push({ pos, length, type });
+  }
+
+  // M.name の形なら、モジュール名と名前を分けて記録する
+  qualTok(pos: Pos, module: string | null, name: string, type: SemToken["type"]) {
+    if (module) {
+      this.tok(pos, module.length, "namespace");
+      this.tok({ line: pos.line, col: pos.col + module.length + 1 }, name.length, type);
+    } else {
+      this.tok(pos, name.length, type);
+    }
+  }
+
+  // 型の名前のホバー
+  typeHover(pos: Pos, name: string, info: TypeInfo) {
+    const label = () => {
+      const head = [info.display, ...(info.params ?? [])].join(" ");
+      if (info.kind === "data") return `data ${head} = ${info.ctors.join(" | ")}`;
+      if (info.kind === "opaque") return `type ${head}`;
+      // 型変数は宣言での名前で表示する
+      const params = (info.params ?? []).map((p): Type => ({ k: "con", name: `$param.${p}`, display: p, args: [] }));
+      return `type ${head} = ${show(info.expand!(params))}`;
+    };
+    this.hovers.push({ pos, length: name.length, name, type: label, label, def: info.def });
+  }
+
+  ctorHover(pos: Pos, name: string, c: CtorInfo, t: () => Type) {
+    this.hovers.push({ pos, length: name.length, name, type: () => show(t()), def: c.def });
+  }
+
+  // フィールドのホバー。rec は単一化のあとで宣言の場所が伝わってくるレコード
+  fieldHover(pos: Pos, name: string, rec: TRec, t: Type) {
+    const def = () => flattenRecord(rec).fieldDef(name);
+    this.hovers.push({ pos, length: name.length, name, type: () => show(t), typeOf: () => t, def });
+  }
+
+  moduleHover(pos: Pos, name: string, iface: ModuleIface) {
+    const label = () => `module ${iface.name}`;
+    this.hovers.push({ pos, length: name.length, name, type: label, label, def: { file: iface.file, pos: { line: 1, col: 1 } } });
+  }
+
+  // エラーを記録して先へ進む。状態は呼ぶ前に戻す
+  recover(f: () => void): boolean {
+    const scopes = this.scopes.length;
+    const level = this.level;
+    const deferred = this.deferred.length;
+    try {
+      f();
+      return true;
+    } catch (e) {
+      if (!(e instanceof CompileError)) throw e;
+      this.errors.push(...e.all);
+      this.scopes.length = scopes;
+      this.level = level;
+      this.deferred.length = deferred;
+      return false;
+    }
   }
 
   setupEnv() {
@@ -262,8 +366,8 @@ class Checker {
         if (iface && q !== this.mod.name) this.env.quals.set(q, iface);
       }
     } else {
-      for (const name of ["Int", "Float", "String", "Html", "Style", "Cmd", "Program"]) {
-        const arity = name === "Html" || name === "Cmd" ? 1 : name === "Program" ? 2 : 0;
+      for (const name of ["Int", "Float", "String", "Html", "Class", "Cmd", "Sub", "Program"]) {
+        const arity = name === "Html" || name === "Cmd" || name === "Sub" ? 1 : name === "Program" ? 2 : 0;
         this.env.types.set(name, { name, display: name, arity, kind: "opaque", ctors: [] });
       }
     }
@@ -273,6 +377,7 @@ class Checker {
       }
       const iface = deps.get(imp.module);
       if (!iface) throw this.error(`モジュール ${imp.module} が見つかりません`, imp.pos);
+      this.moduleHover(imp.modulePos, imp.module, iface);
       const last = imp.module.split(".").pop()!;
       const tag = imp.alias ?? last;
       this.env.tagModules.set(tag, { iface, main: lowerFirst(last) });
@@ -297,10 +402,12 @@ class Checker {
         const v = iface.values.get(item.name);
         if (!v) throw this.error(`${iface.name} は ${item.name} を export していません`, item.pos);
         this.env.values.set(item.name, qualify(iface, v));
+        this.hovers.push({ pos: item.pos, length: item.name.length, name: item.name, type: () => showScheme(v.scheme), def: v.def });
       } else {
         const t = iface.types.get(item.name);
         if (!t) throw this.error(`${iface.name} は型 ${item.name} を export していません`, item.pos);
         this.env.types.set(item.name, t);
+        this.typeHover(item.pos, item.name, t);
         if (item.all) {
           for (const c of t.ctors) {
             const ci = iface.ctors.get(c);
@@ -323,13 +430,17 @@ class Checker {
     for (const d of this.mod.datas) {
       claim(d.name, d.pos);
       const name = uniqueTypeName(this.mod.name, d.name);
-      this.env.types.set(d.name, {
+      const info: TypeInfo = {
         name,
         display: d.name,
         arity: d.params.length,
         kind: "data",
         ctors: d.ctors.map((c) => c.name),
-      });
+        def: { file: this.file, pos: d.namePos },
+        params: d.params,
+      };
+      this.env.types.set(d.name, info);
+      this.typeHover(d.namePos, d.name, info);
     }
     for (const a of this.mod.aliases) {
       claim(a.name, a.pos);
@@ -352,10 +463,13 @@ class Checker {
         ownCtors.add(c.name);
         const args = c.args.map((a) => this.typeFromExpr(a, params, false));
         const scheme: Scheme = { vars, type: funN(args, result) };
-        this.env.ctors.set(c.name, {
+        const ci: CtorInfo = {
           scheme,
           ref: { name: c.name, typeName: info.name, arity: c.args.length, js: "", siblings },
-        });
+          def: { file: this.file, pos: c.pos },
+        };
+        this.env.ctors.set(c.name, ci);
+        this.ctorHover(c.pos, c.name, ci, () => scheme.type);
       }
     }
   }
@@ -379,6 +493,8 @@ class Checker {
       ctors: [],
       defaults,
       defaultsKey: defaults ? key : undefined,
+      def: { file: this.file, pos: a.namePos },
+      params: a.params,
       expand: (args) => {
         if (depth > 50) throw this.error(`型の別名 ${a.name} が自分自身を参照しています`, a.pos);
         depth++;
@@ -396,6 +512,7 @@ class Checker {
       },
     };
     this.env.types.set(a.name, info);
+    this.typeHover(a.namePos, a.name, info);
   }
 
   // ---- 型の構文 → 型 ----
@@ -426,10 +543,15 @@ class Checker {
           return fun(go(t.from), go(t.to));
         case "trecord": {
           const fields = new Map<string, Type>();
-          for (const f of t.fields) fields.set(f.name, go(f.type));
-          return { k: "rec", fields, rest: null };
+          const defs = new Map<string, Location>();
+          for (const f of t.fields) {
+            fields.set(f.name, go(f.type));
+            defs.set(f.name, { file: this.file, pos: f.pos });
+          }
+          return { k: "rec", fields, rest: null, fieldDefs: new FieldDefs(defs) };
         }
         case "tcon": {
+          if (env === this.env) this.qualTok(t.pos, t.module, t.name, "type");
           let info: TypeInfo | undefined;
           if (t.module) {
             const iface = env.quals.get(t.module);
@@ -439,6 +561,7 @@ class Checker {
             info = env.types.get(t.name);
           }
           if (!info) throw this.error(`型 ${t.name} が見つかりません`, t.pos);
+          if (env === this.env) this.typeHover(t.pos, t.module ? `${t.module}.${t.name}` : t.name, info);
           if (info.arity !== t.args.length) {
             throw this.error(`型 ${t.name} には ${info.arity} 個の引数が必要です（${t.args.length} 個あります）`, t.pos);
           }
@@ -453,6 +576,7 @@ class Checker {
 
   // 型注釈を型スキームにする
   sigScheme(sig: TypeSig): Scheme {
+    this.tok(sig.pos, sig.name.length, () => (sig.type.k === "tfun" ? "function" : "variable"));
     const vars = new Map<string, Type>();
     this.level++;
     const type = this.typeFromExpr(sig.type, vars, true);
@@ -500,6 +624,23 @@ class Checker {
     }
   }
 
+  // ---- style ブロック ----
+
+  // style ブロックのクラスを、css というレコードとして使えるようにする（css.card など）
+  declareStyle() {
+    const block = this.mod.style;
+    if (!block) return;
+    const clash = this.mod.body.bindings.find((b) => b.name === "css");
+    if (clash) throw this.error("css は style ブロックのクラスを表す名前なので、別の名前にしてください", clash.pos);
+    this.style = scopeStyle(block, this.mod.name, this.file);
+    const fields = new Map<string, Type>([...this.style.classes.keys()].map((k) => [k, tClass]));
+    this.top.set("css", {
+      scheme: mono({ k: "rec", fields, rest: null }),
+      ref: { js: "css", thunk: false },
+      def: { file: this.file, pos: block.pos },
+    });
+  }
+
   // ---- デフォルト値 ----
 
   checkDefaults() {
@@ -512,7 +653,9 @@ class Checker {
       const rec = info.expand!(params) as TRec;
       for (const f of fields) {
         const expr = f.default!;
-        if (!isConstant(expr)) throw this.error(`デフォルト値には定数（リテラルやコンストラクタ）だけを書けます`, expr.pos);
+        if (!isConstant(expr)) {
+          throw this.error("デフォルト値には、定数（リテラルやコンストラクタ）とトップレベルの名前だけを書けます", expr.pos);
+        }
         const t = this.infer(expr);
         this.unifyAt(t, rec.fields.get(f.name)!, expr.pos, `${f.name} のデフォルト値`);
       }
@@ -572,32 +715,50 @@ class Checker {
       const scheme = b.sig ? this.sigScheme(b.sig) : mono(freshVar(this.level + 1));
       const info: ValueInfo = { scheme, ref: { js: b.js, thunk }, def: { file: this.file, pos: b.pos } };
       scope.set(b.name, info);
+      const kind = (): SemType => (b.equations[0].params.length > 0 || prune(info.scheme.type).k === "fun" ? "function" : "variable");
+      if (b.sig) this.hovers.push({ pos: b.sig.pos, length: b.name.length, name: b.name, type: () => showScheme(info.scheme), def: info.def });
       for (const eq of b.equations) {
         this.hovers.push({ pos: eq.pos, length: b.name.length, name: b.name, type: () => showScheme(info.scheme), def: info.def });
+        this.tok(eq.pos, b.name.length, kind);
       }
     }
     if (!top) this.scopes.push(scope);
     const sccs = stronglyConnected(bindings);
     for (const group of sccs) {
-      this.level++;
-      const monos = new Map<Binding, Type>();
-      for (const b of group) {
-        if (!b.sig) monos.set(b, scope.get(b.name)!.scheme.type);
+      if (!top) {
+        this.inferGroup(group, scope);
+        continue;
       }
-      const deferredBefore = this.deferred.length;
-      for (const b of group) {
-        const expected = b.sig ? this.skolemize(scope.get(b.name)!.scheme) : monos.get(b)!;
-        this.inferBinding(b, expected);
+      // トップレベルでは、定義ごとにエラーを集めて先へ進む
+      const ok = this.recover(() => this.inferGroup(group, scope));
+      if (!ok) {
+        // エラーになった定義は、どんな型にもなれるものとして扱い、エラーの連鎖を防ぐ
+        for (const b of group) {
+          if (!b.sig) scope.get(b.name)!.scheme = generalize(freshVar(this.level + 1), this.level);
+        }
       }
-      // 子要素の型の確定を待っていたものを片づける
-      const pending = this.deferred.splice(deferredBefore);
-      for (const f of pending) f();
-      this.level--;
-      for (const [b, t] of monos) {
-        scope.get(b.name)!.scheme = generalize(t, this.level);
-      }
-      for (const b of group) this.checkExhaustive(b);
     }
+  }
+
+  inferGroup(group: Binding[], scope: Map<string, ValueInfo>) {
+    this.level++;
+    const monos = new Map<Binding, Type>();
+    for (const b of group) {
+      if (!b.sig) monos.set(b, scope.get(b.name)!.scheme.type);
+    }
+    const deferredBefore = this.deferred.length;
+    for (const b of group) {
+      const expected = b.sig ? this.skolemize(scope.get(b.name)!.scheme) : monos.get(b)!;
+      this.inferBinding(b, expected);
+    }
+    // 子要素の型の確定を待っていたものを片づける
+    const pending = this.deferred.splice(deferredBefore);
+    for (const f of pending) f();
+    this.level--;
+    for (const [b, t] of monos) {
+      scope.get(b.name)!.scheme = generalize(t, this.level);
+    }
+    for (const b of group) this.checkExhaustive(b);
   }
 
   inferBinding(b: Binding, expected: Type) {
@@ -655,8 +816,9 @@ class Checker {
     const bind = (name: string, pos: Pos, type: Type) => {
       if (scope.has(name)) throw this.error(`${name} が 1 つのパターンに 2 回出てきます`, pos);
       const def = { file: this.file, pos };
-      scope.set(name, { scheme: mono(type), ref: { js: jsName(name), thunk: false }, def });
-      this.hovers.push({ pos, length: name.length, name, type: () => show(type), def });
+      scope.set(name, { scheme: mono(type), ref: { js: jsName(name), thunk: false }, def, param: true });
+      this.hovers.push({ pos, length: name.length, name, type: () => show(type), typeOf: () => type, def });
+      this.tok(pos, name.length, "parameter");
     };
     switch (p.k) {
       case "pvar":
@@ -677,7 +839,9 @@ class Checker {
           throw this.error(`${p.name} には ${c.ref.arity} 個の引数が必要です（${p.args.length} 個あります）`, p.pos);
         }
         p.ref = c.ref;
+        this.qualTok(p.pos, p.module, p.name, "enumMember");
         let ct = instantiate(c.scheme, this.level);
+        this.ctorHover(p.pos, p.module ? `${p.module}.${p.name}` : p.name, c, () => t);
         const argTypes: Type[] = [];
         for (let i = 0; i < p.args.length; i++) {
           const f = prune(ct);
@@ -711,7 +875,10 @@ class Checker {
       case "precord": {
         const fields = new Map<string, Type>();
         for (const f of p.fields) fields.set(f.name, freshVar(this.level));
-        this.unifyAt(t, { k: "rec", fields, rest: freshVar(this.level) }, p.pos);
+        const rec: TRec = { k: "rec", fields, rest: freshVar(this.level) };
+        this.unifyAt(t, rec, p.pos);
+        // { name } の省略形では、フィールド名がそのまま変数になるので、変数のホバーを優先する
+        for (const f of p.fields) if (!(f.pat.k === "pvar" && f.pat.pos === f.pos)) this.fieldHover(f.pos, f.name, rec, fields.get(f.name)!);
         for (const f of p.fields) this.inferPat(f.pat, fields.get(f.name)!, scope);
         return;
       }
@@ -727,20 +894,25 @@ class Checker {
         e.ref = v.ref;
         const t = instantiate(v.scheme, this.level);
         const name = e.module ? `${e.module}.${e.name}` : e.name;
-        this.hovers.push({ pos: e.pos, length: name.length, name, type: () => show(t), def: v.def });
+        this.hovers.push({ pos: e.pos, length: name.length, name, type: () => show(t), typeOf: () => t, def: v.def });
+        const kind = (): SemType => (v.param ? "parameter" : prune(t).k === "fun" ? "function" : "variable");
+        this.qualTok(e.pos, e.module, e.name, kind);
         return t;
       }
       case "con": {
         const c = this.lookupCtor(e.name, e.module, e.pos);
         if (!c) {
           const t = this.lookupType(e.name, e.module);
-          if (e.name === "Style" || (t && t.kind === "alias")) {
+          if (t && t.kind === "alias") {
             throw this.error(`型 ${e.name} は ${e.name} { ... } の形で使います`, e.pos);
           }
           throw this.error(`コンストラクタ ${e.name} が見つかりません`, e.pos);
         }
         e.ref = c.ref;
-        return instantiate(c.scheme, this.level);
+        this.qualTok(e.pos, e.module, e.name, "enumMember");
+        const t = instantiate(c.scheme, this.level);
+        this.ctorHover(e.pos, e.module ? `${e.module}.${e.name}` : e.name, c, () => t);
+        return t;
       }
       case "lit":
         if (e.type === "String") return tString;
@@ -770,16 +942,20 @@ class Checker {
         return opT;
       }
       case "getter": {
+        this.tok({ line: e.pos.line, col: e.pos.col + 2 }, e.field.length, "property");
         const a = freshVar(this.level);
         const rec: TRec = { k: "rec", fields: new Map([[e.field, a]]), rest: freshVar(this.level) };
+        this.fieldHover({ line: e.pos.line, col: e.pos.col + 2 }, e.field, rec, a);
         return fun(rec, a);
       }
       case "field": {
+        this.tok({ line: e.pos.line, col: e.pos.col + 1 }, e.field.length, "property");
         const t = this.infer(e.target);
         const a = freshVar(this.level);
         const p = prune(t);
-        if (p.k === "con" && p.name === "Style") throw this.error("Style のフィールドは取り出せません", e.pos);
-        this.unifyAt(t, { k: "rec", fields: new Map([[e.field, a]]), rest: freshVar(this.level) }, e.pos, `フィールド ${e.field}`);
+        const rec: TRec = { k: "rec", fields: new Map([[e.field, a]]), rest: freshVar(this.level) };
+        this.unifyAt(t, rec, e.pos, `フィールド ${e.field}`);
+        this.fieldHover({ line: e.pos.line, col: e.pos.col + 1 }, e.field, rec, a);
         return a;
       }
       case "list": {
@@ -793,20 +969,20 @@ class Checker {
         return tUnit;
       case "record": {
         const fields = new Map<string, Type>();
+        for (const f of e.fields) this.tok(f.pos, f.name.length, "property");
         for (const f of e.fields) fields.set(f.name, this.infer(f.value));
-        return { k: "rec", fields, rest: null };
+        const rec: TRec = { k: "rec", fields, rest: null };
+        for (const f of e.fields) this.fieldHover(f.pos, f.name, rec, fields.get(f.name)!);
+        return rec;
       }
       case "update": {
+        for (const f of e.fields) this.tok(f.pos, f.name.length, "property");
         const t = this.infer(e.target);
-        const p = prune(t);
-        if (p.k === "con" && p.name === "Style") {
-          e.style = true;
-          for (const f of e.fields) this.checkStyleField(f.name, f.value, f.pos);
-          return tStyle;
-        }
         const fields = new Map<string, Type>();
         for (const f of e.fields) fields.set(f.name, this.infer(f.value));
-        this.unifyAt(t, { k: "rec", fields, rest: freshVar(this.level) }, e.pos, "レコードの更新");
+        const rec: TRec = { k: "rec", fields, rest: freshVar(this.level) };
+        this.unifyAt(t, rec, e.pos, "レコードの更新");
+        for (const f of e.fields) this.fieldHover(f.pos, f.name, rec, fields.get(f.name)!);
         return t;
       }
       case "jsx":
@@ -822,7 +998,8 @@ class Checker {
     let ft = this.infer(e.fn);
     const fnName = e.fn.k === "var" || e.fn.k === "con" ? e.fn.name : "関数";
     e.args.forEach((arg, i) => {
-      const at = this.infer(arg);
+      const f0 = prune(ft);
+      const at = arg.k === "record" && f0.k === "fun" ? this.inferRecordArg(arg, f0.from, fnName) : this.infer(arg);
       const r = freshVar(this.level);
       const f = prune(ft);
       if (f.k !== "fun" && f.k !== "var") {
@@ -839,15 +1016,37 @@ class Checker {
     return ft;
   }
 
-  inferNamedRecord(e: Extract<Expr, { k: "app" }>, fn: Extract<Expr, { k: "con" }>, rec: Extract<Expr, { k: "record" }>): Type {
-    if (fn.name === "Style" && !fn.module) {
-      for (const f of rec.fields) this.checkStyleField(f.name, f.value, f.pos);
-      e.named = { kind: "style", defaultsJs: null };
-      return tStyle;
+  // デフォルト値つきのレコード型を取る関数に、レコードを直接渡したときは、デフォルト値を補う
+  inferRecordArg(rec: Extract<Expr, { k: "record" }>, param: Type, fnName: string): Type {
+    const p = prune(param);
+    const known = p.k === "rec" ? flattenRecord(p) : null;
+    if (!known || !known.alias || known.rest !== null) return this.infer(rec);
+    const fields = new Map<string, Type>();
+    for (const f of rec.fields) {
+      const ft = known.fields.get(f.name);
+      if (!ft) {
+        const names = [...known.fields.keys()].join(", ");
+        throw this.error(`${fnName} に渡すレコードにフィールド ${f.name} はありません（使えるもの: ${names}）`, f.pos);
+      }
+      this.unifyAt(this.infer(f.value), ft, f.value.pos, `フィールド ${f.name}`);
+      fields.set(f.name, ft);
     }
+    for (const [name, t] of known.fields) {
+      if (fields.has(name)) continue;
+      if (!known.alias.defaults.has(name)) throw this.error(`${fnName} に渡すレコードにフィールド ${name} がありません`, rec.pos);
+      fields.set(name, t);
+    }
+    rec.defaultsJs = known.alias.defaultsJs;
+    const t: TRec = { k: "rec", fields, rest: null };
+    for (const f of rec.fields) this.fieldHover(f.pos, f.name, t, fields.get(f.name)!);
+    return t;
+  }
+
+  inferNamedRecord(e: Extract<Expr, { k: "app" }>, fn: Extract<Expr, { k: "con" }>, rec: Extract<Expr, { k: "record" }>): Type {
     const info = this.lookupType(fn.name, fn.module);
     if (!info) throw this.error(`コンストラクタ ${fn.name} が見つかりません`, fn.pos);
     if (info.kind !== "alias") throw this.error(`${fn.name} はレコード型の名前ではありません`, fn.pos);
+    this.typeHover(fn.pos, fn.module ? `${fn.module}.${fn.name}` : fn.name, info);
     const t = info.expand!(Array.from({ length: info.arity }, () => freshVar(this.level)));
     if (t.k !== "rec") throw this.error(`${fn.name} はレコード型ではありません`, fn.pos);
     const given = new Set<string>();
@@ -855,6 +1054,7 @@ class Checker {
       const ft = t.fields.get(f.name);
       if (!ft) throw this.error(`${fn.name} にフィールド ${f.name} はありません`, f.pos);
       this.unifyAt(this.infer(f.value), ft, f.value.pos, `フィールド ${f.name}`);
+      this.fieldHover(f.pos, f.name, t, ft);
       given.add(f.name);
     }
     for (const name of t.fields.keys()) {
@@ -866,14 +1066,6 @@ class Checker {
     return t;
   }
 
-  checkStyleField(name: string, value: Expr, pos: Pos) {
-    const typeName = STYLE_FIELDS[name];
-    if (!typeName) {
-      throw this.error(`Style にフィールド ${name} はありません（使えるもの: ${Object.keys(STYLE_FIELDS).join(", ")}）`, pos);
-    }
-    const expected = typeName === "Style" ? tStyle : con(typeName);
-    this.unifyAt(this.infer(value), expected, value.pos, `Style の ${name}`);
-  }
 
   opType(op: string): Type {
     const v = (classes: string[] = []) => freshVar(this.level, classes);
@@ -947,6 +1139,7 @@ class Checker {
     }
     if (/^[a-z]/.test(node.tag)) {
       if (!HTML_ELEMENTS.has(node.tag)) throw this.error(`HTML 要素 <${node.tag}> は使えません`, node.pos);
+      this.tagTokens(node, "macro");
       for (const a of node.attrs) {
         const expected = htmlAttrType(a.name, msg);
         if (!expected) throw this.error(`<${node.tag}> に属性 ${a.name} は使えません`, a.pos);
@@ -957,6 +1150,12 @@ class Checker {
       return tHtml(msg);
     }
     return this.inferComponent(node, msg);
+  }
+
+  tagTokens(node: Extract<JsxNode, { k: "element" }>, type: SemType) {
+    this.tok({ line: node.pos.line, col: node.pos.col + 1 }, node.tag.length, type);
+    if (node.closePos) this.tok({ line: node.closePos.line, col: node.closePos.col + 2 }, node.tag.length, type);
+    for (const a of node.attrs) this.tok(a.pos, a.name.length, "property");
   }
 
   resolveTag(tag: string, pos: Pos): { info: ValueInfo; js: string } {
@@ -982,6 +1181,11 @@ class Checker {
     const tagText = `<${node.tag}>`;
     const tagPos = { line: node.pos.line, col: node.pos.col + 1 };
     this.hovers.push({ pos: tagPos, length: node.tag.length, name: node.tag, type: () => show(ft), def: info.def });
+    if (node.closePos) {
+      const closePos = { line: node.closePos.line, col: node.closePos.col + 2 };
+      this.hovers.push({ pos: closePos, length: node.tag.length, name: node.tag, type: () => show(ft), def: info.def });
+    }
+    this.tagTokens(node, "class");
 
     let propsType: Type;
     let resultType: Type;
@@ -1018,7 +1222,9 @@ class Checker {
         fields.set(name, t);
       }
     }
-    this.unifyAt({ k: "rec", fields, rest: null }, propsType, node.pos, `${tagText} の属性`);
+    const attrsRec: TRec = { k: "rec", fields, rest: null };
+    this.unifyAt(attrsRec, propsType, node.pos, `${tagText} の属性`);
+    for (const a of node.attrs) this.fieldHover(a.pos, a.name, attrsRec, fields.get(a.name)!);
 
     // 子要素を取るかどうかは型で決まる
     const r = prune(resultType);
@@ -1072,11 +1278,40 @@ class Checker {
     }
   }
 
+  // ---- 補完の候補 ----
+
+  completionInfo(): CompletionInfo {
+    const values = new Map<string, string>();
+    for (const [name, v] of this.env.values) values.set(name, showScheme(v.scheme));
+    for (const [name, v] of this.top) values.set(name, showScheme(v.scheme));
+    for (const name of this.env.ctors.keys()) values.set(name, showScheme(this.env.ctors.get(name)!.scheme));
+    const quals = new Map<string, { name: string; detail: string }[]>();
+    for (const [alias, iface] of this.env.quals) {
+      quals.set(alias, [
+        ...[...iface.values].map(([name, v]) => ({ name, detail: showScheme(v.scheme) })),
+        ...[...iface.ctors].map(([name, c]) => ({ name, detail: showScheme(c.scheme) })),
+      ]);
+    }
+    const tags: TagCandidate[] = [];
+    const addTag = (name: string, v: ValueInfo) => {
+      const c = tagCandidate(name, v);
+      if (c && !tags.some((t) => t.name === name)) tags.push(c);
+    };
+    for (const [name, v] of this.top) addTag(name[0].toUpperCase() + name.slice(1), v);
+    for (const [tag, m] of this.env.tagModules) {
+      const v = m.iface.values.get(m.main);
+      if (v) addTag(tag, v);
+    }
+    const layout = this.opts.deps.get("Layout");
+    if (layout) for (const [name, v] of layout.values) addTag(name[0].toUpperCase() + name.slice(1), v);
+    return { values: [...values].map(([name, detail]) => ({ name, detail })), quals, tags };
+  }
+
   // ---- モジュールの外から見える情報 ----
 
   buildIface(): ModuleIface {
     const js = moduleJs(this.mod.name);
-    const iface: ModuleIface = { name: this.mod.name, js, values: new Map(), ctors: new Map(), types: new Map() };
+    const iface: ModuleIface = { name: this.mod.name, file: this.file, js, values: new Map(), ctors: new Map(), types: new Map() };
     const ownTypes = new Set([...this.mod.datas.map((d) => d.name), ...this.mod.aliases.map((a) => a.name)]);
     if (this.mod.name === "Prelude") {
       for (const [name, t] of this.env.types) if (t.kind === "opaque") ownTypes.add(name);
@@ -1086,11 +1321,13 @@ class Checker {
       if (!t || !ownTypes.has(name)) throw this.error(`型 ${name} はこのモジュールで定義されていません`, pos);
       iface.types.set(name, t);
       if (all) for (const c of t.ctors) iface.ctors.set(c, this.env.ctors.get(c)!);
+      if (pos) this.typeHover(pos, name, t);
     };
     const exportValue = (name: string, pos: Pos | null) => {
       const v = this.top.get(name);
       if (!v) throw this.error(`${name} はこのモジュールで定義されていません`, pos);
       iface.values.set(name, v);
+      if (pos) this.hovers.push({ pos, length: name.length, name, type: () => showScheme(v.scheme), def: v.def });
     };
     if (this.mod.exports) {
       for (const item of this.mod.exports) {
@@ -1099,7 +1336,7 @@ class Checker {
       }
     } else {
       for (const name of ownTypes) exportType(name, true, null);
-      for (const name of this.top.keys()) exportValue(name, null);
+      for (const name of this.top.keys()) if (name !== "css" || !this.style) exportValue(name, null);
     }
     return iface;
   }
@@ -1109,6 +1346,25 @@ class Checker {
 
 function showScheme(s: Scheme): string {
   return show(s.type);
+}
+
+// 部品として使える関数なら、タグの補完候補にする
+function tagCandidate(name: string, v: ValueInfo): TagCandidate | null {
+  const t = prune(v.scheme.type);
+  if (t.k !== "fun") return null;
+  const props = prune(t.from);
+  if (props.k !== "rec") return null;
+  const r = prune(t.to);
+  const children = r.k === "fun";
+  const result = children ? prune((r as { to: Type }).to) : r;
+  if (!(result.k === "con" && result.name === "Html")) return null;
+  const { fields, alias } = flattenRecord(props);
+  return {
+    name,
+    detail: show(t),
+    fields: [...fields].map(([f, ft]) => ({ name: f, required: !alias?.defaults.has(f), type: show(ft) })),
+    children,
+  };
 }
 
 // 別のモジュールの値を、JS ではモジュールのオブジェクト経由で参照する
@@ -1125,15 +1381,17 @@ function guardsComplete(guards: { cond: Expr }[]): boolean {
   return (last.k === "var" && last.name === "otherwise" && !last.module) || (last.k === "con" && last.name === "True");
 }
 
+// デフォルト値に書ける式。トップレベルで検査するので、名前はすべてトップレベルか import したもの
 function isConstant(e: Expr): boolean {
   switch (e.k) {
     case "lit":
     case "con":
+    case "var":
       return true;
     case "neg":
       return e.expr.k === "lit";
     case "app":
-      return e.fn.k === "con" && e.args.every(isConstant);
+      return (e.fn.k === "con" || e.fn.k === "var") && e.args.every(isConstant);
     case "record":
       return e.fields.every((f) => isConstant(f.value));
     case "list":
@@ -1159,6 +1417,7 @@ function substituteVars(t: Type, map: Map<TVar, Type>): Type {
         fields: new Map([...t.fields].map(([k, v]) => [k, substituteVars(v, map)])),
         rest: t.rest ? substituteVars(t.rest, map) : null,
         alias: t.alias,
+        fieldDefs: (t.fieldDefs ??= new FieldDefs()), // 写しとも宣言の場所を共有する
       };
   }
 }

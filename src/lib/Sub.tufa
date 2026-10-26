@@ -1,0 +1,5 @@
+module Sub where
+
+
+foreign import none :: Sub msg = "null"
+foreign import batch :: [Sub msg] -> Sub msg = "(subs) => subs"

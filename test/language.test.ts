@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { compile, compileError, mainModule } from "./helpers.ts";
+import { compile, compileError, compileErrors, mainModule } from "./helpers.ts";
 
 const app = (rest: string) =>
   mainModule(`data Msg = Noop
@@ -8,7 +8,7 @@ const app = (rest: string) =>
 ${rest}
 
 main :: Program Int Msg
-main = App.sandbox { init = 0, update = always identity, view = always (<p>ok</p>) }`);
+main = App.app { init = 0, update = always identity, view = always (<p>ok</p>) }`);
 
 test("等式・ガード・where で書いた関数がコンパイルできる", () => {
   compile(
@@ -99,12 +99,55 @@ v = <input onInput={Noop} />`));
   assert.match(msg, /属性 onInput/);
 });
 
-test("Style のフィールドとトークンを検査する", () => {
-  assert.match(compileError(app(`s = Style { margin = S }`)), /Style にフィールド margin はありません/);
-  assert.match(compileError(app(`s = Style { padding = Primary }`)), /Style の padding/);
-  compile(app(`s = Style { padding = S, hover = Style { background = Primary } }
+test("style ブロックのクラスは css.名前 で使え、打ち間違いはエラーになる", () => {
+  const view = (cls: string) =>
+    app(`v :: Html Msg
+v = <p class={look}>a</p>
+  where
+    look = ${cls}
 
-t = { s | radius = M }`));
+
+style
+  .item-title { color: red; }
+  .done { text-decoration: line-through; }`);
+  compile(view("css.itemTitle"));
+  compile(view("classes [css.itemTitle, css.done]"));
+  assert.match(compileError(view("css.itemTitel")), /フィールド itemTitel/);
+});
+
+test("css は style ブロックのための名前なので、自分では定義できない", () => {
+  const msg = compileError(
+    app(`css = 1
+
+
+style
+  .a { color: red; }`),
+  );
+  assert.match(msg, /css は style ブロックのクラスを表す名前/);
+});
+
+test("style ブロックのクラス名は、モジュールごとに区別される", () => {
+  const result = compile({
+    ...app(`v :: Html Msg
+v = <p class={css.title}>a</p>
+
+
+style
+  .title { color: red; }
+  body { margin: 0; }`),
+  });
+  const js = result.entry.js;
+  assert.match(js, /\.Main__title \{ color: red; \}/);
+  assert.match(js, /body \{ margin: 0; \}/);
+  assert.match(js, /title: "Main__title"/);
+});
+
+test("style ブロックの中の数値や url() はクラス名とみなさない", () => {
+  const js = compile(
+    app(`style
+  .box { padding: .5em; background: url(a.png); opacity: 0.5; }`),
+  ).entry.js;
+  assert.match(js, /padding: \.5em; background: url\(a\.png\); opacity: 0\.5;/);
 });
 
 test("部品の必須の属性が足りないとエラーになる", () => {
@@ -167,9 +210,11 @@ helper _ = <p>helper</p>
 
 test("デフォルト値つきの props は省略できる", () => {
   compile(
-    app(`type BadgeProps =
+    app(`data Tone = Calm | Loud
+
+type BadgeProps =
   { label :: String
-  , tone  :: Color = Primary
+  , tone  :: Tone = Calm
   }
 
 badge :: BadgeProps -> Html msg
@@ -184,7 +229,7 @@ test("標準モジュールは import するとエラーになる", () => {
   const files = mainModule(`import Maybe
 
 main :: Program Int Int
-main = App.sandbox { init = 0, update = always identity, view = always (<p>ok</p>) }`);
+main = App.app { init = 0, update = always identity, view = always (<p>ok</p>) }`);
   assert.match(compileError(files), /Maybe は標準モジュール/);
 });
 
@@ -212,4 +257,33 @@ test("存在しないフィールドを読むとエラーになる", () => {
 
 t = r.name`));
   assert.match(msg, /フィールド name/);
+});
+
+test("1 つのファイルのエラーをまとめて報告し、連鎖したエラーは出さない", () => {
+  const errors = compileErrors(
+    app(`a :: Int
+a = "x"
+
+b = c + 1
+  where
+    c = True
+
+useA = a + 1
+useB = b + 1`),
+  );
+  assert.equal(errors.length, 2);
+  assert.match(errors[0], /String と Int/);
+  assert.match(errors[1], /Bool/);
+});
+
+test("デフォルト値つきの型を取る関数にレコードを渡すと、省略したフィールドが補われる", () => {
+  compile(
+    mainModule(`main :: Program Int Int
+main = App.app { init = 0, update = always identity, view = always (<p>ok</p>) }`),
+  );
+  const msg = compileError(
+    mainModule(`main :: Program Int Int
+main = App.app { init = 0, update = always identity, view = always (<p>ok</p>), colour = 1 }`),
+  );
+  assert.match(msg, /フィールド colour はありません/);
 });

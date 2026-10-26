@@ -8,10 +8,19 @@ export interface Pos {
 export class CompileError extends Error {
   pos: Pos | null;
   file: string | null;
+  // 1 つのファイルで見つかったエラーすべて（自分自身を含む）
+  all: CompileError[];
   constructor(message: string, pos: Pos | null, file: string | null = null) {
     super(message);
     this.pos = pos;
     this.file = file;
+    this.all = [this];
+  }
+
+  static of(errors: CompileError[]): CompileError {
+    const first = errors[0];
+    first.all = errors;
+    return first;
   }
 
   format(): string {
@@ -55,7 +64,7 @@ export type Pat =
   | { k: "plist"; items: Pat[]; pos: Pos }
   | { k: "pcons"; head: Pat; tail: Pat; pos: Pos }
   | { k: "ptuple"; items: Pat[]; pos: Pos }
-  | { k: "precord"; fields: { name: string; pat: Pat }[]; pos: Pos }
+  | { k: "precord"; fields: { name: string; pat: Pat; pos: Pos }[]; pos: Pos }
   | { k: "punit"; pos: Pos };
 
 // ---- 式 ----
@@ -73,8 +82,8 @@ export type Expr =
   | { k: "list"; items: Expr[]; pos: Pos }
   | { k: "tuple"; items: Expr[]; pos: Pos }
   | { k: "unit"; pos: Pos }
-  | { k: "record"; fields: FieldAssign[]; pos: Pos }
-  | { k: "update"; target: Expr; fields: FieldAssign[]; pos: Pos; style?: boolean }
+  | { k: "record"; fields: FieldAssign[]; pos: Pos; defaultsJs?: string | null }
+  | { k: "update"; target: Expr; fields: FieldAssign[]; pos: Pos }
   | { k: "jsx"; node: JsxNode; pos: Pos };
 
 export interface FieldAssign {
@@ -90,6 +99,7 @@ export type JsxNode =
       attrs: JsxAttr[];
       children: JsxChild[] | null; // null は自己終了タグ
       pos: Pos;
+      closePos?: Pos; // 閉じタグ </Tag> の < の位置
       res?: TagRes;
     }
   | { k: "fragment"; children: JsxChild[]; pos: Pos };
@@ -132,6 +142,7 @@ export interface Block {
 
 export interface DataDecl {
   name: string;
+  namePos: Pos;
   params: string[];
   ctors: { name: string; args: TypeExpr[]; pos: Pos }[];
   pos: Pos;
@@ -139,6 +150,7 @@ export interface DataDecl {
 
 export interface AliasDecl {
   name: string;
+  namePos: Pos;
   params: string[];
   body: TypeExpr;
   pos: Pos;
@@ -153,6 +165,7 @@ export interface ForeignDecl {
 
 export interface ImportDecl {
   module: string;
+  modulePos: Pos;
   qualified: boolean;
   alias: string | null;
   items: ExportItem[] | null;
@@ -170,8 +183,15 @@ export interface Module {
   datas: DataDecl[];
   aliases: AliasDecl[];
   foreigns: ForeignDecl[];
+  style: StyleBlock | null;
   body: Block;
   pos: Pos;
+}
+
+// ファイル末尾の style ブロック（中身は普通の CSS）
+export interface StyleBlock {
+  css: string;
+  pos: Pos; // CSS の 1 行目の位置
 }
 
 // ---- 型検査が書き込む注釈（コード生成で使う） ----
@@ -190,7 +210,7 @@ export interface CtorRef {
 }
 
 export interface NamedRecordRef {
-  kind: "alias" | "style";
+  kind: "alias";
   defaultsJs: string | null;
 }
 

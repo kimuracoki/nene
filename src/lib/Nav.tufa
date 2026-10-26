@@ -1,0 +1,7 @@
+-- 画面遷移。URL を変えると、App の onUrlChange にメッセージが届く
+module Nav where
+
+
+foreign import pushUrl :: String -> Cmd msg = "(url) => (dispatch) => $rt.navigate(url, false)"
+foreign import replaceUrl :: String -> Cmd msg = "(url) => (dispatch) => $rt.navigate(url, true)"
+foreign import back :: Cmd msg = "(dispatch) => history.back()"
