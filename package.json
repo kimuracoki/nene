@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "nene": "./bin/nene.js"
+    "nene": "bin/nene.js"
   },
   "scripts": {
     "dev": "cd examples && node ../src/cli.ts dev",

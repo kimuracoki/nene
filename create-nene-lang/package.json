@@ -4,7 +4,7 @@
   "description": "npm create nene-lang で Nene のプロジェクトを作る",
   "type": "module",
   "bin": {
-    "create-nene-lang": "./index.js"
+    "create-nene-lang": "index.js"
   },
   "files": [
     "index.js"
