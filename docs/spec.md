@@ -38,6 +38,7 @@ import qualified Ui.Dialog as Modal
 - export の書き方は Haskell と同じ。`T(..)` で型とそのコンストラクタをすべて export する。
 - `import M` は M が export したものをすべて取り込む。`import M (a, B(..))` は指定したものだけを取り込む。
 - `import qualified M as N` は `N.x` の形でだけ使えるようにする。
+- `import` したモジュールは、プロジェクトのフォルダと、Nene のパッケージから探す。Nene のパッケージは、`package.json` に `"nene": { "source": "src" }` と書いた npm パッケージで、`source` のフォルダにモジュールを置く（`nene-ui` の `src/Ui/Button.nn` は `Ui.Button`）。プロジェクトの `dependencies` と `devDependencies`、そこからたどれるパッケージが対象。同じ名前のモジュールが 2 か所にあればコンパイルエラー。
 - 標準モジュール（14 章）のうち `Prelude` はつねに取り込まれている。`App` `Cmd` `Sub` `List` `Maybe` `String` `Time` `Window` `Keyboard` `Nav` `Storage` は import なしで `App.app` のように修飾名で使う。
 
 ## 2. 字句
@@ -148,8 +149,11 @@ update :: Msg -> Model -> Model
 | `Show` | `Int` `Float` `Bool` | `show` |
 | `Append` | `String` `[a]` | `++` |
 | `Child` | `Html msg` `[Html msg]` `String` | JSX の子要素 `{...}`（5.4） |
+| `Json` | 11.1 の型 | `Json.encode` `Json.decode` `Http.get` など |
 
 `==` と `/=` は関数以外のすべての型で使える。決まらない `Num` は `Int` になる。
+
+`Child` と `Json` は型注釈には書けない。`Json` は、使う場所で型が具体的に決まっていなければならない（11.1）。
 
 ## 4. 関数
 
@@ -251,7 +255,7 @@ view model =
 ### 5.4 子要素
 
 - タグの間の文字はそのままテキストになる。改行をまたぐ空白は取り除き、連続する空白は 1 つにまとめる（React と同じ）。
-- `{式}` には `Child` クラスの型（`Html msg` `[Html msg]` `String`）を書ける。型が決まらないもの（型注釈のない部品の `children` 引数など）は `[Html msg]` とみなす。
+- `{式}` には `Child` クラスの型（`Html msg` `[Html msg]` `String`）を書ける。型注釈のない部品の引数のように、その場で型が決まらないものは、部品を使う側で決まる（`item todo = <li>{todo.title}</li>` の `todo.title` は、`String` のレコードを渡せば `String` になる）。
 - テキストに `{` `}` `<` `>` を書くときは `{"<"}` のように文字列で埋め込む。
 
 ```haskell
@@ -410,7 +414,7 @@ subscriptions _                  = Sub.none
 
 ### 7.3 URL
 
-`onUrlChange` を書くと、URL が変わるたびに（起動したときにも）メッセージが届く。同じサイト内の `<a href="...">` を押したときは、ページを読み直さずに URL だけが変わる。
+`onUrlChange` を書くと、URL が変わるたびに（起動したときにも）メッセージが届く。同じサイト内の `<a href="...">` を押したときは、ページを読み直さずに URL だけが変わる。新しい画面は一番上（`#` があればその id の要素）から表示し、戻る・進むでは前の位置に戻す。
 
 ```haskell
 type Url = { path :: [String], query :: [(String, String)], hash :: String }
@@ -427,6 +431,8 @@ route _                        = NotFound
 ```
 
 URL を変えるときは `Nav.pushUrl` を `effect` から返す。
+
+アプリをサブディレクトリに置くとき（`nene build --base /repo/`）は、`/` で始まるパスをアプリの一番上からのパスとして扱う。`href`・`src`・`poster` 属性と `Nav.pushUrl` / `Nav.replaceUrl` のパスには置き場所が付き、`Url.path` からは取り除かれる。
 
 ### 7.4 色とテーマ
 
@@ -613,6 +619,38 @@ foreign import random :: (Float -> msg) -> Cmd msg
 - `Cmd msg` を返す JavaScript 関数は、全引数を受け取ったあと `(dispatch) => void` を返す。
 - `Sub msg` を返す `foreign import` はまだ書けない（標準モジュールの `Time.every` などを使う）。
 
+### 11.1 JSON とサーバーとの通信
+
+JSON との変換は **型から決まる**。デコーダーやエンコーダーは書かない。
+
+```haskell
+type Todo = { id :: Int, title :: String, done :: Bool }
+
+data Msg = GotTodos (Result Http.Error [Todo]) | Saved (Result Http.Error ())
+
+effect Load _          = Http.get "/api/todos" GotTodos
+effect (Save todo) _   = Http.post "/api/todos" todo Saved
+```
+
+| 型 | JSON |
+| --- | --- |
+| `Int` `Float` `String` `Bool` | 数値（`Int` は整数だけ）・文字列・`true` / `false` |
+| `[a]`、`(a, b)` | 配列 |
+| レコード | オブジェクト。キーはフィールド名そのまま。JSON にある余分なキーは無視する |
+| `Maybe a` | `Nothing` は `null`。読むときは `null` とキーがないことの両方を `Nothing` にする |
+| `Dict String a` | オブジェクト |
+| 引数のないコンストラクタだけの `data` 型 | コンストラクタの名前の文字列（`"High"`） |
+| `()` | 何でもよい（中身を読まない）。返事の中身がいらないときに使う |
+
+- 関数・`Html`・`Cmd`、引数を持つコンストラクタのある `data` 型は JSON にできない（コンパイルエラー）。
+- `Json.encode`・`Http.get` などを使う場所で、JSON にする型が具体的に決まっていなければコンパイルエラー。たとえば `load toMsg = Http.get "/x" toMsg` は、何を受け取るかが決まらないのでエラーになる。
+- 受け取った JSON が型と合わないときは、`Http.BadBody`（`Json.decode` なら `Err`）に、どこが違ったかの説明（`[0].title: 文字列を期待しましたが、3 でした`）が入る。
+
+```haskell
+-- Http モジュールの中で、Http.Error として使う
+data Error = BadStatus Int | NetworkError | BadBody String
+```
+
 ## 12. 実行時の意味
 
 - 正格評価。ただし、引数を持たない束縛（`where` やトップレベルの値）は、最初に使われたときに一度だけ計算する。そのため `where` には、ガードのどれか 1 つでしか使わない値も気にせず書ける。
@@ -658,9 +696,16 @@ jsx       ::= "<" Name attr* ("/>" | ">" child* "</" Name ">") | "<>" child* "</
 
 | モジュール | 名前 |
 | --- | --- |
-| `List` | `head` `last` `find` `lookup`（いずれも `Maybe` を返す）、`indexedMap` |
+| `List` | `head` `last` `find` `lookup` `maximum` `minimum`（いずれも `Maybe` を返す）、`indexedMap` `filterMap` `partition` `intersperse` `repeat` `unique` `removeAt` `updateAt` |
 | `Maybe` | `map` `andThen` `withDefault` `isJust` |
-| `String` | `length` `isEmpty` `toUpper` `toLower` `contains` `toInt` `toFloat`（`toInt` と `toFloat` は `Maybe` を返す） |
+| `Result` | `map` `mapError` `andThen` `withDefault` `toMaybe` `isOk` |
+| `String` | `length` `isEmpty` `toUpper` `toLower` `contains` `startsWith` `endsWith` `split` `join` `replace` `repeat` `reverse` `slice` `padLeft` `padRight` `toInt` `toFloat`（`toInt` と `toFloat` は `Maybe` を返す） |
+| `Dict` | `Dict k v`（キーの順に並ぶ表）。`empty` `singleton` `fromList` `toList` `insert` `remove` `update` `get` `member` `keys` `values` `size` `isEmpty` `map` `filter` |
+| `Json` | `encode :: a -> String`、`decode :: String -> Result String a`（11.1） |
+| `Http` | `get :: String -> (Result Http.Error a -> msg) -> Cmd msg`、`post :: String -> body -> (Result Http.Error a -> msg) -> Cmd msg`、`put`、`delete`（11.1） |
+| `Random` | `int :: Int -> Int -> (Int -> msg) -> Cmd msg`（両端を含む）、`float`、`pick :: [a] -> (Maybe a -> msg) -> Cmd msg` |
+| `Dom` | `focus :: String -> Cmd msg`（id で指定）、`blur`、`scrollIntoView` |
+| `Env` | `get :: String -> Maybe String`。`.env` の `NENE_` で始まる値（`Env.get "API_URL"` は `NENE_API_URL`）。ビルドのときに埋め込まれる |
 | `App` | `app` |
 | `Cmd` | `none` `batch` |
 | `Sub` | `none` `batch` |
@@ -672,6 +717,6 @@ jsx       ::= "<" Name attr* ("/>" | ">" child* "</" Name ">") | "<>" child* "</
 
 `Prelude` `Layout` と上のモジュール名は予約されていて、ユーザーのモジュール名には使えない。
 
-標準ライブラリは Nene 自身で書かれている（`src/lib/*.nn`）。
+標準ライブラリは Nene 自身で書かれている（`src/lib/*.nn`）。出力には、使っているモジュールだけが入る。
 
 `Class`・`Size`・`Align`・`Direction`・`Maybe`・`Result`・`Url` の型とコンストラクタも `Prelude` に含まれる。

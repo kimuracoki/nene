@@ -1,12 +1,14 @@
--- elm-sample の「タスク」画面に相当するもの
+-- elm-sample の「タスク」画面に相当するもの。タスクはブラウザに保存され、読み直しても残る
 module Todo (main) where
 
--- モジュールを import すると、その主部品をタグで使える（<Button> など）
-import Button (Variant(..), Intent(..))
-import Card
-import Chip (Hue(..))
-import IconButton
-import TextField
+-- 部品は nene-ui（公式の部品集）のもの。import すると、その主部品をタグで使える（<Button> など）
+import Ui.Button (Variant(..))
+import Ui.Card
+import Ui.Chip
+import qualified Ui.Icon as Icon
+import Ui.IconButton
+import Ui.TextField
+import Ui.Theme (Tone(..))
 
 
 data Priority = High | Medium | Low
@@ -35,6 +37,7 @@ data Msg
   | Delete Int
   | SetFilter Filter
   | ClearCompleted
+  | Loaded (Maybe String)
 
 
 init :: Model
@@ -74,6 +77,19 @@ update (Delete id) model = { model | todos = filter keep model.todos }
     keep t = t.id /= id
 update (SetFilter f) model  = { model | filter = f }
 update ClearCompleted model = { model | todos = filter (not . (.done)) model.todos }
+update (Loaded saved) model = restore (Maybe.andThen (Result.toMaybe . Json.decode) saved)
+  where
+    restore (Just todos) = { model | todos = todos, nextId = nextIdOf todos }
+    restore Nothing      = model
+    nextIdOf todos = 1 + Maybe.withDefault 0 (List.maximum (map (.id) todos))
+
+
+-- タスクが変わったら保存する。Json.encode は型（[Todo]）から JSON を作る
+effect :: Msg -> Model -> Cmd Msg
+effect (DraftChanged _) _ = Cmd.none
+effect (SetFilter _) _    = Cmd.none
+effect (Loaded _) _       = Cmd.none
+effect _ model            = Storage.set "todos" (Json.encode model.todos)
 
 
 -- VIEW
@@ -90,18 +106,18 @@ view model =
       <form onSubmit={AddTodo}>
         <Row gap={S} align={End} collapse={S}>
           <TextField label="新しいタスク" value={model.draft} onInput={DraftChanged} error={model.error} />
-          <Button startIcon={Just "add"} onClick={AddTodo}>追加</Button>
+          <Button startIcon={Just Icon.add} onClick={AddTodo}>追加</Button>
         </Row>
       </form>
     </Card>
 
-    <Card flush>
+    <Card padding={None}>
       <Row gap={S} align={Center} class={css.toolbar}>
         <FilterChip filter={All} label="すべて" />
         <FilterChip filter={Active} label="未完了" />
         <FilterChip filter={Completed} label="完了" />
         <Spacer />
-        <Button variant={TextButton} intent={Danger} disabled={noneCompleted} onClick={ClearCompleted}>
+        <Button variant={Plain} tone={Danger} disabled={noneCompleted} onClick={ClearCompleted}>
           完了済みを削除
         </Button>
       </Row>
@@ -116,7 +132,7 @@ view model =
 
     -- where の中の部品も、タグで呼べる。model をそのまま使える
     filterChip p =
-      <Chip selected={isSelected} onClick={select} hue={Blue}>{chipLabel}</Chip>
+      <Chip selected={isSelected} onClick={select} tone={Primary}>{chipLabel}</Chip>
       where
         isSelected = model.filter == p.filter
         select     = Just (SetFilter p.filter)
@@ -142,8 +158,8 @@ todoItem todo =
       <input type="checkbox" checked={todo.done} onCheck={ToggleTodo todo.id} />
       <span class={title}>{todo.title}</span>
       <Spacer />
-      <Chip hue={priorityHue todo.priority}>{priorityLabel todo.priority}</Chip>
-      <IconButton icon="delete" label="削除" onClick={Delete todo.id} />
+      <Chip tone={priorityTone todo.priority}>{priorityLabel todo.priority}</Chip>
+      <IconButton icon={Icon.delete} label="削除" onClick={Delete todo.id} />
     </Row>
   </li>
   where
@@ -164,14 +180,14 @@ priorityLabel High   = "高"
 priorityLabel Medium = "中"
 priorityLabel Low    = "低"
 
-priorityHue :: Priority -> Hue
-priorityHue High   = Red
-priorityHue Medium = Amber
-priorityHue Low    = Blue
+priorityTone :: Priority -> Tone
+priorityTone High   = Danger
+priorityTone Medium = Warning
+priorityTone Low    = Primary
 
 
 main :: Program Model Msg
-main = App.app { init, update, view }
+main = App.app { init, update, view, effect, onStart = Storage.get "todos" Loaded }
 
 
 style

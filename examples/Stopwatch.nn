@@ -1,7 +1,8 @@
 -- ストップウォッチ。タイマー・キーボード・ブラウザへの保存・テーマを使う例
 module Stopwatch (main) where
 
-import Button (Variant(..), Intent(..))
+import Ui.Button (Variant(..))
+import Ui.Theme (Tone(..))
 
 
 type Model =
@@ -68,7 +69,7 @@ view model =
     <Row gap={S}>
       <Button onClick={Toggle}>{toggleLabel}</Button>
       <Button variant={Outlined} onClick={Lap} disabled={stopped}>ラップ</Button>
-      <Button variant={TextButton} intent={Danger} onClick={Reset}>リセット</Button>
+      <Button variant={Plain} tone={Danger} onClick={Reset}>リセット</Button>
     </Row>
     <p class={css.hint}>スペースキーでも開始・停止できます</p>
     <BestTime best={model.best} />

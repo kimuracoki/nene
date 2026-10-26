@@ -1,6 +1,6 @@
 module Counter (main) where
 
-import Button (Variant(..))
+import Ui.Button (Variant(..))
 
 
 data Msg = Increment | Decrement | Reset

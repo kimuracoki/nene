@@ -26,6 +26,7 @@ import {
   funN,
   generalize,
   instantiate,
+  instantiateWith,
   mono,
   prune,
   show,
@@ -120,6 +121,7 @@ export interface TypeInfo {
 export interface ModuleIface {
   name: string;
   file: string;
+  pos: Pos; // module 宣言の場所
   js: string;
   values: Map<string, ValueInfo>;
   ctors: Map<string, CtorInfo>;
@@ -127,7 +129,9 @@ export interface ModuleIface {
 }
 
 // 依存される順に並べる（App は Cmd と Sub を使う）
-export const STD_QUALIFIED = ["Cmd", "Sub", "List", "Maybe", "String", "Time", "Window", "Keyboard", "Nav", "Storage", "App"];
+export const STD_QUALIFIED = [
+  "Cmd", "Sub", "List", "Maybe", "Result", "String", "Dict", "Json", "Http", "Random", "Time", "Window", "Keyboard", "Dom", "Nav", "Storage", "Env", "App",
+];
 export const RESERVED_MODULES = ["Prelude", "Layout", ...STD_QUALIFIED];
 
 export const HTML_ELEMENTS = new Set([
@@ -197,6 +201,9 @@ export function uniqueTypeName(module: string, name: string): string {
 
 const lowerFirst = (s: string) => s[0].toLowerCase() + s.slice(1);
 
+// data 型の名前（一意な名前）から、そのコンストラクタ。JSON の変換で使う
+const DATA_CTORS = new Map<string, { name: string; arity: number }[]>();
+
 // ---- 型検査器 ----
 
 interface Env {
@@ -242,6 +249,7 @@ class Checker {
   errors: CompileError[] = [];
   tokens: SemToken[] = [];
   style: ScopedStyle | null = null;
+  jsonUses: { expr: Extract<Expr, { k: "var" }>; types: Type[] }[] = [];
 
   constructor(mod: Module, file: string, opts: CheckOptions) {
     this.mod = mod;
@@ -276,6 +284,11 @@ class Checker {
     this.inferBlock(this.mod.body, this.top, true);
     this.recover(() => this.checkDefaults());
     if (this.opts.entry) this.recover(() => this.checkMain());
+    for (const use of this.jsonUses) {
+      this.recover(() => {
+        use.expr.json = use.types.map((t) => this.jsonDescriptor(t, use.expr.pos));
+      });
+    }
     if (this.errors.length > 0) {
       throw CompileError.of(this.errors.sort((a, b) => (a.pos?.line ?? 0) - (b.pos?.line ?? 0)));
     }
@@ -332,7 +345,7 @@ class Checker {
 
   moduleHover(pos: Pos, name: string, iface: ModuleIface) {
     const label = () => `module ${iface.name}`;
-    this.hovers.push({ pos, length: name.length, name, type: label, label, def: { file: iface.file, pos: { line: 1, col: 1 } } });
+    this.hovers.push({ pos, length: name.length, name, type: label, label, def: { file: iface.file, pos: iface.pos } });
   }
 
   // エラーを記録して先へ進む。状態は呼ぶ前に戻す
@@ -456,6 +469,7 @@ class Checker {
       }
       const result = con(info.name, vars, d.name);
       const siblings = d.ctors.map((c) => ({ name: c.name, arity: c.args.length }));
+      DATA_CTORS.set(info.name, siblings);
       for (const c of d.ctors) {
         if (ownCtors.has(c.name)) throw this.error(`コンストラクタ ${c.name} はすでに定義されています`, c.pos);
         ownCtors.add(c.name);
@@ -580,15 +594,26 @@ class Checker {
     const type = this.typeFromExpr(sig.type, vars, true);
     this.level--;
     for (const [name, v] of vars) if (v.k === "var") this.sigVarNames.set(v, name);
+    const json: TVar[] = [];
     for (const c of sig.constraints) {
       const v = vars.get(c.tvar);
       if (!v || v.k !== "var") throw this.error(`型変数 ${c.tvar} が型の中にありません`, sig.pos);
+      if (c.cls === "Json" && this.opts.builtin) {
+        v.classes.add(c.cls);
+        json.push(v);
+        continue;
+      }
+      if (c.cls === "Json") {
+        throw this.error("Json は型注釈に書けません。JSON にする値の型は、具体的な型（[Todo] など）にしてください", sig.pos);
+      }
       if (!["Num", "Ord", "Show", "Append"].includes(c.cls)) {
         throw this.error(`型クラス ${c.cls} はありません（Num・Ord・Show・Append だけが使えます）`, sig.pos);
       }
       v.classes.add(c.cls);
     }
-    return generalize(type, this.level);
+    const scheme = generalize(type, this.level);
+    if (json.length > 0) scheme.json = json;
+    return scheme;
   }
 
   // 型注釈を、具体化できない型（スコーレム）で置き換えた型
@@ -617,7 +642,7 @@ class Checker {
         }
       }
       const def = { file: this.file, pos: f.sig.pos };
-      this.top.set(f.name, { scheme, ref: { js: jsName(f.name), thunk: false }, def });
+      this.top.set(f.name, { scheme, ref: { js: jsName(f.name), thunk: false, json: scheme.json }, def });
       this.hovers.push({ pos: f.sig.pos, length: f.name.length, name: f.name, type: () => showScheme(scheme), def });
     }
   }
@@ -890,7 +915,8 @@ class Checker {
       case "var": {
         const v = this.lookupValue(e.name, e.module, e.pos);
         e.ref = v.ref;
-        const t = instantiate(v.scheme, this.level);
+        const { type: t, map } = instantiateWith(v.scheme, this.level);
+        if (v.ref.json) this.jsonUses.push({ expr: e, types: v.ref.json.map((x) => map.get(x) ?? x) });
         const name = e.module ? `${e.module}.${e.name}` : e.name;
         this.hovers.push({ pos: e.pos, length: name.length, name, type: () => show(t), typeOf: () => t, def: v.def });
         const kind = (): SemType => (v.param ? "parameter" : prune(t).k === "fun" ? "function" : "variable");
@@ -1121,7 +1147,8 @@ class Checker {
       unify(rt, rest.from);
     } catch (err) {
       if (!(err instanceof TypeError_)) throw err;
-      const [a, b] = showPair(prune(lt), prune(rt));
+      // 型の決まっていない数（1 など）は「数値」と見せる
+      const [a, b] = showPair(prune(lt), prune(rt)).map((s, i) => (isNumVar([lt, rt][i]) ? "数値" : s));
       throw this.error(`${e.op} の左右の型が合いません: 左は ${a}、右は ${b}`, e.right.pos);
     }
     return rest.to;
@@ -1287,8 +1314,8 @@ class Checker {
           // そのままテキストになる
         } else if (p.k === "var") {
           if (!final) return false;
-          // 型が決まらない子要素（部品の children 引数など）はリストとみなす
-          this.unifyAt(p, tList(tHtml(msg)), pos, "子要素");
+          // 型が決まらない子要素（where の部品の引数のフィールドなど）は、使う側で決まる
+          p.classes.add("Child");
         } else {
           throw this.error(`子要素 {} には Html・[Html]・String だけを書けます（${show(p)} です。数値なら show を使ってください）`, pos);
         }
@@ -1296,6 +1323,61 @@ class Checker {
       };
       if (!resolve(false)) this.deferred.push(() => void resolve(true));
     }
+  }
+
+  // ---- JSON ----
+
+  // 決まった型から、ランタイムが JSON との変換に使う記述（JS の式）を作る
+  jsonDescriptor(type: Type, pos: Pos): string {
+    const fail = (t: Type, why: string) =>
+      this.error(`${show(type)} は JSON にできません（${show(t)} ${why}）`, pos);
+    const go = (t: Type): string => {
+      t = prune(t);
+      switch (t.k) {
+        case "var":
+          if (t.classes.has("Num")) return "$rt.json.int";
+          // Nothing や [] の中身のように、値が入りようのない型。全体が決まらないときはエラーにする
+          if (t === prune(type)) throw this.error("JSON にする値の型が決まりません。型注釈を書いてください", pos);
+          return "$rt.json.never";
+        case "fun":
+          throw fail(t, "は関数です");
+        case "rec": {
+          const { fields } = flattenRecord(t);
+          const parts = [...fields].map(([k, v]) => `${JSON.stringify(k)}: ${go(v)}`);
+          return `$rt.json.record({ ${parts.join(", ")} })`;
+        }
+        case "con": {
+          if (t.skolem) throw fail(t, "は型変数です");
+          switch (t.name) {
+            case "Int":
+              return "$rt.json.int";
+            case "Float":
+              return "$rt.json.float";
+            case "String":
+              return "$rt.json.string";
+            case "Bool":
+              return "$rt.json.bool";
+            case "()":
+              return "$rt.json.unit";
+            case "List":
+              return `$rt.json.list(${go(t.args[0])})`;
+            case "Maybe":
+              return `$rt.json.maybe(${go(t.args[0])})`;
+            case "Dict.Dict":
+              this.unifyAt(t.args[0], tString, pos, "JSON にする Dict のキーは String");
+              return `$rt.json.dict(${go(t.args[1])})`;
+          }
+          if (t.name.startsWith("Tuple")) return `$rt.json.tuple([${t.args.map((a) => go(a)).join(", ")}])`;
+          const ctors = DATA_CTORS.get(t.name);
+          if (ctors && ctors.every((c) => c.arity === 0)) {
+            return `$rt.json.enumeration(${JSON.stringify(ctors.map((c) => c.name))})`;
+          }
+          if (ctors) throw fail(t, "のコンストラクタが引数を持っています。JSON にできる data 型は、引数のないコンストラクタだけのものです");
+          throw fail(t, "は JSON にできない型です");
+        }
+      }
+    };
+    return go(type);
   }
 
   // ---- 補完の候補 ----
@@ -1331,7 +1413,7 @@ class Checker {
 
   buildIface(): ModuleIface {
     const js = moduleJs(this.mod.name);
-    const iface: ModuleIface = { name: this.mod.name, file: this.file, js, values: new Map(), ctors: new Map(), types: new Map() };
+    const iface: ModuleIface = { name: this.mod.name, file: this.file, pos: this.mod.pos, js, values: new Map(), ctors: new Map(), types: new Map() };
     const ownTypes = new Set([...this.mod.datas.map((d) => d.name), ...this.mod.aliases.map((a) => a.name)]);
     if (this.mod.name === "Prelude") {
       for (const [name, t] of this.env.types) if (t.kind === "opaque") ownTypes.add(name);
@@ -1389,7 +1471,12 @@ function tagCandidate(name: string, v: ValueInfo): TagCandidate | null {
 
 // 別のモジュールの値を、JS ではモジュールのオブジェクト経由で参照する
 function qualify(iface: ModuleIface, v: ValueInfo): ValueInfo {
-  return { scheme: v.scheme, ref: { js: `${iface.js}.${v.ref.js}`, thunk: v.ref.thunk }, def: v.def };
+  return { scheme: v.scheme, ref: { js: `${iface.js}.${v.ref.js}`, thunk: v.ref.thunk, json: v.ref.json }, def: v.def };
+}
+
+function isNumVar(t: Type): boolean {
+  const p = prune(t);
+  return p.k === "var" && p.classes.has("Num");
 }
 
 function hasDefaults(t: TypeExpr): boolean {

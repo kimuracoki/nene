@@ -1,0 +1,53 @@
+-- 小さなラベル。onClick を渡すと押せるチップ（絞り込みなど）になる
+--
+--   <Chip tone={Success}>完了</Chip>
+--   <Chip selected={isAll} onClick={Just (SetFilter All)}>すべて</Chip>
+module Ui.Chip (ChipProps, chip) where
+
+import Ui.Theme (Tone(..), toneVars)
+
+
+type ChipProps msg =
+  { onClick  :: Maybe msg = Nothing
+  , selected :: Bool      = False
+  , tone     :: Tone      = Neutral
+  }
+
+
+chip :: ChipProps msg -> [Html msg] -> Html msg
+chip props children = <Body action={props.onClick}>{children}</Body>
+  where
+    -- 押せるチップはボタンに、押せないチップはただの文字にする
+    body { action = Just msg } kids = <button class={look} vars={colors} type="button" aria-pressed={pressed} onClick={msg}>{kids}</button>
+    body { action = Nothing } kids  = <span class={look} vars={colors}>{kids}</span>
+
+    colors = toneVars props.tone
+    look
+      | props.selected = classes [css.chip, css.selected]
+      | otherwise      = css.chip
+    pressed
+      | props.selected = "true"
+      | otherwise      = "false"
+
+
+style
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 12px;
+    border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--tone) 10%, transparent);
+    color: var(--tone);
+    font-size: .8125rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  button.chip { transition: background-color .15s; }
+  button.chip:hover { background: color-mix(in srgb, var(--tone) 18%, transparent); }
+  .selected, button.selected:hover {
+    border-color: var(--tone);
+    background: var(--tone);
+    color: var(--on-tone);
+  }

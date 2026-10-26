@@ -1,0 +1,39 @@
+-- 読み込み中を表す回転する印
+--
+--   <Spinner />
+module Ui.Spinner (SpinnerProps, spinner) where
+
+
+type SpinnerProps =
+  { size  :: Size   = M
+  , label :: String = "読み込み中"
+  }
+
+
+spinner :: SpinnerProps -> Html msg
+spinner props = <span class={look} role="status" aria-label={props.label} />
+  where
+    look = classes [css.spinner, sizeClass props.size]
+
+
+sizeClass :: Size -> Class
+sizeClass XS = css.small
+sizeClass S  = css.small
+sizeClass L  = css.large
+sizeClass XL = css.large
+sizeClass _  = css.medium
+
+
+style
+  .spinner {
+    display: inline-block;
+    flex: none;
+    border: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  .small  { width: 16px; height: 16px; }
+  .medium { width: 24px; height: 24px; }
+  .large  { width: 40px; height: 40px; border-width: 3px; }
+  @keyframes spin { to { transform: rotate(360deg); } }

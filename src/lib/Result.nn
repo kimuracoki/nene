@@ -1,0 +1,26 @@
+module Result where
+
+
+map :: (a -> b) -> Result e a -> Result e b
+map f (Ok x)  = Ok (f x)
+map _ (Err e) = Err e
+
+mapError :: (e -> f) -> Result e a -> Result f a
+mapError f (Err e) = Err (f e)
+mapError _ (Ok x)  = Ok x
+
+andThen :: (a -> Result e b) -> Result e a -> Result e b
+andThen f (Ok x)  = f x
+andThen _ (Err e) = Err e
+
+withDefault :: a -> Result e a -> a
+withDefault _ (Ok x)  = x
+withDefault d (Err _) = d
+
+toMaybe :: Result e a -> Maybe a
+toMaybe (Ok x)  = Just x
+toMaybe (Err _) = Nothing
+
+isOk :: Result e a -> Bool
+isOk (Ok _)  = True
+isOk (Err _) = False

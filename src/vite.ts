@@ -12,7 +12,8 @@
 // どれかの .nn を保存すると、ブラウザが再読み込みされる。
 
 import type { Plugin } from "vite";
-import { LIB_FILES, RUNTIME_FILE, bundle, compileProgram } from "./compiler.ts";
+import { LIB_FILES, RUNTIME_FILES, bundle, compileProgram } from "./compiler.ts";
+import { errorFrame } from "./report.ts";
 import { CompileError } from "./syntax.ts";
 
 export interface NeneOptions {
@@ -23,24 +24,18 @@ export interface NeneOptions {
 export default function nene(options: NeneOptions = {}): Plugin {
   return {
     name: "nene",
+    // .env の NENE_ で始まる値を、Env.get で読めるようにする
+    config: () => ({ envPrefix: "NENE_" }),
     load(id) {
       const file = id.split("?")[0];
       if (!file.endsWith(".nn")) return null;
       try {
         const result = compileProgram(file);
-        for (const f of [...result.files, ...LIB_FILES, RUNTIME_FILE]) this.addWatchFile(f);
-        return { code: bundle(result, options.mount), map: null };
+        for (const f of [...result.files, ...LIB_FILES, ...RUNTIME_FILES]) this.addWatchFile(f);
+        const code = bundle(result, { mount: options.mount, base: "import.meta.env.BASE_URL", env: "import.meta.env" });
+        return { code, map: null };
       } catch (e) {
-        if (e instanceof CompileError) {
-          // Vite のエラー表示（オーバーレイ）に、場所つきで出す
-          const rest = e.all.slice(1).map((x) => x.format());
-          const message = [e.message, ...rest].join("\n\n");
-          const err = new Error(message) as Error & { loc?: object; id?: string; plugin?: string };
-          err.id = e.file ?? file;
-          err.stack = ""; // コンパイラ内部の呼び出し履歴は、使う人には関係ないので出さない
-          if (e.pos) err.loc = { file: e.file ?? file, line: e.pos.line, column: e.pos.col - 1 };
-          throw err;
-        }
+        if (e instanceof CompileError) throw overlayError(e, file);
         throw e;
       }
     },
@@ -67,4 +62,15 @@ export default function nene(options: NeneOptions = {}): Plugin {
       }
     },
   };
+}
+
+// Vite のエラー表示（オーバーレイ）に、場所と該当する行つきで出す
+function overlayError(e: CompileError, entry: string): Error {
+  const rest = e.all.slice(1).map((x) => x.format());
+  const err = new Error([e.message, ...rest].join("\n\n")) as Error & { loc?: object; id?: string; frame?: string };
+  err.id = e.file ?? entry;
+  err.stack = ""; // コンパイラ内部の呼び出し履歴は、使う人には関係ないので出さない
+  if (e.pos) err.loc = { file: e.file ?? entry, line: e.pos.line, column: e.pos.col - 1 };
+  err.frame = errorFrame(e);
+  return err;
 }

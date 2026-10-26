@@ -1,5 +1,7 @@
 // 構文木の定義
 
+import type { TVar } from "./types.ts";
+
 export interface Pos {
   line: number;
   col: number;
@@ -70,7 +72,7 @@ export type Pat =
 // ---- 式 ----
 
 export type Expr =
-  | { k: "var"; name: string; module: string | null; pos: Pos; ref?: ValueRef }
+  | { k: "var"; name: string; module: string | null; pos: Pos; ref?: ValueRef; json?: string[] }
   | { k: "con"; name: string; module: string | null; pos: Pos; ref?: CtorRef }
   | { k: "lit"; value: number | string; type: "Int" | "Float" | "String"; pos: Pos }
   | { k: "app"; fn: Expr; args: Expr[]; pos: Pos; named?: NamedRecordRef }
@@ -199,6 +201,7 @@ export interface StyleBlock {
 export interface ValueRef {
   js: string; // JS での参照式
   thunk: boolean; // 値（引数なしの束縛）は遅延評価のサンク
+  json?: TVar[]; // Json 制約のついた型変数。使う場所で、決まった型の記述を先に渡す
 }
 
 export interface CtorRef {

@@ -1,0 +1,21 @@
+-- サーバーとの通信。送る値と受け取る値は、型から JSON に変換される（Json モジュールと同じ規則）
+module Http where
+
+
+data Error
+  = BadStatus Int      -- 200 番台以外のステータスが返ってきた
+  | NetworkError       -- サーバーにつながらなかった
+  | BadBody String     -- 返ってきた JSON が型と合わなかった（どこが違ったか）
+
+
+foreign import get :: Json a => String -> (Result Error a -> msg) -> Cmd msg
+  = "(d) => (url) => (toMsg) => $rt.http('GET', url, undefined, d, toMsg)"
+
+foreign import post :: (Json body, Json a) => String -> body -> (Result Error a -> msg) -> Cmd msg
+  = "(b) => (d) => (url) => (body) => (toMsg) => $rt.http('POST', url, JSON.stringify(b.enc(body)), d, toMsg)"
+
+foreign import put :: (Json body, Json a) => String -> body -> (Result Error a -> msg) -> Cmd msg
+  = "(b) => (d) => (url) => (body) => (toMsg) => $rt.http('PUT', url, JSON.stringify(b.enc(body)), d, toMsg)"
+
+foreign import delete :: Json a => String -> (Result Error a -> msg) -> Cmd msg
+  = "(d) => (url) => (toMsg) => $rt.http('DELETE', url, undefined, d, toMsg)"

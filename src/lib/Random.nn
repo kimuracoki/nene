@@ -1,0 +1,15 @@
+-- 乱数。値はメッセージとして届く
+module Random where
+
+
+-- lo 以上 hi 以下の整数
+foreign import int :: Int -> Int -> (Int -> msg) -> Cmd msg
+  = "(lo) => (hi) => (toMsg) => (dispatch) => dispatch(toMsg(lo + Math.floor(Math.random() * (hi - lo + 1))))"
+
+-- 0 以上 1 未満の小数
+foreign import float :: (Float -> msg) -> Cmd msg
+  = "(toMsg) => (dispatch) => dispatch(toMsg(Math.random()))"
+
+-- リストから 1 つ選ぶ。空のリストなら Nothing
+foreign import pick :: [a] -> (Maybe a -> msg) -> Cmd msg
+  = "(xs) => (toMsg) => (dispatch) => dispatch(toMsg(xs.length === 0 ? $rt.Nothing : $rt.Just(xs[Math.floor(Math.random() * xs.length)])))"

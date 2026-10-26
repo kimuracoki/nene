@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { bundle } from "../src/compiler.ts";
 import { compile, compileError, compileErrors, mainModule } from "./helpers.ts";
 
 const app = (rest: string) =>
@@ -363,4 +364,68 @@ v =
 v = <div tabindex="0" />`)), /属性 tabindex/);
   assert.match(compileError(app(`v :: Html Msg
 v = <div aria-Label="x" />`)), /属性 aria-Label は使えません/);
+});
+
+test("where の部品で、引数のフィールドを子要素にできる（型は使う側で決まる）", () => {
+  compile(mainModule(`
+type Model = { todos :: [{ title :: String }] }
+
+view :: Model -> Html ()
+view model = <ul>{map item model.todos}</ul>
+  where
+    item todo = <li>{todo.title}</li>
+
+main :: Program Model ()
+main = App.app { init = { todos = [] }, update = always identity, view }
+`));
+});
+
+test("子要素にできない型を渡すとエラーになる", () => {
+  const err = compileError(mainModule(`
+item todo = <li>{todo.count}</li>
+
+view :: () -> Html ()
+view _ = item { count = 3 }
+
+main :: Program () ()
+main = App.app { init = (), update = always identity, view }
+`));
+  assert.match(err, /子要素にできる型/);
+});
+
+test("出力には、使っている標準モジュールとランタイムの部分だけが入る", () => {
+  const plain = bundle(compile(mainModule(`
+main :: Program () ()
+main = App.app { init = (), update = always identity, view = always (<Row />) }
+`)));
+  assert.match(plain, /const \$M_App = /);
+  assert.match(plain, /const \$M_Layout = /);
+  assert.doesNotMatch(plain, /const \$M_Http = |const \$M_Dict = /);
+  assert.doesNotMatch(plain, /decodeJson/);
+
+  const withJson = bundle(compile(mainModule(`
+main :: Program () ()
+main = App.app { init = (), update = always identity, view = always (<p>{text}</p>) }
+  where
+    text = Json.encode [1, 2]
+`)));
+  assert.match(withJson, /const \$M_Json = /);
+  assert.match(withJson, /decodeJson/);
+});
+
+test("style ブロックで、コメントのあとに書いた :root もページ全体に効く", () => {
+  const result = compile(mainModule(`
+main :: Program () ()
+main = App.app { init = (), update = always identity, view = always (<p />) }
+
+
+style
+  /* 色 */
+  :root { --brand: red; }
+  /* 見出し */
+  h1 { color: var(--brand); }
+`));
+  const js = result.entry.js;
+  assert.match(js, /\/\* 色 \*\/\\n:root \{/);
+  assert.match(js, /h1\.nene-Main \{/);
 });

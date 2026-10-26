@@ -1,0 +1,80 @@
+-- 1 行の入力欄。ラベル・説明・エラーを添えられる
+--
+--   <TextField label="メール" kind={Email} value={model.email} onInput={EmailChanged} error={model.emailError} />
+module Ui.TextField (TextFieldProps, InputKind(..), textField) where
+
+
+data InputKind = PlainText | Email | Password | Number | Search | Tel
+
+type TextFieldProps msg =
+  { value       :: String
+  , onInput     :: String -> msg
+  , label       :: String       = ""
+  , placeholder :: String       = ""
+  , helper      :: String       = ""          -- 欄の下に出す説明
+  , error       :: Maybe String = Nothing     -- Just なら赤くして、説明の代わりに出す
+  , kind        :: InputKind    = PlainText
+  , disabled    :: Bool         = False
+  }
+
+
+textField :: TextFieldProps msg -> Html msg
+textField props =
+  <label class={css.field}>
+    <Column gap={XS}>
+      <Caption text={props.label} />
+      <input class={box} type={inputType props.kind} value={props.value} placeholder={props.placeholder} disabled={props.disabled} aria-invalid={invalid} onInput={props.onInput} />
+      <Note helper={props.helper} error={props.error} />
+    </Column>
+  </label>
+  where
+    box
+      | props.error /= Nothing = classes [css.box, css.invalid]
+      | otherwise              = css.box
+    invalid
+      | props.error /= Nothing = "true"
+      | otherwise              = "false"
+
+
+caption :: { text :: String } -> Html msg
+caption { text = "" } = <></>
+caption { text }      = <span class={css.caption}>{text}</span>
+
+note :: { helper :: String, error :: Maybe String } -> Html msg
+note { error = Just message } = <span class={css.error}>{message}</span>
+note { helper = "" }          = <></>
+note { helper }               = <span class={css.helper}>{helper}</span>
+
+
+inputType :: InputKind -> String
+inputType PlainText = "text"
+inputType Email     = "email"
+inputType Password  = "password"
+inputType Number    = "number"
+inputType Search    = "search"
+inputType Tel       = "tel"
+
+
+style
+  .field { display: block; flex: 1; }
+  .caption { font-size: .8125rem; font-weight: 600; color: var(--text); }
+  .box {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .box:hover:not(:disabled) { border-color: color-mix(in srgb, var(--text) 30%, var(--border)); }
+  .box:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+  }
+  .box:disabled { opacity: .55; cursor: not-allowed; }
+  .invalid, .invalid:focus { border-color: var(--danger); }
+  .invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }
+  .helper, .error { font-size: .8125rem; }
+  .helper { color: var(--muted); }
+  .error { color: var(--danger); }

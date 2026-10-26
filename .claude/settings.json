@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run build)",
+      "Bash(npx tsc:*)",
+      "Bash(node --test:*)",
+      "Bash(node src/cli.ts:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/typecheck.mjs\"" }]
+      }
+    ]
+  }
+}

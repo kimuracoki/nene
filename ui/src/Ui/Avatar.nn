@@ -1,0 +1,49 @@
+-- 人を表す丸い印。画像がなければ名前の頭文字を出す
+--
+--   <Avatar name="Ada Lovelace" />
+--   <Avatar name="Ada Lovelace" src={Just user.photo} size={L} />
+module Ui.Avatar (AvatarProps, avatar) where
+
+
+type AvatarProps =
+  { name :: String
+  , src  :: Maybe String = Nothing
+  , size :: Size         = M
+  }
+
+
+avatar :: AvatarProps -> Html msg
+avatar props = <Face photo={props.src} />
+  where
+    look = classes [css.avatar, sizeClass props.size]
+    face { photo = Just url } = <img class={look} src={url} alt={props.name} />
+    face { photo = Nothing }  = <span class={look} title={props.name} aria-label={props.name}>{initials props.name}</span>
+
+
+-- "Ada Lovelace" は "AL"、"木村" は "木"
+initials :: String -> String
+initials name = String.toUpper (String.join "" (map (String.slice 0 1) (take 2 (words name))))
+
+
+sizeClass :: Size -> Class
+sizeClass XS = css.small
+sizeClass S  = css.small
+sizeClass L  = css.large
+sizeClass XL = css.large
+sizeClass _  = css.medium
+
+
+style
+  .avatar {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    border-radius: 50%;
+    object-fit: cover;
+    background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+    color: var(--primary);
+    font-weight: 700;
+  }
+  .small  { width: 28px; height: 28px; font-size: .75rem; }
+  .medium { width: 40px; height: 40px; font-size: .9375rem; }
+  .large  { width: 64px; height: 64px; font-size: 1.375rem; }

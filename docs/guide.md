@@ -274,6 +274,23 @@ button :: ButtonProps msg -> [Html msg] -> Html msg
 <Button onClick={Save}>保存</Button>        -- disabled と variant は省略できる
 ```
 
+### 用意された部品を使う
+
+ボタン・入力欄・ダイアログなどは、公式の部品集 `nene-ui` にある（`nene new` で作ったプロジェクトには入っている）。
+
+```haskell
+import Ui.Button (Variant(..))
+import Ui.Dialog
+import Ui.TextField
+import Ui.Theme (Tone(..))
+
+<TextField label="名前" value={model.name} onInput={NameChanged} />
+<Button variant={Outlined} tone={Danger} onClick={Ask}>削除</Button>
+<Dialog open={model.asking} title="削除しますか？" onClose={Cancel}>…</Dialog>
+```
+
+部品の一覧と、色の変え方は `node_modules/nene-ui/README.md` にある。
+
 ### ファイルと部品
 
 - 1 つのファイルに部品はいくつ書いてもよい。
@@ -314,8 +331,52 @@ main = App.app { init, update, view, subscriptions }
 | `Time` | 現在時刻、一定間隔のタイマー |
 | `Keyboard` | キーが押されたとき |
 | `Window` | 画面の大きさ、大きさが変わったとき |
+| `Http` | サーバーと通信する（次の節） |
+| `Json` | 値と JSON の文字列を行き来する |
 | `Storage` | ブラウザに文字列を保存する |
+| `Random` | 乱数 |
+| `Dom` | 入力欄にフォーカスを移す、スクロールする |
+| `Env` | `.env` に書いた設定を読む（次の節） |
 | `Nav` | URL を変える |
+
+### サーバーと通信する
+
+受け取る値の型をメッセージに書けば、JSON はその型に合わせて読まれる。デコーダーを書く必要はない。
+
+```haskell
+type Todo = { id :: Int, title :: String, done :: Bool }
+
+data Msg
+  = Load
+  | GotTodos (Result Http.Error [Todo])
+
+update (GotTodos (Ok todos)) model = { model | todos = todos }
+update (GotTodos (Err _)) model    = { model | error = Just "読み込めませんでした" }
+update Load model                  = model
+
+effect Load _ = Http.get "/api/todos" GotTodos
+effect _ _    = Cmd.none
+```
+
+送るときも同じで、`Http.post "/api/todos" todo Saved` と値を渡せば、型どおりの JSON になる。返事の中身がいらないときは、`Saved (Result Http.Error ())` のように `()` を受け取る。
+
+ブラウザに保存するときは、`Json.encode` で文字列にして `Storage.set` に渡す。`examples/Todo.nn` がその例になっている。
+
+### 開発と本番で設定を変える
+
+API の URL のように、置く場所によって変わる値は `.env` に `NENE_` で始まる名前で書く。本番だけの値は `.env.production` に書く。
+
+```sh
+# .env
+NENE_API_URL=http://localhost:8080
+```
+
+```haskell
+apiUrl :: String
+apiUrl = Maybe.withDefault "/api" (Env.get "API_URL")
+```
+
+値はビルドのときに埋め込まれ、ブラウザから見える。秘密の値は書かない。
 
 ## 9. URL で画面を切り替える
 
@@ -335,7 +396,13 @@ update (UrlChanged url) model = { model | page = route url }
 main = App.app { init, update, view, onUrlChange = UrlChanged }
 ```
 
-`<a href="/todos">` を押すと、ページを読み直さずに画面が切り替わる。
+`<a href="/todos">` を押すと、ページを読み直さずに画面が切り替わる。新しい画面は一番上から表示され（`#` の付いたリンクならその場所へ）、ブラウザの戻るでは前にいた位置に戻る。
+
+### 公開する
+
+`npm run build` で `dist/` に出力したものを、静的ホスティングに置く。URL を直接開いても表示されるように、`404.html` と `_redirects` も一緒に出力される。
+
+`https://<user>.github.io/<repo>/` のようなサブディレクトリに置くときは、`npx nene build --base /<repo>/` でビルドする。コードの中のパス（`<a href="/todos">`、`<img src="/logo.png">`、`Nav.pushUrl "/todos"`）にはその分が自動で付き、`Url.path` からは取り除かれる。コードを書き換える必要はない。
 
 ## 10. アプリ全体の色やフォント
 

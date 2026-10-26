@@ -1,0 +1,50 @@
+-- 子要素の右上に数を重ねる。count が 0 のときは出さない
+--
+--   <Badge count={model.unread}>
+--     <IconButton icon={Icon.mail} label="メール" onClick={OpenMail} />
+--   </Badge>
+module Ui.Badge (BadgeProps, badge) where
+
+import Ui.Theme (Tone(..), toneVars)
+
+
+type BadgeProps =
+  { count :: Int
+  , max   :: Int  = 99     -- これを超えたら 99+ と出す
+  , tone  :: Tone = Danger
+  }
+
+
+badge :: BadgeProps -> [Html msg] -> Html msg
+badge props children =
+  <span class={css.anchor}>
+    {children}
+    <Count n={props.count} />
+  </span>
+  where
+    colors = toneVars props.tone
+    count { n = 0 } = <></>
+    count { n }     = <span class={css.badge} vars={colors}>{label n}</span>
+    label n
+      | n > props.max = show props.max ++ "+"
+      | otherwise     = show n
+
+
+style
+  .anchor { position: relative; display: inline-flex; }
+  .badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border: 2px solid var(--surface);
+    border-radius: 999px;
+    background: var(--tone);
+    color: var(--on-tone);
+    font-size: .6875rem;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+  }

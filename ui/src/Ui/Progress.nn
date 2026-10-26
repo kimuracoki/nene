@@ -1,0 +1,62 @@
+-- 進み具合のバー。value は 0 から 1。Nothing なら終わりの見えない処理として動き続ける
+--
+--   <Progress value={Just 0.4} />
+module Ui.Progress (ProgressProps, progress) where
+
+import Ui.Theme (Tone(..), toneVars)
+
+
+type ProgressProps =
+  { value :: Maybe Float = Nothing
+  , tone  :: Tone        = Primary
+  }
+
+
+progress :: ProgressProps -> Html msg
+progress props = <Bar value={props.value} />
+  where
+    colors = toneVars props.tone
+    bar { value = Just v } =
+      <div class={css.track} vars={colors} role="progressbar" aria-valuenow={percent}>
+        <div class={css.fill} vars={filled} />
+      </div>
+      where
+        percent = show (round (clamp v * 100.0))
+        filled  = { progress = percent ++ "%" }
+    bar { value = Nothing } =
+      <div class={css.track} vars={colors} role="progressbar">
+        <div class={css.moving} />
+      </div>
+
+
+clamp :: Float -> Float
+clamp v = max 0.0 (min 1.0 v)
+
+
+style
+  .track {
+    position: relative;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--tone) 15%, transparent);
+  }
+  .fill {
+    width: var(--progress);
+    height: 100%;
+    border-radius: inherit;
+    background: var(--tone);
+    transition: width .3s;
+  }
+  .moving {
+    position: absolute;
+    width: 40%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--tone);
+    animation: slide 1.2s ease-in-out infinite;
+  }
+  @keyframes slide {
+    from { left: -40%; }
+    to { left: 100%; }
+  }

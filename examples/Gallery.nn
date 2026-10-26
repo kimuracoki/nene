@@ -2,7 +2,8 @@
 -- 開いている写真は URL（?photo=10）に入るので、ブラウザの戻るボタンで閉じられる
 module Gallery (main) where
 
-import IconButton
+import qualified Ui.Icon as Icon
+import Ui.IconButton
 import Photo (PhotoSize(..))
 
 
@@ -134,15 +135,15 @@ viewer { image = Just image } =
         <p>{image.caption}</p>
         <Spacer />
         <IconButton icon={favoriteIcon} label="お気に入り" onClick={ToggleFavorite image.id} />
-        <IconButton icon="close" label="閉じる" onClick={Close} />
+        <IconButton icon={Icon.close} label="閉じる" onClick={Close} />
       </Row>
     </Column>
   </Column>
   where
 
     favoriteIcon
-      | image.favorite = "star"
-      | otherwise      = "star_border"
+      | image.favorite = Icon.starFilled
+      | otherwise      = Icon.star
 
 
 main :: Program Model Msg

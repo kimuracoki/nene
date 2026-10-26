@@ -1,0 +1,56 @@
+-- 選択肢から 1 つを選ぶ。options は（値, 表示する文字）の組
+--
+--   <Select label="並び順" value={model.order} options={orders} onChange={OrderChanged} />
+--     where
+--       orders = [("new", "新しい順"), ("old", "古い順")]
+module Ui.Select (SelectProps, select) where
+
+
+type SelectProps msg =
+  { value    :: String
+  , options  :: [(String, String)]
+  , onChange :: String -> msg
+  , label    :: String = ""
+  , disabled :: Bool   = False
+  }
+
+
+select :: SelectProps msg -> Html msg
+select props =
+  <label class={css.field}>
+    <Column gap={XS}>
+      <Caption text={props.label} />
+      <select class={css.box} disabled={props.disabled} onChange={props.onChange}>
+        {map choice props.options}
+      </select>
+    </Column>
+  </label>
+  where
+    choice (value, text) = <option value={value} selected={chosen}>{text}</option>
+      where
+        chosen = value == props.value
+
+
+caption :: { text :: String } -> Html msg
+caption { text = "" } = <></>
+caption { text }      = <span class={css.caption}>{text}</span>
+
+
+style
+  .field { display: block; }
+  .caption { font-size: .8125rem; font-weight: 600; }
+  .box {
+    width: 100%;
+    padding: 9px 36px 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") right 10px center / 16px no-repeat;
+    appearance: none;
+    cursor: pointer;
+  }
+  .box:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+  }
+  .box:disabled { opacity: .55; cursor: not-allowed; }

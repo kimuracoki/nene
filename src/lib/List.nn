@@ -23,3 +23,32 @@ lookup key ((k, v) : rest)
   | k == key  = Just v
   | otherwise = lookup key rest
 lookup _ [] = Nothing
+
+
+-- Just の中身だけを集める
+filterMap :: (a -> Maybe b) -> [a] -> [b]
+filterMap f (x : xs) = keep (f x)
+  where
+    keep (Just y) = y : filterMap f xs
+    keep Nothing  = filterMap f xs
+filterMap _ [] = []
+
+-- 条件に合うものと合わないものに分ける
+partition :: (a -> Bool) -> [a] -> ([a], [a])
+partition p xs = (filter p xs, filter (not . p) xs)
+
+maximum :: Ord a => [a] -> Maybe a
+maximum (x : xs) = Just (foldl max x xs)
+maximum []       = Nothing
+
+minimum :: Ord a => [a] -> Maybe a
+minimum (x : xs) = Just (foldl min x xs)
+minimum []       = Nothing
+
+foreign import intersperse :: a -> [a] -> [a] = "(sep) => (xs) => xs.flatMap((x, i) => (i === 0 ? [x] : [sep, x]))"
+foreign import repeat :: Int -> a -> [a] = "(n) => (x) => Array.from({ length: Math.max(0, n) }, () => x)"
+foreign import unique :: [a] -> [a] = "(xs) => xs.filter((x, i) => xs.findIndex((y) => $rt.eq(x, y)) === i)"
+
+-- 位置（0 から）を指定して取り除く・変える。範囲の外なら何もしない
+foreign import removeAt :: Int -> [a] -> [a] = "(i) => (xs) => xs.filter((_, j) => j !== i)"
+foreign import updateAt :: Int -> (a -> a) -> [a] -> [a] = "(i) => (f) => (xs) => xs.map((x, j) => (j === i ? f(x) : x))"

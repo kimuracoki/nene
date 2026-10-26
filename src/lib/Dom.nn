@@ -1,0 +1,13 @@
+-- 画面の要素を操作する。要素は id で指定する
+module Dom where
+
+
+foreign import focus :: String -> Cmd msg
+  = "(id) => (dispatch) => requestAnimationFrame(() => document.getElementById(id)?.focus())"
+
+foreign import blur :: String -> Cmd msg
+  = "(id) => (dispatch) => requestAnimationFrame(() => document.getElementById(id)?.blur())"
+
+-- 要素が見えるところまでスクロールする
+foreign import scrollIntoView :: String -> Cmd msg
+  = "(id) => (dispatch) => requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))"

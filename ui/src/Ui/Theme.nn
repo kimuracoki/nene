@@ -1,0 +1,41 @@
+-- 色と形の決まり（CSS 変数）と、部品に共通の色の種類（Tone）
+--
+-- 色を変えるときは、アプリの入口のファイルの style ブロックで :root の変数を上書きする:
+--
+--   style
+--     :root { --primary: #e11d48; --radius: 6px; }
+--
+-- ライトとダークの両方の色を light-dark() で持つ。ダークにしないときは :root { color-scheme: light; }
+module Ui.Theme (Tone(..), toneVars) where
+
+
+-- 部品の色の種類。どの部品でも同じものを使う
+data Tone = Primary | Neutral | Success | Warning | Danger
+
+
+-- 部品の style ブロックで var(--tone) として使う
+toneVars :: Tone -> { tone :: String }
+toneVars Primary = { tone = "var(--primary)" }
+toneVars Neutral = { tone = "var(--neutral)" }
+toneVars Success = { tone = "var(--success)" }
+toneVars Warning = { tone = "var(--warning)" }
+toneVars Danger  = { tone = "var(--danger)" }
+
+
+style
+  :root {
+    color-scheme: light dark;
+    --primary: light-dark(#5b5bd6, #8b8bf5);
+    --neutral: light-dark(#5f6372, #a4a8b5);
+    --success: light-dark(#18864b, #3dd68c);
+    --warning: light-dark(#b45309, #f5b14c);
+    --danger: light-dark(#d03a3a, #ff6b6b);
+    --on-tone: light-dark(#ffffff, #111216);
+    --text: light-dark(#1d1e24, #ecedf2);
+    --muted: light-dark(#6b6f7d, #9a9eab);
+    --surface: light-dark(#ffffff, #1b1c22);
+    --background: light-dark(#f6f6f9, #111216);
+    --border: light-dark(#dfe0e6, #2e3039);
+    --radius: 10px;
+    --shadow: 0 1px 2px rgb(0 0 0 / .06), 0 4px 16px rgb(0 0 0 / .06);
+  }

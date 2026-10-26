@@ -148,9 +148,21 @@ export function scopeSelectors(css: string, scope: string): string {
     return inner;
   };
 
+  // 空白とコメントは、そのまま写して読み飛ばす（セレクタの一部とみなさない）
+  const trivia = (): string => {
+    const start = i;
+    for (;;) {
+      if (/\s/.test(css[i] ?? "")) i++;
+      else if (css[i] === "/" && css[i + 1] === "*") i = skipQuoted(css, i);
+      else return css.slice(start, i);
+    }
+  };
+
   const rules = (): string => {
     let out = "";
     while (i < css.length && css[i] !== "}") {
+      out += trivia();
+      if (i >= css.length || css[i] === "}") break;
       const head = prelude();
       const c = css[i];
       if (c !== "{") {

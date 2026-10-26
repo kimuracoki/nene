@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { JSDOM } from "jsdom";
 import { bundle, compileProgram, type ProgramResult } from "../src/compiler.ts";
 import { CompileError } from "../src/syntax.ts";
@@ -36,13 +37,34 @@ export function mainModule(body: string): Record<string, string> {
   return { Main: `module Main (main) where\n\n${body}\n` };
 }
 
-export async function runInDom(files: Record<string, string>, entry = "Main") {
-  const js = bundle(compile(files, entry));
+export interface DomOptions {
+  url?: string; // 開いているページの URL
+  base?: string; // アプリの置き場所（nene build --base）
+  env?: Record<string, string>; // .env の値
+  setup?: (window: JSDOM["window"]) => void; // アプリを動かす前に window を整える（fetch を差し替えるなど）
+}
+
+export async function runInDom(files: Record<string, string>, entry = "Main", options: DomOptions = {}) {
+  return runProgram(compile(files, entry), options);
+}
+
+// examples/ のサンプルを、ディスクから読んで動かす（nene-ui などのパッケージも読み込まれる）
+export async function runExample(name: string, options: DomOptions = {}) {
+  return runProgram(compileProgram(join(import.meta.dirname, "..", "examples", `${name}.nn`)), options);
+}
+
+async function runProgram(program: ProgramResult, options: DomOptions) {
+  const js = bundle(program, {
+    base: JSON.stringify(options.base ?? "/"),
+    env: JSON.stringify(options.env ?? {}),
+  });
   const dom = new JSDOM(`<!doctype html><html><head></head><body><div id="app"></div></body></html>`, {
-    url: "http://localhost/",
+    url: options.url ?? "http://localhost/",
     runScripts: "outside-only",
     pretendToBeVisual: true,
   });
+  dom.window.scrollTo = () => {}; // jsdom にはスクロールがない
+  options.setup?.(dom.window);
   dom.window.eval(js);
   const document = dom.window.document;
   const frame = () => new Promise((r) => dom.window.requestAnimationFrame(() => r(undefined)));

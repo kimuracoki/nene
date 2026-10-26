@@ -2,14 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { runInDom } from "./helpers.ts";
-
-const examples = join(import.meta.dirname, "..", "examples");
-const exampleFiles = (...names: string[]) =>
-  Object.fromEntries(names.map((n) => [n, readFileSync(join(examples, `${n}.nn`), "utf8")]));
+import { runExample, runInDom } from "./helpers.ts";
 
 test("Counter: ボタンで数が増減する", async () => {
-  const app = await runInDom(exampleFiles("Counter", "Button", "Icon"), "Counter");
+  const app = await runExample("Counter");
   assert.match(app.text(), /カウンター 0/);
   await app.click("button", 1); // +
   await app.click("button", 1);
@@ -23,10 +19,7 @@ test("Counter: ボタンで数が増減する", async () => {
 });
 
 test("Todo: 追加・完了・絞り込み・削除ができる", async () => {
-  const app = await runInDom(
-    exampleFiles("Todo", "Button", "Icon", "Card", "Chip", "IconButton", "TextField"),
-    "Todo",
-  );
+  const app = await runExample("Todo");
   assert.match(app.text(), /牛乳を買う/);
   assert.match(app.text(), /すべて 2/);
   const bar = app.document.querySelector(".Todo__progress-bar") as HTMLElement;
@@ -66,7 +59,7 @@ test("Todo: 追加・完了・絞り込み・削除ができる", async () => {
 });
 
 test("Gallery: 写真を押すと大きく表示し、お気に入りにできる", async () => {
-  const app = await runInDom(exampleFiles("Gallery", "Photo", "IconButton", "Icon"), "Gallery");
+  const app = await runExample("Gallery");
   assert.equal(app.document.querySelectorAll("img").length, 9);
   await app.click("figure", 2);
   assert.equal(app.document.querySelectorAll("img").length, 10);
@@ -86,7 +79,7 @@ test("Gallery: 写真を押すと大きく表示し、お気に入りにでき�
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 test("Gallery: 開いた写真は URL に入り、Esc キーで閉じる", async () => {
-  const app = await runInDom(exampleFiles("Gallery", "Photo", "IconButton", "Icon"), "Gallery");
+  const app = await runExample("Gallery");
   await app.click("figure", 2);
   await wait(10);
   await app.frame();
@@ -100,7 +93,7 @@ test("Gallery: 開いた写真は URL に入り、Esc キーで閉じる", async
 });
 
 test("Stopwatch: タイマーで進み、ラップのベストを保存し、テーマを使う", async () => {
-  const app = await runInDom(exampleFiles("Stopwatch", "Button", "Icon"), "Stopwatch");
+  const app = await runExample("Stopwatch");
   assert.match(app.text(), /00:00\.00/);
   const button = (label: string) => [...app.document.querySelectorAll("button")].find((b) => b.textContent === label)!;
   button("開始").click();
@@ -120,9 +113,9 @@ test("Stopwatch: タイマーで進み、ラップのベストを保存し、テ
   const css = [...app.document.styleSheets].flatMap((s) => [...s.cssRules].map((r) => r.cssText)).join("\n");
   assert.match(css, /--primary: ?#22c55e/);
   assert.ok(app.document.querySelector(".Stopwatch__clock.nene-Stopwatch"));
-  // Button 部品の中の要素には Button の印が付き、Stopwatch の印は付かない
-  const btn = app.document.querySelector(".Button__button")!;
-  assert.ok(btn.classList.contains("nene-Button"));
+  // Button 部品（nene-ui）の中の要素には Button の印が付き、Stopwatch の印は付かない
+  const btn = app.document.querySelector(".Ui-Button__button")!;
+  assert.ok(btn.classList.contains("nene-Ui-Button"));
   assert.ok(!btn.classList.contains("nene-Stopwatch"));
 });
 
@@ -144,4 +137,59 @@ page =
   const css = [...app.document.styleSheets].flatMap((s) => [...s.cssRules].map((r) => r.cssText)).join("\n");
   assert.match(css, /@media \(max-width: 767\.98px\)[^}]*flex-direction: column/);
   assert.match(css, /@media \(max-width: 479\.98px\)[^}]*grid-template-columns: minmax\(0(px)?, ?1fr\)/);
+});
+
+test("標準ライブラリ: List・String・Result の関数", async () => {
+  const app = await runInDom({
+    Main: `module Main (main) where
+
+view :: () -> Html ()
+view _ = <p>{text}</p>
+  where
+    text = String.join " " [evens, padded, replaced, best, parsed]
+    evens = show (length (List.filterMap half [1, 2, 3, 4]))
+    half n
+      | mod n 2 == 0 = Just n
+      | otherwise    = Nothing
+    padded = String.padLeft 3 "0" "7"
+    replaced = String.replace "-" "/" "2026-10-26"
+    best = show (Maybe.withDefault 0 (List.maximum [3, 9, 4]))
+    parsed = Result.withDefault "?" (Result.map String.toUpper (Ok "ok"))
+
+main :: Program () ()
+main = App.app { init = (), update = always identity, view }
+`,
+  });
+  assert.equal(app.text(), "2 007 2026/10/26 9 OK");
+});
+
+test("Todo: タスクはブラウザに保存され、次に開いたときに読み込まれる", async () => {
+  const saved = JSON.stringify([{ id: 7, title: "保存したタスク", priority: "High", done: true }]);
+  const app = await runExample("Todo", { setup: (w) => w.localStorage.setItem("todos", saved) });
+  await app.frame();
+  assert.match(app.text(), /保存したタスク/);
+  assert.doesNotMatch(app.text(), /牛乳を買う/);
+  await app.click("input[type=checkbox]");
+  assert.equal(JSON.parse(app.window.localStorage.getItem("todos")!)[0].done, false);
+});
+
+test("Env.get で .env の NENE_ で始まる値を読める", async () => {
+  const app = await runInDom(
+    {
+      Main: `module Main (main) where
+
+view :: () -> Html ()
+view _ = <p>{api} {missing}</p>
+  where
+    api     = Maybe.withDefault "なし" (Env.get "API_URL")
+    missing = Maybe.withDefault "なし" (Env.get "SECRET")
+
+main :: Program () ()
+main = App.app { init = (), update = always identity, view }
+`,
+    },
+    "Main",
+    { env: { NENE_API_URL: "https://api.example.com", SECRET: "見えない" } },
+  );
+  assert.equal(app.text(), "https://api.example.com なし");
 });

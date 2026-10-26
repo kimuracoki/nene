@@ -1,0 +1,54 @@
+-- キーから値を引く表。キーの順に並んでいる
+module Dict (Dict, empty, singleton, fromList, toList, insert, remove, update, get, member, keys, values, size, isEmpty, map, filter) where
+
+
+data Dict k v = Dict [(k, v)]
+
+
+empty :: Dict k v
+empty = Dict []
+
+singleton :: k -> v -> Dict k v
+singleton k v = Dict [(k, v)]
+
+toList :: Dict k v -> [(k, v)]
+toList (Dict pairs) = pairs
+
+size :: Dict k v -> Int
+size (Dict pairs) = length pairs
+
+isEmpty :: Dict k v -> Bool
+isEmpty (Dict pairs) = null pairs
+
+member :: Ord k => k -> Dict k v -> Bool
+member k dict = Maybe.isJust (get k dict)
+
+-- キーがあれば、その値を関数で変える
+update :: Ord k => k -> (v -> v) -> Dict k v -> Dict k v
+update k f dict = change (get k dict)
+  where
+    change (Just v) = insert k (f v) dict
+    change Nothing  = dict
+
+foreign import keys :: Dict k v -> [k] = "(d) => d.a[0].map((p) => p[0])"
+foreign import values :: Dict k v -> [v] = "(d) => d.a[0].map((p) => p[1])"
+
+foreign import map :: (v -> w) -> Dict k v -> Dict k w
+  = "(f) => (d) => ({ $: 'Dict', a: [d.a[0].map(([k, v]) => [k, f(v)])] })"
+
+foreign import filter :: (k -> v -> Bool) -> Dict k v -> Dict k v
+  = "(f) => (d) => ({ $: 'Dict', a: [d.a[0].filter(([k, v]) => f(k)(v))] })"
+
+
+-- 同じキーが何度も出てきたら、後のものを使う
+foreign import fromList :: Ord k => [(k, v)] -> Dict k v
+  = "(pairs) => { const m = new Map(pairs.map(([k, v]) => [k, v])); return { $: 'Dict', a: [[...m].sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0))] }; }"
+
+foreign import insert :: Ord k => k -> v -> Dict k v -> Dict k v
+  = "(k) => (v) => (d) => { const ps = d.a[0].filter((p) => p[0] !== k); let i = ps.findIndex((p) => p[0] > k); if (i < 0) i = ps.length; ps.splice(i, 0, [k, v]); return { $: 'Dict', a: [ps] }; }"
+
+foreign import remove :: Ord k => k -> Dict k v -> Dict k v
+  = "(k) => (d) => ({ $: 'Dict', a: [d.a[0].filter((p) => p[0] !== k)] })"
+
+foreign import get :: Ord k => k -> Dict k v -> Maybe v
+  = "(k) => (d) => { const p = d.a[0].find((p) => p[0] === k); return p ? $rt.Just(p[1]) : $rt.Nothing; }"

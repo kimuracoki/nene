@@ -1,0 +1,50 @@
+-- タブ。どれを選んでいるかは model に持つ（0 から数える）
+--
+--   <Tabs labels={sections} selected={model.tab} onSelect={TabChanged} />
+--     where
+--       sections = ["概要", "設定", "履歴"]
+module Ui.Tabs (TabsProps, tabs) where
+
+
+type TabsProps msg =
+  { labels   :: [String]
+  , selected :: Int
+  , onSelect :: Int -> msg
+  }
+
+
+tabs :: TabsProps msg -> Html msg
+tabs props =
+  <div class={css.tabs} role="tablist">
+    <Row>{List.indexedMap tab props.labels}</Row>
+  </div>
+  where
+    tab i label = <button class={look} type="button" role="tab" aria-selected={state} onClick={choose}>{label}</button>
+      where
+        active = i == props.selected
+        choose = props.onSelect i
+        look
+          | active    = classes [css.tab, css.active]
+          | otherwise = css.tab
+        state
+          | active    = "true"
+          | otherwise = "false"
+
+
+style
+  .tabs { border-bottom: 1px solid var(--border); }
+  .tab {
+    margin-bottom: -1px;
+    padding: 10px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--muted);
+    font-weight: 600;
+    transition: color .15s, border-color .15s;
+  }
+  .tab:hover { color: var(--text); }
+  .active, .active:hover {
+    border-bottom-color: var(--primary);
+    color: var(--primary);
+  }

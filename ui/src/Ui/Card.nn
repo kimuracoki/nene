@@ -1,0 +1,48 @@
+-- 内容をまとめる面。title を書くと見出しが付く
+--
+--   <Card title="プロフィール">…</Card>
+--   <Card padding={None}>…</Card>       -- 中身を端まで広げる（リストなど）
+module Ui.Card (CardProps, card) where
+
+
+type CardProps =
+  { title   :: String = ""
+  , padding :: Size   = L
+  }
+
+
+card :: CardProps -> [Html msg] -> Html msg
+card props children =
+  <section class={css.card} vars={space}>
+    <Column gap={M}>
+      <Heading text={props.title} />
+      {children}
+    </Column>
+  </section>
+  where
+    space = { cardPadding = spacing props.padding }
+
+
+heading :: { text :: String } -> Html msg
+heading { text = "" } = <></>
+heading { text }      = <h2 class={css.title}>{text}</h2>
+
+
+spacing :: Size -> String
+spacing None = "0"
+spacing XS   = "var(--space-xs)"
+spacing S    = "var(--space-s)"
+spacing M    = "var(--space-m)"
+spacing L    = "var(--space-l)"
+spacing XL   = "var(--space-xl)"
+
+
+style
+  .card {
+    padding: var(--card-padding);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 4px);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .title { font-size: 1.0625rem; font-weight: 700; }

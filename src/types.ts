@@ -91,6 +91,7 @@ export interface TRec {
 export interface Scheme {
   vars: TVar[];
   type: Type;
+  json?: TVar[]; // Json 制約のついた変数（制約を書いた順）。使う場所で型の記述を渡す
 }
 
 export class TypeError_ extends Error {}
@@ -151,12 +152,14 @@ export function flattenRecord(t: TRec): {
 
 // ---- 型クラス ----
 
-export const CLASSES = ["Num", "Ord", "Show", "Append"] as const;
+export const CLASSES = ["Num", "Ord", "Show", "Append", "Json"] as const;
 
 function satisfies(cls: string, t: Type): boolean {
   t = prune(t);
   if (t.k === "var") return true; // 呼び出し側でクラスを移す
   if (t.k === "con" && t.skolem) return t.skolem.classes.has(cls);
+  // Json は型が決まりきったあとで、型の形をたどって確かめる（checker の jsonDescriptor）
+  if (cls === "Json") return true;
   if (t.k !== "con") return false;
   switch (cls) {
     case "Num":
@@ -167,6 +170,12 @@ function satisfies(cls: string, t: Type): boolean {
       return t.name === "Int" || t.name === "Float" || t.name === "Bool";
     case "Append":
       return t.name === "String" || t.name === "List";
+    case "Child": {
+      if (t.name === "String" || t.name === "Html") return true;
+      if (t.name !== "List") return false;
+      const elem = prune(t.args[0]);
+      return elem.k === "var" || (elem.k === "con" && elem.name === "Html");
+    }
     default:
       return false;
   }
@@ -177,6 +186,8 @@ const CLASS_TEXT: Record<string, string> = {
   Ord: "大小を比べられる型（Int・Float・String）",
   Show: "show できる型（Int・Float・Bool）",
   Append: "++ で連結できる型（String かリスト）",
+  Json: "JSON にできる型",
+  Child: "子要素にできる型（Html・[Html]・String）",
 };
 
 // ---- 単一化 ----
@@ -221,6 +232,12 @@ function bindVar(v: TVar, t: Type) {
   if (occurs(v, t)) throw new TypeError_("型が無限に続いてしまいます（自分自身を含む型になります）");
   if (t.k === "var") {
     for (const c of v.classes) t.classes.add(c);
+    // 子要素にできる型（Html・[Html]・String）は、数値でも show できる型でもない
+    if (t.classes.has("Child")) {
+      for (const c of ["Num", "Show"]) {
+        if (t.classes.has(c)) throw new TypeError_(`${CLASS_TEXT[c]} を子要素にはできません（${CLASS_TEXT.Child}）。数値なら show を使ってください`);
+      }
+    }
     if (v.level < t.level) t.level = v.level;
   } else {
     for (const c of v.classes) {
@@ -327,10 +344,15 @@ export function generalize(t: Type, level: number): Scheme {
 }
 
 export function instantiate(s: Scheme, level: number): Type {
-  if (s.vars.length === 0) return s.type;
+  return instantiateWith(s, level).type;
+}
+
+// 具体化した型と、スキームの変数から新しい変数への対応
+export function instantiateWith(s: Scheme, level: number): { type: Type; map: Map<TVar, TVar> } {
   const map = new Map<TVar, TVar>();
+  if (s.vars.length === 0) return { type: s.type, map };
   for (const v of s.vars) map.set(v, freshVar(level, v.classes));
-  return substitute(s.type, (v) => map.get(v));
+  return { type: substitute(s.type, (v) => map.get(v)), map };
 }
 
 export function substitute(t: Type, f: (v: TVar) => Type | undefined): Type {

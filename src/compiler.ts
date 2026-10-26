@@ -13,12 +13,17 @@ import {
   type SemToken,
 } from "./checker.ts";
 import { generateModule } from "./codegen.ts";
+import { findPackages } from "./packages.ts";
 import { parseModule } from "./parser.ts";
 import { CompileError, type Module } from "./syntax.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const LIB_DIR = join(here, "lib");
-export const RUNTIME_FILE = join(here, "..", "runtime", "runtime.js");
+const RUNTIME_DIR = join(here, "..", "runtime");
+// ランタイムの本体と、使うアプリにだけ入れる部分（その部分が用意する $rt の名前）
+const RUNTIME_CORE = join(RUNTIME_DIR, "runtime.js");
+const RUNTIME_PARTS = [{ file: join(RUNTIME_DIR, "http.js"), provides: ["json", "decodeJson", "http"] }];
+export const RUNTIME_FILES = [RUNTIME_CORE, ...RUNTIME_PARTS.map((p) => p.file)];
 const LIB_ORDER = ["Prelude", "Layout", ...STD_QUALIFIED];
 export const LIB_FILES = LIB_ORDER.map((name) => join(LIB_DIR, `${name}.nn`));
 
@@ -66,8 +71,14 @@ export function projectRoot(file: string, moduleName: string): string {
   return root;
 }
 
-// プロジェクトにあるモジュール名の一覧（エディタの import の補完用）
+// プロジェクトとパッケージにあるモジュール名の一覧（エディタの import の補完用）
 export function listModules(root: string): string[] {
+  const names = [root, ...findPackages(root).map((p) => p.root)].flatMap(modulesIn);
+  return [...new Set(names)].sort();
+}
+
+function modulesIn(root: string): string[] {
+  if (!existsSync(root)) return [];
   const out: string[] = [];
   const walk = (dir: string, prefix: string[]) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -110,8 +121,25 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
     throw new CompileError(`モジュール名とファイルの場所が合いません（${expectedPath} にしてください）`, entryMod.pos, entryFile);
   }
   const root = entryFile.slice(0, entryFile.length - expectedPath.length) || ".";
+  const packages = findPackages(root);
+  const exists = (file: string) => opts.overrides?.has(file) || existsSync(file);
 
-  const visit = (name: string, mod: Module, file: string) => {
+  // import したモジュールのファイルを、読み込む側のフォルダとパッケージから探す。2 か所にあればエラー
+  const locate = (imp: Module["imports"][number], fromRoot: string, file: string): { file: string; root: string } => {
+    const path = join(...imp.module.split(".")) + ".nn";
+    const roots = [...new Set([fromRoot, ...packages.map((p) => p.root)])];
+    const hits = roots.filter((r) => exists(join(r, path)));
+    const place = (r: string) => packages.find((p) => p.root === r)?.name ?? relative(root, join(r, path));
+    if (hits.length === 0) {
+      throw new CompileError(`モジュール ${imp.module} が見つかりません（${relative(root, join(fromRoot, path))}）`, imp.pos, file);
+    }
+    if (hits.length > 1) {
+      throw new CompileError(`モジュール ${imp.module} が ${hits.map(place).join(" と ")} の両方にあります。どちらかの名前を変えてください`, imp.pos, file);
+    }
+    return { file: join(hits[0], path), root: hits[0] };
+  };
+
+  const visit = (name: string, mod: Module, file: string, modRoot: string) => {
     if (parsed.has(name)) return;
     visiting.add(name);
     for (const imp of mod.imports) {
@@ -120,15 +148,12 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
         throw new CompileError(`モジュールが循環して import されています（${name} → ${imp.module}）`, imp.pos, file);
       }
       if (parsed.has(imp.module)) continue;
-      const depFile = join(root, ...imp.module.split(".")) + ".nn";
-      if (!opts.overrides?.has(depFile) && !existsSync(depFile)) {
-        throw new CompileError(`モジュール ${imp.module} が見つかりません（${relative(root, depFile)}）`, imp.pos, file);
-      }
-      const depMod = parseModule(read(depFile), depFile);
+      const dep = locate(imp, modRoot, file);
+      const depMod = parseModule(read(dep.file), dep.file);
       if (depMod.name !== imp.module) {
-        throw new CompileError(`モジュール名はファイル名と同じ ${imp.module} にしてください`, depMod.pos, depFile);
+        throw new CompileError(`モジュール名はファイル名と同じ ${imp.module} にしてください`, depMod.pos, dep.file);
       }
-      visit(imp.module, depMod, depFile);
+      visit(imp.module, depMod, dep.file, dep.root);
     }
     visiting.delete(name);
     parsed.set(name, { mod, file });
@@ -137,7 +162,7 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
   if (RESERVED_MODULES.includes(entryName)) {
     throw new CompileError(`${entryName} は標準モジュールの名前なので使えません`, entryMod.pos, entryFile);
   }
-  visit(entryName, entryMod, entryFile);
+  visit(entryName, entryMod, entryFile, root);
 
   const modules: CompiledModule[] = [];
   for (const name of order) {
@@ -153,31 +178,44 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
   return { entry: modules[modules.length - 1], modules, files: modules.map((m) => m.file) };
 }
 
-// ブラウザでそのまま動く 1 つの JavaScript にまとめる
-export function bundle(result: ProgramResult, mount = "app"): string {
-  const runtime = readFileSync(RUNTIME_FILE, "utf8");
-  const parts = [
-    "// nene が生成したコード",
-    runtime,
-    ...libraries().map((m) => m.js),
-    ...result.modules.map((m) => m.js),
-    `$rt.run(${result.entry.iface.js}.main(), document.getElementById(${JSON.stringify(mount)}) ?? document.body);`,
-  ];
-  return parts.join("\n\n") + "\n";
+export interface BundleOptions {
+  mount?: string; // 描画先の要素の id
+  // ランタイムに渡す設定（JS の式）。Vite からは import.meta.env を渡す
+  base?: string;
+  env?: string;
 }
 
-export function htmlPage(title: string, script: string): string {
-  return `<!doctype html>
-<html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="${script}"></script>
-  </body>
-</html>
-`;
+// ブラウザでそのまま動く 1 つの JavaScript にまとめる。標準ライブラリとランタイムは、使っている部分だけを入れる
+export function bundle(result: ProgramResult, options: BundleOptions = {}): string {
+  const mount = JSON.stringify(options.mount ?? "app");
+  const user = result.modules.map((m) => m.js);
+  const lib = usedLibraries(user).map((m) => m.js);
+  const parts = RUNTIME_PARTS.filter((p) => [...lib, ...user].some((js) => p.provides.some((name) => js.includes(`$rt.${name}`))));
+  return [
+    "// nene が生成したコード",
+    readFileSync(RUNTIME_CORE, "utf8"),
+    ...parts.map((p) => readFileSync(p.file, "utf8")),
+    `$rt.configure({ base: ${options.base ?? '"/"'}, env: ${options.env ?? "{}"} });`,
+    ...lib,
+    ...user,
+    `$rt.run(${result.entry.iface.js}.main(), document.getElementById(${mount}) ?? document.body);`,
+  ].join("\n\n") + "\n";
+}
+
+// コードが $M_名前 で参照している標準モジュールを、たどれるだけたどって集める（読み込む順は LIB_ORDER のまま）
+function usedLibraries(code: string[]): CompiledModule[] {
+  const lib = libraries();
+  const byJs = new Map(lib.map((m) => [m.iface.js, m]));
+  const used = new Set<CompiledModule>();
+  const pending = [...code];
+  while (pending.length > 0) {
+    for (const [ref] of pending.pop()!.matchAll(/\$M_\w+/g)) {
+      const m = byJs.get(ref);
+      if (m && !used.has(m)) {
+        used.add(m);
+        pending.push(m.js);
+      }
+    }
+  }
+  return lib.filter((m) => used.has(m));
 }

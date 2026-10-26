@@ -1,0 +1,37 @@
+{
+  "name": "nene-ui",
+  "version": "0.1.0",
+  "description": "Nene の公式 UI 部品集。ボタン・入力欄・ダイアログなど",
+  "type": "module",
+  "nene": {
+    "source": "src"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "nene-lang": "^0.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependenciesMeta": {
+    "nene-lang": {
+      "optional": true
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kimuracoki/nene.git",
+    "directory": "ui"
+  },
+  "homepage": "https://github.com/kimuracoki/nene/tree/main/ui#readme",
+  "license": "MIT",
+  "author": "kimuracoki",
+  "keywords": [
+    "nene",
+    "ui",
+    "components"
+  ]
+}

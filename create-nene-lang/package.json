@@ -14,5 +14,12 @@
   },
   "engines": {
     "node": ">=20.19"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kimuracoki/nene.git",
+    "directory": "create-nene-lang"
+  },
+  "license": "MIT",
+  "author": "kimuracoki"
 }

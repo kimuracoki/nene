@@ -7,7 +7,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: Object.fromEntries(
-        ["index", "counter", "gallery", "stopwatch"].map((name) => [name, resolve(import.meta.dirname, `${name}.html`)]),
+        ["index", "counter", "gallery", "stopwatch", "showcase"].map((name) => [name, resolve(import.meta.dirname, `${name}.html`)]),
       ),
     },
   },

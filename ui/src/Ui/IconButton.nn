@@ -1,0 +1,63 @@
+-- アイコンだけのボタン。label は画面には出ず、読み上げとツールチップに使う
+--
+--   <IconButton icon={Icon.close} label="閉じる" onClick={Close} />
+module Ui.IconButton (IconButtonProps, iconButton) where
+
+import Ui.Button (Variant(..))
+import qualified Ui.Icon as Icon
+import Ui.Theme (Tone(..), toneVars)
+
+
+type IconButtonProps msg =
+  { icon     :: Icon.Icon
+  , label    :: String
+  , onClick  :: msg
+  , variant  :: Variant = Plain
+  , tone     :: Tone    = Neutral
+  , size     :: Size    = M
+  , disabled :: Bool    = False
+  }
+
+
+iconButton :: IconButtonProps msg -> Html msg
+iconButton props =
+  <button class={look} vars={colors} type="button" title={props.label} aria-label={props.label} disabled={props.disabled} onClick={props.onClick}>
+    <Icon name={props.icon} />
+  </button>
+  where
+    colors = toneVars props.tone
+    look = classes [css.iconButton, variantClass props.variant, sizeClass props.size]
+
+
+variantClass :: Variant -> Class
+variantClass Filled   = css.filled
+variantClass Outlined = css.outlined
+variantClass Plain    = css.plain
+
+sizeClass :: Size -> Class
+sizeClass XS = css.small
+sizeClass S  = css.small
+sizeClass L  = css.large
+sizeClass XL = css.large
+sizeClass _  = css.medium
+
+
+style
+  .icon-button {
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    transition: background-color .15s, color .15s;
+  }
+  .icon-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--tone) 35%, transparent); }
+  .icon-button:disabled { opacity: .45; cursor: not-allowed; }
+  .small  { width: 30px; height: 30px; font-size: .8125rem; }
+  .medium { width: 38px; height: 38px; font-size: .9375rem; }
+  .large  { width: 48px; height: 48px; font-size: 1.125rem; }
+  .filled { background: var(--tone); color: var(--on-tone); }
+  .filled:hover:not(:disabled) { background: color-mix(in srgb, var(--tone) 88%, var(--text)); }
+  .outlined { border-color: var(--border); background: none; color: var(--tone); }
+  .plain { background: none; color: var(--tone); }
+  .outlined:hover:not(:disabled),
+  .plain:hover:not(:disabled) { background: color-mix(in srgb, var(--tone) 12%, transparent); }

@@ -102,9 +102,9 @@ test("言語サーバー: エラーの表示・型のホバー・定義への移
     assert.ok(attrs.some((a) => a.label === "disabled"));
 
     // import するモジュール
-    const imports = await complete("import Button");
+    const imports = await complete("import Ui.Button");
     assert.ok(imports.some((m) => m.label === "Gallery"));
-    assert.ok(imports.some((m) => m.label === "TextField"));
+    assert.ok(imports.some((m) => m.label === "Ui.TextField")); // nene-ui のモジュール
     assert.ok(!imports.some((m) => m.label === "Counter"));
 
     // 修飾名
@@ -167,15 +167,15 @@ test("言語サーバー: コンストラクタ・型・フィールド・import
     const counter = await open("Counter.nn");
     // コンストラクタ（パターン・式・ほかのモジュール）
     assert.equal(await defAt(counter, "update Increment n", "Increment"), "Counter.nn:Increment | Decrement | Reset");
-    assert.equal(await defAt(counter, "variant={Outlined}", "Outlined"), "Button.nn:Outlined | TextButton");
+    assert.equal(await defAt(counter, "variant={Outlined}", "Outlined"), "Button.nn:Outlined | Plain");
     // 型の名前
     assert.equal(await defAt(counter, "update :: Msg", "Model"), "Counter.nn:Model = Int");
     assert.equal(await defAt(counter, "update :: Msg", "Msg"), "Counter.nn:Msg = Increment | Decrement | Reset");
     // JSX の属性から、Props 型のフィールドへ
     assert.match((await defAt(counter, "variant={Outlined}", "variant"))!, /^Button\.nn:variant +:: Variant/);
     // import のモジュール名と、import する名前
-    assert.match((await defAt(counter, "import Button", "Button"))!, /^Button\.nn:module Button/);
-    assert.match((await defAt(counter, "import Button", "Variant"))!, /^Button\.nn:Variant = /);
+    assert.match((await defAt(counter, "import Ui.Button", "Button"))!, /^Button\.nn:module Ui\.Button/);
+    assert.match((await defAt(counter, "import Ui.Button", "Variant"))!, /^Button\.nn:Variant = /);
     // 閉じタグ
     assert.match((await defAt(counter, "</Row>", "Row"))!, /^Layout\.nn:row\b/);
     // 型注釈の名前から本体へ

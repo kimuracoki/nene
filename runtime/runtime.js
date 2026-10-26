@@ -37,6 +37,8 @@ const $rt = (() => {
   const Just = (x) => ({ $: "Just", a: [x] });
   const Nothing = { $: "Nothing" };
   const defaults = {};
+  const Ok = (x) => ({ $: "Ok", a: [x] });
+  const Err = (e) => ({ $: "Err", a: [e] });
 
   // ---- 仮想 DOM ----
 
@@ -202,6 +204,9 @@ const $rt = (() => {
       });
     };
 
+    // /about や /photo.jpg のような、アプリの一番上から書いたパスには、置き場所（base）を付け足す
+    const URL_ATTRS = new Set(["href", "src", "poster"]);
+
     const setAttr = (el, name, value, old) => {
       if (name === "class" || name === "key") return;
       if (name === "vars") {
@@ -214,6 +219,8 @@ const $rt = (() => {
       } else if (BOOLS.has(name)) {
         if (value) el.setAttribute(name, "");
         else el.removeAttribute(name);
+      } else if (URL_ATTRS.has(name)) {
+        el.setAttribute(name, withBase(value));
       } else {
         el.setAttribute(name, String(value));
       }
@@ -310,23 +317,62 @@ button { cursor: pointer; }
   };
 
   // ---- URL ----
+  // base はアプリを置いた場所（/ や /repo/）。アプリの中で扱うパスは、いつも base から見たもの
 
+  let base = "/";
+  let env = {};
   let onNavigate = null;
+
+  // ビルドの設定。Vite の import.meta.env から、モジュールを読み込む前に渡される
+  const configure = (options) => {
+    base = options.base ?? "/";
+    env = options.env ?? {};
+  };
+
+  const envValue = (name) => {
+    const v = env[`NENE_${name}`];
+    return v === undefined ? Nothing : Just(String(v));
+  };
+
+  const withBase = (url) => (url.startsWith("/") && !url.startsWith("//") ? base + url.slice(1) : url);
+  const inApp = (pathname) => pathname.startsWith(base) || pathname === base.slice(0, -1);
 
   const currentUrl = () => {
     const u = new URL(location.href);
     return {
-      path: u.pathname.split("/").filter(Boolean).map(decodeURIComponent),
+      path: u.pathname.slice(base.length - 1).split("/").filter(Boolean).map(decodeURIComponent),
       query: [...u.searchParams.entries()],
-      hash: u.hash.replace(/^#/, ""),
+      hash: decodeURIComponent(u.hash.replace(/^#/, "")),
     };
   };
 
-  const navigate = (url, replace) => {
-    if (replace) history.replaceState(null, "", url);
-    else history.pushState(null, "", url);
+  // 画面が移ったら、描いたあとで #… の要素か一番上へスクロールする。戻る・進むでは、前にいた位置へ戻す
+  let pendingScroll = null;
+
+  const restoreScroll = () => {
+    const target = pendingScroll;
+    pendingScroll = null;
+    if (target === null || typeof window.scrollTo !== "function") return;
+    if (target !== "top") return window.scrollTo(target[0], target[1]);
+    const id = decodeURIComponent(location.hash.slice(1));
+    const el = id ? document.getElementById(id) : null;
+    if (el) el.scrollIntoView();
+    else window.scrollTo(0, 0);
+  };
+
+  const go = (url, replace) => {
+    if (replace) {
+      history.replaceState(history.state, "", url);
+    } else {
+      history.replaceState({ ...history.state, scroll: [window.scrollX, window.scrollY] }, "");
+      history.pushState({}, "", url);
+      pendingScroll = "top";
+    }
     if (onNavigate) onNavigate();
   };
+
+  // Nav.pushUrl などから。url はアプリの中のパス
+  const navigate = (url, replace) => go(withBase(url), replace);
 
   // ---- アプリの実行 ----
 
@@ -379,21 +425,26 @@ button { cursor: pointer; }
       const next = norm([config.view(model)]);
       renderer.patchChildren(root, current, next);
       current = next;
+      restoreScroll();
     };
 
     if (config.onUrlChange) {
       const changed = () => dispatch(config.onUrlChange(currentUrl()));
       onNavigate = changed;
-      window.addEventListener("popstate", changed);
+      history.scrollRestoration = "manual";
+      window.addEventListener("popstate", () => {
+        pendingScroll = history.state?.scroll ?? [0, 0];
+        changed();
+      });
       // 同じサイト内のリンクは、ページを読み直さずに URL だけ変える
       document.addEventListener("click", (ev) => {
         const a = ev.target instanceof Element ? ev.target.closest("a[href]") : null;
         if (!a || ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
         if (a.target && a.target !== "_self") return;
         const url = new URL(a.href, location.href);
-        if (url.origin !== location.origin) return;
+        if (url.origin !== location.origin || !inApp(url.pathname) || a.hasAttribute("download")) return;
         ev.preventDefault();
-        navigate(url.pathname + url.search + url.hash, false);
+        go(url.pathname + url.search + url.hash, false);
       });
     }
 
@@ -405,8 +456,8 @@ button { cursor: pointer; }
   };
 
   return {
-    lazy, eq, append, compose, idiv, show, fail, Just, Nothing, defaults,
-    h, frag, layout, spacer, run, sub, navigate, css, scope,
+    lazy, eq, append, compose, idiv, show, fail, Just, Nothing, Ok, Err, defaults,
+    h, frag, layout, spacer, run, sub, navigate, css, scope, configure, envValue,
     // テスト用
     norm,
   };

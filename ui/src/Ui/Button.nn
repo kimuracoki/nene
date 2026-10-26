@@ -1,0 +1,97 @@
+-- ボタン
+--
+--   <Button onClick={Save}>保存</Button>
+--   <Button variant={Outlined} tone={Danger} startIcon={Just Icon.delete} onClick={Remove}>削除</Button>
+module Ui.Button (ButtonProps, Variant(..), button) where
+
+import qualified Ui.Icon as Icon
+import Ui.Theme (Tone(..), toneVars)
+
+
+data Variant = Filled | Outlined | Plain
+
+type ButtonProps msg =
+  { onClick   :: msg
+  , variant   :: Variant         = Filled
+  , tone      :: Tone            = Primary
+  , size      :: Size            = M
+  , startIcon :: Maybe Icon.Icon = Nothing
+  , endIcon   :: Maybe Icon.Icon = Nothing
+  , disabled  :: Bool            = False
+  , fullWidth :: Bool            = False
+  }
+
+
+button :: ButtonProps msg -> [Html msg] -> Html msg
+button props children =
+  <button class={look} vars={colors} type="button" disabled={props.disabled} onClick={props.onClick}>
+    <Row gap={S} align={Center} justify={Center}>
+      <Slot icon={props.startIcon} />
+      {children}
+      <Slot icon={props.endIcon} />
+    </Row>
+  </button>
+  where
+    colors = toneVars props.tone
+    look = classes [css.button, variantClass props.variant, sizeClass props.size, width]
+    width
+      | props.fullWidth = css.full
+      | otherwise       = classes []
+
+
+slot :: { icon :: Maybe Icon.Icon } -> Html msg
+slot { icon = Just i }  = <Icon name={i} />
+slot { icon = Nothing } = <></>
+
+
+variantClass :: Variant -> Class
+variantClass Filled   = css.filled
+variantClass Outlined = css.outlined
+variantClass Plain    = css.plain
+
+sizeClass :: Size -> Class
+sizeClass XS = css.small
+sizeClass S  = css.small
+sizeClass L  = css.large
+sizeClass XL = css.large
+sizeClass _  = css.medium
+
+
+style
+  .button {
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    transition: background-color .15s, border-color .15s, box-shadow .15s, transform .1s;
+  }
+  .button:focus-visible { outline: 3px solid color-mix(in srgb, var(--tone) 35%, transparent); outline-offset: 1px; }
+  .button:active:not(:disabled) { transform: translateY(1px); }
+  .button:disabled { opacity: .45; cursor: not-allowed; }
+  .small  { padding: 6px 12px; font-size: .8125rem; }
+  .medium { padding: 9px 16px; font-size: .9375rem; }
+  .large  { padding: 12px 22px; font-size: 1.0625rem; }
+  .full   { width: 100%; }
+
+  .filled {
+    background: var(--tone);
+    color: var(--on-tone);
+  }
+  .filled:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--tone) 88%, var(--text));
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--tone) 30%, transparent);
+  }
+  .outlined {
+    border-color: color-mix(in srgb, var(--tone) 55%, transparent);
+    background: none;
+    color: var(--tone);
+  }
+  .plain {
+    background: none;
+    color: var(--tone);
+  }
+  .outlined:hover:not(:disabled),
+  .plain:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--tone) 10%, transparent);
+  }

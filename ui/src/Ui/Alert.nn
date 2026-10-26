@@ -1,0 +1,53 @@
+-- 知らせる枠。色の種類に合ったアイコンが付く
+--
+--   <Alert tone={Success} title="保存しました">次回からこの設定で開きます。</Alert>
+module Ui.Alert (AlertProps, alert) where
+
+import qualified Ui.Icon as Icon
+import Ui.Theme (Tone(..), toneVars)
+
+
+type AlertProps =
+  { tone  :: Tone   = Primary
+  , title :: String = ""
+  }
+
+
+alert :: AlertProps -> [Html msg] -> Html msg
+alert props children =
+  <div class={css.alert} vars={colors} role="status">
+    <Row gap={S}>
+      <span class={css.mark}><Icon name={symbol props.tone} /></span>
+      <Column gap={XS}>
+        <Heading text={props.title} />
+        <div class={css.body}>{children}</div>
+      </Column>
+    </Row>
+  </div>
+  where
+    colors = toneVars props.tone
+
+
+heading :: { text :: String } -> Html msg
+heading { text = "" } = <></>
+heading { text }      = <strong class={css.title}>{text}</strong>
+
+
+symbol :: Tone -> Icon.Icon
+symbol Primary = Icon.info
+symbol Neutral = Icon.info
+symbol Success = Icon.success
+symbol Warning = Icon.warning
+symbol Danger  = Icon.error
+
+
+style
+  .alert {
+    padding: 12px 16px;
+    border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--tone) 8%, var(--surface));
+  }
+  .mark { color: var(--tone); line-height: 1.5; }
+  .title { color: var(--tone); }
+  .body { font-size: .9375rem; }

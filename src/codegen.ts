@@ -148,6 +148,8 @@ class Gen {
     switch (e.k) {
       case "var": {
         const ref = e.ref!;
+        // Json 制約のある関数には、決まった型の記述を先に渡す
+        if (e.json) return `${ref.js}${e.json.map((d) => `(${d})`).join("")}`;
         return ref.thunk ? `${ref.js}()` : ref.js;
       }
       case "con":

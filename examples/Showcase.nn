@@ -1,0 +1,181 @@
+-- nene-ui の部品を一通り並べた見本
+module Showcase (main) where
+
+import Ui.Alert
+import Ui.Avatar
+import Ui.Badge
+import Ui.Button (Variant(..))
+import Ui.Card
+import Ui.Checkbox
+import Ui.Chip
+import Ui.Dialog
+import qualified Ui.Icon as Icon
+import Ui.IconButton
+import Ui.Progress
+import Ui.Select
+import Ui.Spinner
+import Ui.Switch
+import Ui.Tabs
+import Ui.TextField (InputKind(..))
+import Ui.Theme (Tone(..))
+
+
+type Model =
+  { name     :: String
+  , email    :: String
+  , agreed   :: Bool
+  , notify   :: Bool
+  , plan     :: String
+  , tab      :: Int
+  , dialog   :: Bool
+  , progress :: Float
+  , liked    :: Bool
+  }
+
+data Msg
+  = NameChanged String
+  | EmailChanged String
+  | Agreed Bool
+  | NotifyChanged Bool
+  | PlanChanged String
+  | TabChanged Int
+  | OpenDialog
+  | CloseDialog
+  | Advance
+  | ToggleLike
+
+
+init :: Model
+init =
+  { name = "", email = "", agreed = False, notify = True, plan = "free"
+  , tab = 0, dialog = False, progress = 0.3, liked = False
+  }
+
+
+update :: Msg -> Model -> Model
+update (NameChanged s) model   = { model | name = s }
+update (EmailChanged s) model  = { model | email = s }
+update (Agreed b) model        = { model | agreed = b }
+update (NotifyChanged b) model = { model | notify = b }
+update (PlanChanged p) model   = { model | plan = p }
+update (TabChanged i) model    = { model | tab = i }
+update OpenDialog model        = { model | dialog = True }
+update CloseDialog model       = { model | dialog = False }
+update Advance model           = { model | progress = next }
+  where
+    next
+      | model.progress >= 1.0 = 0.0
+      | otherwise             = model.progress + 0.1
+update ToggleLike model        = { model | liked = not model.liked }
+
+
+view :: Model -> Html Msg
+view model =
+  <main class={css.page}>
+    <Column gap={L}>
+      <Column gap={XS}>
+        <h1 class={css.title}>nene-ui</h1>
+        <p class={css.lead}>Nene の公式 UI 部品集。色は CSS 変数で変えられ、ライトとダークの両方に対応している。</p>
+      </Column>
+
+      <Card title="ボタン">
+        <Row gap={S} wrap={True} align={Center}>
+          <Button onClick={OpenDialog}>開く</Button>
+          <Button variant={Outlined} onClick={Advance} startIcon={Just Icon.add}>進める</Button>
+          <Button variant={Plain} tone={Neutral} onClick={Advance}>あとで</Button>
+          <Button tone={Danger} startIcon={Just Icon.delete} onClick={OpenDialog}>削除</Button>
+          <Button tone={Success} size={S} onClick={Advance}>小さい</Button>
+          <Button size={L} endIcon={Just Icon.arrowRight} onClick={Advance}>大きい</Button>
+          <Button disabled onClick={Advance}>押せない</Button>
+          <IconButton icon={heart} label="いいね" tone={Danger} onClick={ToggleLike} />
+          <IconButton icon={Icon.settings} label="設定" variant={Outlined} onClick={OpenDialog} />
+          <IconButton icon={Icon.add} label="追加" variant={Filled} tone={Primary} onClick={Advance} />
+        </Row>
+      </Card>
+
+      <Grid columns={2} gap={L} collapse={M}>
+        <Card title="入力">
+          <Column gap={M}>
+            <TextField label="名前" placeholder="木村 太郎" value={model.name} onInput={NameChanged} helper="あとから変えられます" />
+            <TextField label="メール" kind={Email} value={model.email} onInput={EmailChanged} error={emailError} />
+            <Select label="プラン" value={model.plan} options={plans} onChange={PlanChanged} />
+            <Checkbox label="利用規約に同意する" checked={model.agreed} onCheck={Agreed} />
+            <Switch label="お知らせを受け取る" checked={model.notify} onCheck={NotifyChanged} />
+          </Column>
+        </Card>
+
+        <Card title="表示">
+          <Column gap={M}>
+            <Tabs labels={sections} selected={model.tab} onSelect={TabChanged} />
+            <Row gap={S} align={Center}>
+              <Avatar name={displayName} />
+              <Avatar name="Ada Lovelace" size={S} />
+              <Badge count={3}>
+                <IconButton icon={Icon.mail} label="メール" onClick={OpenDialog} />
+              </Badge>
+              <Badge count={120}>
+                <IconButton icon={Icon.calendar} label="予定" onClick={OpenDialog} />
+              </Badge>
+              <Spinner size={S} />
+            </Row>
+            <Row gap={XS} wrap={True}>
+              <Chip>下書き</Chip>
+              <Chip tone={Success}>公開中</Chip>
+              <Chip tone={Warning}>確認待ち</Chip>
+              <Chip tone={Primary} selected={True} onClick={backToFirst}>選択中</Chip>
+            </Row>
+            <Progress value={Just model.progress} />
+            <Progress tone={Success} />
+          </Column>
+        </Card>
+      </Grid>
+
+      <Column gap={S}>
+        <Alert title="お知らせ">新しいバージョンが使えます。</Alert>
+        <Alert tone={Success} title="保存しました">次回からこの設定で開きます。</Alert>
+        <Alert tone={Warning}>容量の 90% を使っています。</Alert>
+        <Alert tone={Danger} title="送信できませんでした">ネットワークを確かめてください。</Alert>
+      </Column>
+    </Column>
+
+    <Dialog open={model.dialog} title="削除しますか？" onClose={CloseDialog}>
+      <p class={css.lead}>この操作は取り消せません。</p>
+      <Row gap={S} justify={End}>
+        <Button variant={Plain} tone={Neutral} onClick={CloseDialog}>やめる</Button>
+        <Button tone={Danger} onClick={CloseDialog}>削除する</Button>
+      </Row>
+    </Dialog>
+  </main>
+  where
+    plans    = [("free", "無料"), ("pro", "プロ"), ("team", "チーム")]
+    sections = ["概要", "メンバー", "設定"]
+    backToFirst = Just (TabChanged 0)
+    displayName
+      | String.isEmpty model.name = "Nene"
+      | otherwise                 = model.name
+    emailError
+      | String.isEmpty model.email || String.contains "@" model.email = Nothing
+      | otherwise = Just "メールアドレスの形になっていません"
+    heart
+      | model.liked = Icon.starFilled
+      | otherwise   = Icon.star
+
+
+main :: Program Model Msg
+main = App.app { init, update, view }
+
+
+style
+  body {
+    font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--background);
+  }
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 16px;
+  }
+  .title { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+  .lead { color: var(--muted); }
