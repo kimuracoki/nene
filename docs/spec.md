@@ -451,6 +451,15 @@ URL を変えるときは `Nav.pushUrl` を `effect` から返す。
 - `open`（`<details>`・`<dialog>`）と `popover` は、ユーザーが開け閉めした状態を、Model から渡す値が変わらない限り保つ。`value` や `checked` は、描くたびに Model の値に合わせる。
 - 見た目だけの状態は、アプリから読めない。読む必要が出てきたら Model に移す。
 
+### 7.6 静的生成
+
+`nene build` は、`/` から始めて、描いた画面の中のアプリへのリンク（`<a href>`）をたどり、たどれたページの HTML を出力する（`/about` は `about/index.html`）。
+
+- 各ページの model は、`init` にその URL の `onUrlChange` のメッセージを `update` で当てたもの。`effect`・`onStart`・`subscriptions` は実行しない。
+- `onUrlChange` のないアプリは `/` だけを作る。
+- ブラウザでは、読み込んだときに同じ画面を描き直してから動き出す。
+- リンクでたどれない URL は、中身の空の `404.html` から、ブラウザで組み立てる。
+
 ## 8. レイアウトタグ
 
 並び方はレイアウトタグで書く。HTML 要素は並び方を持たない（ブロック要素として縦に積まれるだけ）。

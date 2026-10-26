@@ -22,12 +22,12 @@ npm run preview   # dist/ を手元で動かして確かめる
 
 ## 公開する
 
-`npm run build` の出力（`dist/`）を、静的ホスティングにそのまま置く。URL を直接開いたときやリロードしたときも表示されるように、`404.html` と `_redirects` も一緒に出力される。
+`npm run build` の出力（`dist/`）を、静的ホスティングにそのまま置く。リンクでたどれるページは HTML にしてある（開いた瞬間に表示され、検索エンジンにも見える）。たどれない URL を直接開いたときやリロードしたときも表示されるように、`404.html` と `_redirects` も一緒に出力される。
 
 | 置き場所 | やること |
 | --- | --- |
 | Netlify・Cloudflare Pages | ビルドコマンドに `npm run build`、出力先に `dist` を指定する |
-| Vercel | 上と同じ。加えて `vercel.json` に `{ "rewrites": [{ "source": "/(.*)", "destination": "/" }] }` を書く |
+| Vercel | 上と同じ。加えて `vercel.json` に `{ "rewrites": [{ "source": "/(.*)", "destination": "/404.html" }] }` を書く |
 | GitHub Pages（`https://<user>.github.io/<repo>/`） | `npx nene build --base /<repo>/` でビルドして、`dist/` を公開する |
 
 `--base` を付けると、コードの中で `/about` や `/logo.png` と書いたパスに置き場所が自動で付く。コードを書き換える必要はない。

@@ -407,7 +407,11 @@ main = App.app { init, update, view, onUrlChange = UrlChanged }
 
 ### 公開する
 
-`npm run build` で `dist/` に出力したものを、静的ホスティングに置く。URL を直接開いても表示されるように、`404.html` と `_redirects` も一緒に出力される。
+`npm run build` で `dist/` に出力したものを、静的ホスティングに置く。
+
+ビルドでは、`/` から始めて画面の中のリンク（`<a href="/...">`）をたどり、たどれたページを HTML にしておく（静的生成）。開いた瞬間に中身が表示され、検索エンジンにも内容が見える。そのあとは今までどおり、ブラウザでアプリとして動く。各ページは、`init` にその URL の `onUrlChange` を当てた画面になる（通信などの `effect` はビルドでは実行しない）。
+
+リンクでたどれない URL（データから作られる `/photos/123` など）は、ブラウザで組み立てる。直接開いても表示されるように、`404.html` と `_redirects` も一緒に出力される。
 
 `https://<user>.github.io/<repo>/` のようなサブディレクトリに置くときは、`npx nene build --base /<repo>/` でビルドする。コードの中のパス（`<a href="/todos">`、`<img src="/logo.png">`、`Nav.pushUrl "/todos"`）にはその分が自動で付き、`Url.path` からは取り除かれる。コードを書き換える必要はない。
 

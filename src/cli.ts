@@ -5,6 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpat
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { compileProgram } from "./compiler.ts";
+import { prerenderSite } from "./prerender.ts";
 import { displayWidth, formatError } from "./report.ts";
 import { CompileError } from "./syntax.ts";
 
@@ -40,14 +41,17 @@ const commands: Record<string, Command> = {
     usage: "build [--base /repo/] [--out dist]",
     summary: "公開用のファイルを出力する",
     run: async (args) => {
-      const { build } = await import("vite");
+      const { build, loadEnv } = await import("vite");
       const root = projectDir();
+      const [entry] = entries(root);
       checkAll(entries(root));
       const outDir = resolve(root, option(args, "--out") ?? "dist");
       const base = normalizeBase(option(args, "--base") ?? "/");
       await build({ ...(await viteOptions(root)), base, build: { outDir, emptyOutDir: true } });
       writeFallbacks(outDir, base);
-      console.log(`\n${paint("32", "✓")} ${relative(process.cwd(), outDir) || "."}/ に出力しました（置き場所: ${base}）`);
+      const pages = prerenderSite({ outDir, entry, base, env: loadEnv("production", root, "NENE_") });
+      const where = relative(process.cwd(), outDir) || ".";
+      console.log(`\n${paint("32", "✓")} ${where}/ に出力しました（置き場所: ${base}、HTML にしたページ: ${pages.length}）`);
     },
   },
   preview: {
@@ -152,11 +156,11 @@ async function viteOptions(root: string) {
   return { root, plugins: [nene()], logLevel: "info" as const };
 }
 
-// URL を直接開いたときやリロードしたときも、アプリが表示されるようにする。
-// 404.html は GitHub Pages など、_redirects は Netlify や Cloudflare Pages が読む
+// HTML にしていない URL を直接開いたときも、アプリが表示されるようにする（中身の空の枠を返す）。
+// 404.html は GitHub Pages など、_redirects は Netlify や Cloudflare Pages が読む。静的生成より先に写す
 function writeFallbacks(outDir: string, base: string) {
   copyFileSync(join(outDir, "index.html"), join(outDir, "404.html"));
-  writeFileSync(join(outDir, "_redirects"), `${base}* ${base}index.html 200\n`);
+  writeFileSync(join(outDir, "_redirects"), `${base}* ${base}404.html 200\n`);
 }
 
 // build で出力した index.html から、置き場所を読み取る（<script src="/repo/assets/...">）

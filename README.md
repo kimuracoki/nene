@@ -123,7 +123,7 @@ npm run dev
 
 ### 公開する
 
-`nene build` は、`/todos/3` のような URL を直接開いても表示されるように、`404.html`（GitHub Pages など）と `_redirects`（Netlify・Cloudflare Pages）も出力する。ホスティングごとの手順は、作ったプロジェクトの `README.md` に書いてある。
+`nene build` は、リンクでたどれるページを HTML にしておく（静的生成）。`/todos/3` のような、たどれない URL を直接開いても表示されるように、`404.html`（GitHub Pages など）と `_redirects`（Netlify・Cloudflare Pages）も出力する。ホスティングごとの手順は、作ったプロジェクトの `README.md` に書いてある。
 
 ### パッケージを作る
 
@@ -201,6 +201,7 @@ npm pack                  # 配布するパッケージを手元で作る
 | `src/codegen.ts` | JavaScript の生成 |
 | `src/compiler.ts` | モジュールを依存順に読み込み、1 つの JavaScript にまとめる（使っている標準モジュールだけを入れる） |
 | `src/packages.ts` | `node_modules` から Nene のパッケージを探す |
+| `src/prerender.ts` | 静的生成。ビルドのあとでアプリを Node の中で動かし、リンクをたどってページの HTML を作る |
 | `src/lib/*.nn` | 標準ライブラリ（Nene で書かれている） |
 | `runtime/runtime.js` | 仮想 DOM、レイアウトタグ、`style` ブロックの CSS の読み込み、URL、The Elm Architecture の実行 |
 | `runtime/http.js` | JSON との変換と HTTP（使うアプリにだけ入る） |
@@ -214,6 +215,6 @@ npm pack                  # 配布するパッケージを手元で作る
 
 ## まだないもの
 
-- サーバー側での描画（SSR）と、ビルド時に HTML を作る静的生成
+- リクエストごとにサーバーで描く SSR（ビルド時の静的生成はある）
 - VS Code の拡張
 - Tree-sitter の文法（今は Vim の syntax ファイルと、言語サーバーによる色分け）

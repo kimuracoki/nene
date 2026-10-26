@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "cd examples && node ../src/cli.ts dev",
-    "build": "cd examples && node ../src/cli.ts build -o ../dist/examples",
+    "build": "cd examples && node ../src/cli.ts build --out ../dist/examples",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc",
     "build:package": "rm -rf build && tsc -p tsconfig.build.json && cp -R src/lib build/lib",

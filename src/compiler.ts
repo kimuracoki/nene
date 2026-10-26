@@ -183,6 +183,8 @@ export interface BundleOptions {
   // ランタイムに渡す設定（JS の式）。Vite からは import.meta.env を渡す
   base?: string;
   env?: string;
+  // true なら画面を描かず、最後の式として { rt, program } を返す（静的生成で Node から動かす）
+  prerender?: boolean;
 }
 
 // ブラウザでそのまま動く 1 つの JavaScript にまとめる。標準ライブラリとランタイムは、使っている部分だけを入れる
@@ -198,7 +200,9 @@ export function bundle(result: ProgramResult, options: BundleOptions = {}): stri
     `$rt.configure({ base: ${options.base ?? '"/"'}, env: ${options.env ?? "{}"} });`,
     ...lib,
     ...user,
-    `$rt.run(${result.entry.iface.js}.main(), document.getElementById(${mount}) ?? document.body);`,
+    options.prerender
+      ? `({ rt: $rt, program: ${result.entry.iface.js}.main() });`
+      : `$rt.run(${result.entry.iface.js}.main(), document.getElementById(${mount}) ?? document.body);`,
   ].join("\n\n") + "\n";
 }
 

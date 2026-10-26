@@ -91,13 +91,17 @@ const $rt = (() => {
   const layoutStyle = styleElement("layout");
   const userStyle = styleElement("components");
   const classes = new Map();
+  // ページに入れた CSS の写し。静的生成（prerender）で HTML に埋め込む
+  const sheets = { layout: [], components: [] };
 
   const addRule = (rule) => {
+    sheets.layout.push(rule);
     if (layoutStyle) layoutStyle.sheet.insertRule(rule, layoutStyle.sheet.cssRules.length);
   };
 
   // style ブロックの CSS（コンパイラがクラス名を部品ごとに書き換えたもの）
   const css = (text) => {
+    sheets.components.push(text);
     if (userStyle) userStyle.textContent += text + "\n";
   };
 
@@ -110,7 +114,6 @@ const $rt = (() => {
     if (cls) return cls;
     cls = `nene${classes.size}`;
     classes.set(key, cls);
-    if (!hasDocument) return cls;
     if (base) addRule(`.${cls}{${base}}`);
     if (hover) addRule(`.${cls}:hover{${hover}}`);
     if (narrow) addRule(`@media (max-width: ${narrow[0] - 0.02}px){.${cls}{${narrow[1]}}}`);
@@ -191,6 +194,9 @@ const $rt = (() => {
     for (const [k, v] of Object.entries(newVars ?? {})) if (!oldVars || oldVars[k] !== v) el.style.setProperty(varName(k), v);
   };
 
+  // /about や /photo.jpg のような、アプリの一番上から書いたパスには、置き場所（base）を付け足す
+  const URL_ATTRS = new Set(["href", "src", "poster"]);
+
   const createRenderer = (dispatch) => {
     const listen = (el, name) => {
       el.$nene ??= {};
@@ -205,9 +211,6 @@ const $rt = (() => {
         else dispatch(handler);
       });
     };
-
-    // /about や /photo.jpg のような、アプリの一番上から書いたパスには、置き場所（base）を付け足す
-    const URL_ATTRS = new Set(["href", "src", "poster"]);
 
     const setAttr = (el, name, value, old) => {
       if (name === "class" || name === "key") return;
@@ -339,8 +342,10 @@ button { cursor: pointer; }
   const withBase = (url) => (url.startsWith("/") && !url.startsWith("//") ? base + url.slice(1) : url);
   const inApp = (pathname) => pathname.startsWith(base) || pathname === base.slice(0, -1);
 
-  const currentUrl = () => {
-    const u = new URL(location.href);
+  const currentUrl = () => urlOf(location.href);
+
+  const urlOf = (href) => {
+    const u = new URL(href, "http://localhost");
     return {
       path: u.pathname.slice(base.length - 1).split("/").filter(Boolean).map(decodeURIComponent),
       query: [...u.searchParams.entries()],
@@ -376,9 +381,46 @@ button { cursor: pointer; }
   // Nav.pushUrl などから。url はアプリの中のパス
   const navigate = (url, replace) => go(withBase(url), replace);
 
+  // ---- 静的生成 ----
+  // ビルドのとき（nene build）に Node で呼ばれ、path の画面の HTML と CSS を返す。
+  // model は init に、その URL の onUrlChange を当てたもの。effect などの副作用は実行しない
+
+  const prerender = (config, path) => {
+    let model = config.init;
+    if (config.onUrlChange) model = config.update(config.onUrlChange(urlOf(path)))(model);
+    const html = norm([config.view(model)]).map(toHtml).join("");
+    const css = [BASE_CSS, ...sheets.layout, ...sheets.components].join("\n");
+    return { html, css };
+  };
+
+  const VOID = new Set(["img", "input", "br", "hr", "source", "col", "wbr"]);
+  const escape = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  const toHtml = (v) => {
+    if (v.t === "text") return escape(v.text);
+    const attrs = [];
+    if (v.cls) attrs.push(`class="${escape(v.cls)}"`);
+    for (const [k, val] of Object.entries(v.attrs)) {
+      if (k === "class" || k === "key" || k in EVENTS) continue;
+      if (k === "vars") {
+        const decls = Object.entries(val).map(([f, x]) => `${varName(f)}: ${x}`).join("; ");
+        attrs.push(`style="${escape(decls)}"`);
+      } else if (typeof val === "boolean") {
+        if (val) attrs.push(k);
+      } else {
+        attrs.push(`${k}="${escape(URL_ATTRS.has(k) ? withBase(val) : val)}"`);
+      }
+    }
+    const open = `<${v.tag}${attrs.length ? " " + attrs.join(" ") : ""}>`;
+    if (VOID.has(v.tag)) return open;
+    return `${open}${v.children.map(toHtml).join("")}</${v.tag}>`;
+  };
+
   // ---- アプリの実行 ----
 
   const run = (config, root) => {
+    // 静的生成で埋め込んだ CSS は、ランタイムが同じものを入れたので外す（描き直すのと同じ流れで、見た目は変わらない）
+    for (const el of document.querySelectorAll("style[data-nene-prerender]")) el.remove();
 
     let model = config.init;
     let pending = false;
@@ -459,7 +501,7 @@ button { cursor: pointer; }
 
   return {
     lazy, eq, append, compose, idiv, show, fail, Just, Nothing, Ok, Err, defaults,
-    h, frag, layout, spacer, run, sub, navigate, css, scope, configure, envValue,
+    h, frag, layout, spacer, run, prerender, sub, navigate, css, scope, configure, envValue,
     // テスト用
     norm,
   };
