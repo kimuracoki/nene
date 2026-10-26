@@ -143,9 +143,9 @@ export default { plugins: [nene()] };
 nvim 0.11 以上。プラグインを入れて `setup()` を呼ぶだけ。言語サーバーは、プロジェクトの `node_modules` にある `nene` を自動で使う。
 
 ```lua
--- lazy.nvim（このリポジトリを GitHub に置いた場合）
+-- lazy.nvim
 {
-  "<ユーザー名>/nene",
+  "kimuracoki/nene",
   config = function(plugin)
     vim.opt.rtp:append(plugin.dir .. "/editors/nvim")
     require("nene").setup()
