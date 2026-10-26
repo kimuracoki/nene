@@ -276,7 +276,7 @@ button :: ButtonProps msg -> [Html msg] -> Html msg
 
 ### 用意された部品を使う
 
-ボタン・入力欄・ダイアログなどは、公式の部品集 `nene-ui` にある（`nene new` で作ったプロジェクトには入っている）。
+ボタン・入力欄・ダイアログなどは、公式の部品集 `nene-lang-ui` にある（`nene new` で作ったプロジェクトには入っている）。
 
 ```haskell
 import Ui.Button (Variant(..))
@@ -289,7 +289,7 @@ import Ui.Theme (Tone(..))
 <Dialog open={model.asking} title="削除しますか？" onClose={Cancel}>…</Dialog>
 ```
 
-部品の一覧と、色の変え方は `node_modules/nene-ui/README.md` にある。
+部品の一覧と、色の変え方は `node_modules/nene-lang-ui/README.md` にある。
 
 ### ファイルと部品
 

@@ -38,7 +38,7 @@ import qualified Ui.Dialog as Modal
 - export の書き方は Haskell と同じ。`T(..)` で型とそのコンストラクタをすべて export する。
 - `import M` は M が export したものをすべて取り込む。`import M (a, B(..))` は指定したものだけを取り込む。
 - `import qualified M as N` は `N.x` の形でだけ使えるようにする。
-- `import` したモジュールは、プロジェクトのフォルダと、Nene のパッケージから探す。Nene のパッケージは、`package.json` に `"nene": { "source": "src" }` と書いた npm パッケージで、`source` のフォルダにモジュールを置く（`nene-ui` の `src/Ui/Button.nn` は `Ui.Button`）。プロジェクトの `dependencies` と `devDependencies`、そこからたどれるパッケージが対象。同じ名前のモジュールが 2 か所にあればコンパイルエラー。
+- `import` したモジュールは、プロジェクトのフォルダと、Nene のパッケージから探す。Nene のパッケージは、`package.json` に `"nene": { "source": "src" }` と書いた npm パッケージで、`source` のフォルダにモジュールを置く（`nene-lang-ui` の `src/Ui/Button.nn` は `Ui.Button`）。プロジェクトの `dependencies` と `devDependencies`、そこからたどれるパッケージが対象。同じ名前のモジュールが 2 か所にあればコンパイルエラー。
 - 標準モジュール（14 章）のうち `Prelude` はつねに取り込まれている。`App` `Cmd` `Sub` `List` `Maybe` `String` `Time` `Window` `Keyboard` `Nav` `Storage` は import なしで `App.app` のように修飾名で使う。
 
 ## 2. 字句

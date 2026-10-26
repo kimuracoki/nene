@@ -104,7 +104,7 @@ test("言語サーバー: エラーの表示・型のホバー・定義への移
     // import するモジュール
     const imports = await complete("import Ui.Button");
     assert.ok(imports.some((m) => m.label === "Gallery"));
-    assert.ok(imports.some((m) => m.label === "Ui.TextField")); // nene-ui のモジュール
+    assert.ok(imports.some((m) => m.label === "Ui.TextField")); // nene-lang-ui のモジュール
     assert.ok(!imports.some((m) => m.label === "Counter"));
 
     // 修飾名

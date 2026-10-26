@@ -174,7 +174,7 @@ function createProject(name: string) {
   const real = realpathSync(packageRoot);
   const local = !real.split(/[\\/]/).includes("node_modules");
   const dependency = local ? `file:${real}` : `^${version}`;
-  const uiDependency = local ? `file:${join(real, "ui")}` : `^${version}`; // nene-ui は nene-lang と同じ版で出す
+  const uiDependency = local ? `file:${join(real, "ui")}` : `^${version}`; // nene-lang-ui は nene-lang と同じ版で出す
   copyTemplate(join(packageRoot, "template"), dir, { name: basename(dir), dependency, uiDependency });
   if (local) console.log(paint("2", `（手元の ${real} を使うプロジェクトとして作ります）\n`));
   console.log(`${paint("32", "✓")} ${name} を作りました

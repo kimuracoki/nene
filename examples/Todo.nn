@@ -1,7 +1,7 @@
 -- elm-sample の「タスク」画面に相当するもの。タスクはブラウザに保存され、読み直しても残る
 module Todo (main) where
 
--- 部品は nene-ui（公式の部品集）のもの。import すると、その主部品をタグで使える（<Button> など）
+-- 部品は nene-lang-ui（公式の部品集）のもの。import すると、その主部品をタグで使える（<Button> など）
 import Ui.Button (Variant(..))
 import Ui.Card
 import Ui.Chip

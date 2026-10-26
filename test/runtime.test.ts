@@ -113,7 +113,7 @@ test("Stopwatch: タイマーで進み、ラップのベストを保存し、テ
   const css = [...app.document.styleSheets].flatMap((s) => [...s.cssRules].map((r) => r.cssText)).join("\n");
   assert.match(css, /--primary: ?#22c55e/);
   assert.ok(app.document.querySelector(".Stopwatch__clock.nene-Stopwatch"));
-  // Button 部品（nene-ui）の中の要素には Button の印が付き、Stopwatch の印は付かない
+  // Button 部品（nene-lang-ui）の中の要素には Button の印が付き、Stopwatch の印は付かない
   const btn = app.document.querySelector(".Ui-Button__button")!;
   assert.ok(btn.classList.contains("nene-Ui-Button"));
   assert.ok(!btn.classList.contains("nene-Stopwatch"));

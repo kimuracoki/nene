@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runExample } from "./helpers.ts";
 
-// nene-ui の部品は examples/Showcase.nn で一通り使っている
+// nene-lang-ui の部品は examples/Showcase.nn で一通り使っている
 const showcase = () => runExample("Showcase");
 const buttonNamed = (doc: Document, label: string) =>
   [...doc.querySelectorAll("button")].find((b) => b.textContent?.trim() === label) as HTMLButtonElement;

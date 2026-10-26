@@ -48,7 +48,7 @@ export async function runInDom(files: Record<string, string>, entry = "Main", op
   return runProgram(compile(files, entry), options);
 }
 
-// examples/ のサンプルを、ディスクから読んで動かす（nene-ui などのパッケージも読み込まれる）
+// examples/ のサンプルを、ディスクから読んで動かす（nene-lang-ui などのパッケージも読み込まれる）
 export async function runExample(name: string, options: DomOptions = {}) {
   return runProgram(compileProgram(join(import.meta.dirname, "..", "examples", `${name}.nn`)), options);
 }

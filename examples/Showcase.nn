@@ -1,4 +1,4 @@
--- nene-ui の部品を一通り並べた見本
+-- nene-lang-ui の部品を一通り並べた見本
 module Showcase (main) where
 
 import Ui.Alert
@@ -74,7 +74,7 @@ view model =
   <main class={css.page}>
     <Column gap={L}>
       <Column gap={XS}>
-        <h1 class={css.title}>nene-ui</h1>
+        <h1 class={css.title}>nene-lang-ui</h1>
         <p class={css.lead}>Nene の公式 UI 部品集。色は CSS 変数で変えられ、ライトとダークの両方に対応している。</p>
       </Column>
 

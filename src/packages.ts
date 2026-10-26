@@ -1,5 +1,5 @@
 // Nene のパッケージを探す。パッケージは package.json に次のように書いた npm パッケージで、
-// source のフォルダにモジュールを置く（nene-ui なら src/Ui/Button.nn が Ui.Button）
+// source のフォルダにモジュールを置く（nene-lang-ui なら src/Ui/Button.nn が Ui.Button）
 //
 //   "nene": { "source": "src" }
 //

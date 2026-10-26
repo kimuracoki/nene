@@ -1,11 +1,11 @@
-# nene-ui
+# nene-lang-ui
 
 [Nene](https://github.com/kimuracoki/nene) の公式 UI 部品集。ボタン・入力欄・ダイアログなど、アプリを作るのに必要な部品がそろっている。ライトとダークの両方に対応し、色は CSS 変数で変えられる。
 
 `nene new` で作ったプロジェクトには、はじめから入っている。あとから入れるときは:
 
 ```sh
-npm install nene-ui
+npm install nene-lang-ui
 ```
 
 ```haskell

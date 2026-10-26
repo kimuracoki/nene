@@ -30,5 +30,5 @@ UI 向けの関数型言語 Nene（Haskell 風の文法 + JSX、拡張子 `.nn`�
 - 型クラスは辞書を渡さない。`Json` だけは例外で、使う場所で決まった型の記述を `codegen` が引数として先に渡す（`jsonDescriptor`）。
 - ランタイム（`runtime/runtime.js`）は 1 ファイル。仮想 DOM、レイアウトタグ、`style` ブロックの CSS、URL、HTTP、JSON の変換、The Elm Architecture の実行を持つ。
 - `template/` は `nene new` で写されるひな形。`template/CLAUDE.md` は、Nene でアプリを書く人の Claude Code 向け。
-- `ui/` は公式の部品集 `nene-ui`（別の npm パッケージ、Nene で書かれている）。部品を変えたら `ui/README.md` の表と `examples/Showcase.nn` も直す。`nene-lang` と同じ版で出す。
+- `ui/` は公式の部品集 `nene-lang-ui`（別の npm パッケージ、Nene で書かれている）。部品を変えたら `ui/README.md` の表と `examples/Showcase.nn` も直す。`nene-lang` と同じ版で出す。
 - import するモジュールは、プロジェクトと `node_modules` の Nene パッケージ（`package.json` の `"nene": { "source": … }`）から探す（`packages.ts`）。

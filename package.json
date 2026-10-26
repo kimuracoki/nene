@@ -1,6 +1,6 @@
 {
   "name": "nene-lang",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "bin": {
     "nene": "bin/nene.js"
@@ -37,7 +37,7 @@
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.20.5",
     "jsdom": "^25.0.1",
-    "nene-ui": "file:./ui",
+    "nene-lang-ui": "file:./ui",
     "typescript": "^5.8.3"
   },
   "publishConfig": {

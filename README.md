@@ -4,7 +4,7 @@
 
 Nene（ネネ）は、Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語。少ない規則で書き、タグを見れば画面の形が分かる。
 
-> **ステータス: v0.1。** 言語仕様、コンパイラ、ランタイム、`nene` コマンド、Vite プラグイン、公式の部品集 [nene-ui](ui/README.md)、nvim 用のハイライトと言語サーバーがある。
+> **ステータス: v0.1。** 言語仕様、コンパイラ、ランタイム、`nene` コマンド、Vite プラグイン、公式の部品集 [nene-lang-ui](ui/README.md)、nvim 用のハイライトと言語サーバーがある。
 
 ```haskell
 view :: Model -> Html Msg
@@ -46,7 +46,7 @@ style
 | 層 | 中身 | パッケージ |
 | --- | --- | --- |
 | 言語 | コンパイラ、ランタイム、`nene` コマンド、標準ライブラリ（ルーティング・HTTP・JSON など） | `nene-lang` |
-| 部品集 | ボタン・入力欄・ダイアログなど 16 の部品 | [`nene-ui`](ui/README.md) |
+| 部品集 | ボタン・入力欄・ダイアログなど 16 の部品 | [`nene-lang-ui`](ui/README.md) |
 
 標準ライブラリは差し替えられない（ルーティングも HTTP も一通りだけ）。部品集は別のパッケージで、使わなくてもよい。出力には、アプリが使っている標準モジュールとランタイムの部分だけが入る。
 
@@ -90,7 +90,7 @@ my-app/
   index.html       <script type="module" src="/src/Main.nn"> が入口
   src/Main.nn
   public/          画像など。そのままの名前で配信される
-  CLAUDE.md        Claude Code 向けの Nene の書き方（nene-ui の部品も）
+  CLAUDE.md        Claude Code 向けの Nene の書き方（nene-lang-ui の部品も）
   .claude/         .nn を編集したら型検査して、エラーを Claude に伝えるフック
 ```
 
@@ -127,7 +127,7 @@ npm run dev
 
 ### パッケージを作る
 
-`package.json` に `"nene": { "source": "src" }` と書いた npm パッケージは、`src/` の `.nn` を `import` で使える（`nene-ui` もこの形）。モジュール名は、ほかとぶつからないように頭を揃える（`Ui.Button` など）。同じ名前のモジュールが 2 か所にあるとエラーになる。
+`package.json` に `"nene": { "source": "src" }` と書いた npm パッケージは、`src/` の `.nn` を `import` で使える（`nene-lang-ui` もこの形）。モジュール名は、ほかとぶつからないように頭を揃える（`Ui.Button` など）。同じ名前のモジュールが 2 か所にあるとエラーになる。
 
 ### 既存の Vite プロジェクトに入れる
 
@@ -187,7 +187,7 @@ npm pack                  # 配布するパッケージを手元で作る
 | [examples/Todo.nn](examples/Todo.nn) | elm-sample のタスク管理画面に相当するもの |
 | [examples/Gallery.nn](examples/Gallery.nn) | アルバムごとに写真が横に続くギャラリー。開いた写真は URL に入り、戻るボタンや Esc で閉じる |
 | [examples/Stopwatch.nn](examples/Stopwatch.nn) | タイマー・キーボード・ブラウザへの保存・ダークテーマを使う例 |
-| [examples/Showcase.nn](examples/Showcase.nn) | nene-ui の部品を一通り並べた見本 |
+| [examples/Showcase.nn](examples/Showcase.nn) | nene-lang-ui の部品を一通り並べた見本 |
 
 ## 構成
 
@@ -204,7 +204,7 @@ npm pack                  # 配布するパッケージを手元で作る
 | `src/lib/*.nn` | 標準ライブラリ（Nene で書かれている） |
 | `runtime/runtime.js` | 仮想 DOM、レイアウトタグ、`style` ブロックの CSS の読み込み、URL、The Elm Architecture の実行 |
 | `runtime/http.js` | JSON との変換と HTTP（使うアプリにだけ入る） |
-| `ui/` | 公式の部品集 `nene-ui` |
+| `ui/` | 公式の部品集 `nene-lang-ui` |
 | `src/css.ts` | `style` ブロックのクラス名を取り出し、ファイルごとに区別できる名前に書き換える |
 | `src/cli.ts` / `src/vite.ts` / `src/lsp.ts` | `nene` コマンド、Vite プラグイン、言語サーバー |
 | `src/report.ts` | コンパイルエラーを、該当する行と印つきで見せる |

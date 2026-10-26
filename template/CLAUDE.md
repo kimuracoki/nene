@@ -30,9 +30,9 @@
 - 標準モジュール（`List` `Maybe` `Result` `String` `Dict` `Json` `Http` `Storage` `Time` `Random` `Nav` `Dom` `Env` `Cmd` `Sub` `App` など）は import せず `List.head` のように修飾して使う。
 - 型クラスと演算子は自分で定義できない。`null` は無く `Maybe` を使う。パターンの漏れはエラー。
 
-## 部品（nene-ui）
+## 部品（nene-lang-ui）
 
-ボタン・入力欄などは自分で作らず、まず `nene-ui` を使う。一覧と属性は `node_modules/nene-ui/README.md`、使い方の例は各ファイルの先頭のコメント（`node_modules/nene-ui/src/Ui/*.nn`）。
+ボタン・入力欄などは自分で作らず、まず `nene-lang-ui` を使う。一覧と属性は `node_modules/nene-lang-ui/README.md`、使い方の例は各ファイルの先頭のコメント（`node_modules/nene-lang-ui/src/Ui/*.nn`）。
 
 ```haskell
 import Ui.Button (Variant(..))

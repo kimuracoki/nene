@@ -9,7 +9,7 @@
     "check": "nene check"
   },
   "dependencies": {
-    "nene-ui": "{{uiDependency}}"
+    "nene-lang-ui": "{{uiDependency}}"
   },
   "devDependencies": {
     "nene-lang": "{{dependency}}"

@@ -1,6 +1,6 @@
 module Main (main) where
 
--- 部品は nene-ui（公式の部品集）のもの。一覧は node_modules/nene-ui/README.md
+-- 部品は nene-lang-ui（公式の部品集）のもの。一覧は node_modules/nene-lang-ui/README.md
 import Ui.Button (Variant(..))
 import qualified Ui.Icon as Icon
 import Ui.IconButton
@@ -63,7 +63,7 @@ main = App.app { init = 0, update, view }
 
 
 style
-  /* 色は nene-ui と同じ変数で決める。--primary を変えると、ボタンなどの色も変わる */
+  /* 色は nene-lang-ui と同じ変数で決める。--primary を変えると、ボタンなどの色も変わる */
   :root {
     --primary: light-dark(#7c5cff, #9d85ff);
     --accent: #ff6fa8;

@@ -1,6 +1,6 @@
 {
-  "name": "nene-ui",
-  "version": "0.1.0",
+  "name": "nene-lang-ui",
+  "version": "0.1.1",
   "description": "Nene の公式 UI 部品集。ボタン・入力欄・ダイアログなど",
   "type": "module",
   "nene": {
@@ -11,7 +11,7 @@
     "README.md"
   ],
   "peerDependencies": {
-    "nene-lang": "^0.1.0"
+    "nene-lang": "^0.1.1"
   },
   "publishConfig": {
     "access": "public"
