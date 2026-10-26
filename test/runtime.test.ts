@@ -116,7 +116,11 @@ test("Stopwatch: タイマーで進み、ラップのベストを保存し、テ
   assert.ok(button("開始"));
   const css = [...app.document.styleSheets].flatMap((s) => [...s.cssRules].map((r) => r.cssText)).join("\n");
   assert.match(css, /--primary: ?#22c55e/);
-  assert.ok(app.document.querySelector(".Stopwatch__clock"));
+  assert.ok(app.document.querySelector(".Stopwatch__clock.tufa-Stopwatch"));
+  // Button 部品の中の要素には Button の印が付き、Stopwatch の印は付かない
+  const btn = app.document.querySelector(".Button__button")!;
+  assert.ok(btn.classList.contains("tufa-Button"));
+  assert.ok(!btn.classList.contains("tufa-Stopwatch"));
 });
 
 test("collapse: 狭い画面では Row を縦に、Grid を 1 列にする CSS を出す", async () => {

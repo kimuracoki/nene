@@ -52,14 +52,17 @@ const $rt = (() => {
     return out;
   };
 
-  const h = (tag, attrs, children) => ({
+  // scope は、style ブロックを持つファイルで書いたタグに付く印のクラス
+  const h = (tag, attrs, children, scope) => ({
     t: "el",
     tag,
     attrs,
     key: attrs.key,
-    cls: attrs.class ?? "",
+    cls: [attrs.class, scope].filter(Boolean).join(" "),
     children: norm(children),
   });
+
+  const scope = (name, v) => ({ ...v, cls: v.cls ? `${v.cls} ${name}` : name });
 
   const frag = (children) => ({ t: "frag", children: norm(children) });
 
@@ -379,7 +382,7 @@ button { cursor: pointer; }
 
   return {
     lazy, eq, append, compose, idiv, show, fail, Just, Nothing, defaults,
-    h, frag, layout, spacer, run, sub, navigate, css,
+    h, frag, layout, spacer, run, sub, navigate, css, scope,
     // テスト用
     norm,
   };

@@ -5,6 +5,7 @@ import { CompileError, type StyleBlock } from "./syntax.ts";
 export interface ScopedStyle {
   css: string; // 書き換えたあとの CSS
   classes: Map<string, string>; // Tufa での名前（itemDone）→ 実際のクラス名（Todo__item-done）
+  scope: string; // このファイルで書いたタグに付ける印のクラス（tufa-Todo）
 }
 
 // item-done → itemDone
@@ -73,6 +74,153 @@ export function scopeStyle(block: StyleBlock, moduleName: string, file: string):
     classes.set(field, scoped);
     return scoped;
   });
-  return { css, classes };
+  const scope = `tufa-${prefix}`;
+  return { css: scopeSelectors(css, scope), classes, scope };
+}
+
+// ---- セレクタを、このファイルのタグにだけ当たるように書き換える ----
+//
+//   h2 { }            → h2.tufa-Card { }
+//   .list > li:hover  → .Card__list > li.tufa-Card:hover
+//   .title::before    → .Card__title.tufa-Card::before
+//   body, :root, html → そのまま（ページ全体を表すので）
+
+// 文字列とコメントを読み飛ばして、次の位置を返す（どちらでもなければ -1）
+function skipQuoted(css: string, i: number): number {
+  const c = css[i];
+  if (c === "/" && css[i + 1] === "*") {
+    const end = css.indexOf("*/", i + 2);
+    return end < 0 ? css.length : end + 2;
+  }
+  if (c === '"' || c === "'") {
+    let j = i + 1;
+    while (j < css.length && css[j] !== c) j += css[j] === "\\" ? 2 : 1;
+    return j + 1;
+  }
+  return -1;
+}
+
+export function scopeSelectors(css: string, scope: string): string {
+  let i = 0;
+
+  // { の手前（または ; か } の手前）までを読む
+  const prelude = (): string => {
+    const start = i;
+    let depth = 0;
+    while (i < css.length) {
+      const skip = skipQuoted(css, i);
+      if (skip >= 0) {
+        i = skip;
+        continue;
+      }
+      const c = css[i];
+      if (c === "(" || c === "[") depth++;
+      else if (c === ")" || c === "]") depth--;
+      else if (depth === 0 && (c === "{" || c === ";" || c === "}")) break;
+      i++;
+    }
+    return css.slice(start, i);
+  };
+
+  // 対応する } までの中身をそのまま読む（i は } の次に進む）
+  const rawBlock = (): string => {
+    const start = i;
+    let depth = 1;
+    while (i < css.length) {
+      const skip = skipQuoted(css, i);
+      if (skip >= 0) {
+        i = skip;
+        continue;
+      }
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}" && --depth === 0) break;
+      i++;
+    }
+    const inner = css.slice(start, i);
+    i++;
+    return inner;
+  };
+
+  const rules = (): string => {
+    let out = "";
+    while (i < css.length && css[i] !== "}") {
+      const head = prelude();
+      const c = css[i];
+      if (c !== "{") {
+        out += head + (c === ";" ? ";" : "");
+        if (c === ";") i++;
+        continue;
+      }
+      i++;
+      const at = head.trim();
+      if (/^@(media|supports|container|layer|document)\b/i.test(at)) {
+        const inner = rules();
+        i++;
+        out += `${head}{${inner}}`;
+      } else if (at.startsWith("@")) {
+        out += `${head}{${rawBlock()}}`; // @keyframes や @font-face の中は書き換えない
+      } else {
+        out += `${scopeSelectorList(head, scope)}{${rawBlock()}}`;
+      }
+    }
+    return out;
+  };
+
+  return rules();
+}
+
+// トップレベルの区切り文字で分ける（括弧の中は分けない）
+function splitTop(text: string, isSep: (c: string) => boolean): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "(" || c === "[") depth++;
+    else if (c === ")" || c === "]") depth--;
+    else if (depth === 0 && isSep(c)) {
+      parts.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts;
+}
+
+const DOCUMENT_LEVEL = /^(:root|html|body)(?![\w-])/i;
+const PSEUDO_ELEMENT = /::|:(before|after|first-line|first-letter)(?![\w-])/i;
+
+function scopeSelectorList(head: string, scope: string): string {
+  const lead = head.match(/^\s*/)![0];
+  const trail = head.match(/\s*$/)![0];
+  const list = splitTop(head.trim(), (c) => c === ",");
+  return lead + list.map((sel) => scopeSelector(sel, scope)).join(",") + trail;
+}
+
+function scopeSelector(sel: string, scope: string): string {
+  const lead = sel.match(/^\s*/)![0];
+  const body = sel.trim();
+  const compounds = splitTop(body, (c) => c === " " || c === ">" || c === "+" || c === "~")
+    .map((p) => p.trim())
+    .filter((p) => p);
+  if (compounds.every((p) => DOCUMENT_LEVEL.test(p))) return sel;
+  // 最後の複合セレクタ（実際に当たる要素）に印を付ける。疑似要素があればその手前に
+  let cut = body.length;
+  let depth = 0;
+  for (let i = body.length - 1; i >= 0; i--) {
+    const c = body[i];
+    if (c === ")" || c === "]") depth++;
+    else if (c === "(" || c === "[") depth--;
+    else if (depth === 0 && (c === " " || c === ">" || c === "+" || c === "~")) {
+      cut = i + 1;
+      break;
+    }
+    if (i === 0) cut = 0;
+  }
+  const before = body.slice(0, cut);
+  const last = body.slice(cut);
+  const m = PSEUDO_ELEMENT.exec(last);
+  const at = m ? m.index : last.length;
+  return `${lead}${before}${last.slice(0, at)}.${scope}${last.slice(at)}`;
 }
 

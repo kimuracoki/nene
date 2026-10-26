@@ -137,7 +137,7 @@ style
   body { margin: 0; }`),
   });
   const js = result.entry.js;
-  assert.match(js, /\.Main__title \{ color: red; \}/);
+  assert.match(js, /\.Main__title\.tufa-Main \{ color: red; \}/);
   assert.match(js, /body \{ margin: 0; \}/);
   assert.match(js, /title: "Main__title"/);
 });
@@ -286,4 +286,47 @@ main = App.app { init = 0, update = always identity, view = always (<p>ok</p>) }
 main = App.app { init = 0, update = always identity, view = always (<p>ok</p>), colour = 1 }`),
   );
   assert.match(msg, /フィールド colour はありません/);
+});
+
+test("style ブロックは、そのファイルのタグにだけ効く（要素セレクタも漏れない）", () => {
+  const result = compile({
+    Main: `module Main (main) where
+
+import Card
+
+view :: Int -> Html Int
+view _ =
+  <section>
+    <h2>Main の見出し</h2>
+    <Card />
+  </section>
+
+main :: Program Int Int
+main = App.app { init = 0, update = always identity, view }
+
+
+style
+  body { margin: 0; }
+  h2 { color: red; }
+`,
+    Card: `module Card (card) where
+
+card :: {} -> Html msg
+card _ = <h2>Card の見出し</h2>
+
+
+style
+  h2::before { content: "★"; }
+`,
+  });
+  const main = result.modules.find((m) => m.name === "Main")!.js;
+  const card = result.modules.find((m) => m.name === "Card")!.js;
+  // セレクタは、それぞれのファイルの印にだけ当たる
+  assert.match(main, /h2\.tufa-Main \{ color: red; \}/);
+  assert.match(main, /body \{ margin: 0; \}/);
+  assert.match(card, /h2\.tufa-Card::before/);
+  // タグにはそのファイルの印が付き、ほかのファイルの部品には付かない
+  assert.match(main, /\$rt\.h\("h2", \{\}, \["Main の見出し"\], "tufa-Main"\)/);
+  assert.doesNotMatch(main, /\$M_Card\.card\([^)]*\)[^,]*tufa-Main/);
+  assert.match(card, /\$rt\.h\("h2", \{\}, \["Card の見出し"\], "tufa-Card"\)/);
 });

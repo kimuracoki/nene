@@ -12,7 +12,7 @@ import { fieldKey, jsName } from "./checker.ts";
 import type { Binding, CtorRef, Equation, Expr, JsxChild, JsxNode, Module, Pat } from "./syntax.ts";
 
 export function generateModule(mod: Module, checked: CheckResult): string {
-  const g = new Gen();
+  const g = new Gen(checked.style?.scope ?? null);
   const lines: string[] = [];
   const exported: string[] = [];
   if (checked.style) {
@@ -47,6 +47,13 @@ function indent(s: string, n = 1): string {
 }
 
 class Gen {
+  // style ブロックがあるファイルでは、このファイルで書いたタグに印のクラスを付ける
+  scope: string | null;
+
+  constructor(scope: string | null) {
+    this.scope = scope;
+  }
+
   binding(b: Binding): string {
     const arity = b.equations[0].params.length;
     const params = Array.from({ length: arity }, (_, i) => `$a${i}`);
@@ -202,11 +209,15 @@ class Gen {
     const res = node.res!;
     if (res.kind === "html") {
       const attrs = this.object(node.attrs.map((a) => [a.name, this.expr(a.value)]), null);
-      return `$rt.h(${JSON.stringify(node.tag)}, ${attrs}, ${children(node.children ?? [])})`;
+      const scope = this.scope ? `, ${JSON.stringify(this.scope)}` : "";
+      return `$rt.h(${JSON.stringify(node.tag)}, ${attrs}, ${children(node.children ?? [])}${scope})`;
     }
     const props = this.object(node.attrs.map((a) => [a.name, this.expr(a.value)]), res.defaultsJs);
     const call = `${res.js}(${props})`;
-    return res.children ? `${call}(${children(node.children ?? [])})` : call;
+    const vnode = res.children ? `${call}(${children(node.children ?? [])})` : call;
+    // レイアウトタグは、このファイルのタグとして扱う（他のファイルの部品には付けない）
+    if (this.scope && res.js.startsWith("$M_Layout.")) return `$rt.scope(${JSON.stringify(this.scope)}, ${vnode})`;
+    return vnode;
   }
 
   child(c: JsxChild): string {
