@@ -6,7 +6,7 @@ import { runInDom } from "./helpers.ts";
 
 const examples = join(import.meta.dirname, "..", "examples");
 const exampleFiles = (...names: string[]) =>
-  Object.fromEntries(names.map((n) => [n, readFileSync(join(examples, `${n}.tufa`), "utf8")]));
+  Object.fromEntries(names.map((n) => [n, readFileSync(join(examples, `${n}.nn`), "utf8")]));
 
 test("Counter: ボタンで数が増減する", async () => {
   const app = await runInDom(exampleFiles("Counter", "Button", "Icon"), "Counter");
@@ -119,11 +119,11 @@ test("Stopwatch: タイマーで進み、ラップのベストを保存し、テ
   assert.ok(button("開始"));
   const css = [...app.document.styleSheets].flatMap((s) => [...s.cssRules].map((r) => r.cssText)).join("\n");
   assert.match(css, /--primary: ?#22c55e/);
-  assert.ok(app.document.querySelector(".Stopwatch__clock.tufa-Stopwatch"));
+  assert.ok(app.document.querySelector(".Stopwatch__clock.nene-Stopwatch"));
   // Button 部品の中の要素には Button の印が付き、Stopwatch の印は付かない
   const btn = app.document.querySelector(".Button__button")!;
-  assert.ok(btn.classList.contains("tufa-Button"));
-  assert.ok(!btn.classList.contains("tufa-Stopwatch"));
+  assert.ok(btn.classList.contains("nene-Button"));
+  assert.ok(!btn.classList.contains("nene-Stopwatch"));
 });
 
 test("collapse: 狭い画面では Row を縦に、Grid を 1 列にする CSS を出す", async () => {

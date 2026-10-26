@@ -1,4 +1,4 @@
-// Tufa のランタイム。仮想 DOM、レイアウトタグ、style ブロックの CSS の読み込み、The Elm Architecture の実行を受け持つ
+// Nene のランタイム。仮想 DOM、レイアウトタグ、style ブロックの CSS の読み込み、The Elm Architecture の実行を受け持つ
 const $rt = (() => {
   // ---- 値 ----
 
@@ -7,7 +7,7 @@ const $rt = (() => {
     let value;
     return () => {
       if (state === 2) return value;
-      if (state === 1) throw new Error("tufa: 値の定義が自分自身を参照しています");
+      if (state === 1) throw new Error("nene: 値の定義が自分自身を参照しています");
       state = 1;
       value = f();
       state = 2;
@@ -33,7 +33,7 @@ const $rt = (() => {
   const compose = (f, g) => (x) => f(g(x));
   const idiv = (a, b) => (b === 0 ? 0 : Math.trunc(a / b));
   const show = (x) => (typeof x === "boolean" ? (x ? "True" : "False") : String(x));
-  const fail = (name) => new Error(`tufa: ${name} のどのパターンにも合いませんでした`);
+  const fail = (name) => new Error(`nene: ${name} のどのパターンにも合いませんでした`);
   const Just = (x) => ({ $: "Just", a: [x] });
   const Nothing = { $: "Nothing" };
   const defaults = {};
@@ -81,7 +81,7 @@ const $rt = (() => {
   const styleElement = (name) => {
     if (!hasDocument) return null;
     const el = document.createElement("style");
-    el.setAttribute("data-tufa", name);
+    el.setAttribute("data-nene", name);
     document.head.appendChild(el);
     return el;
   };
@@ -106,7 +106,7 @@ const $rt = (() => {
     const key = `${base}|${hover}|${narrow ? narrow.join(":") : ""}`;
     let cls = classes.get(key);
     if (cls) return cls;
-    cls = `tufa${classes.size}`;
+    cls = `nene${classes.size}`;
     classes.set(key, cls);
     if (!hasDocument) return cls;
     if (base) addRule(`.${cls}{${base}}`);
@@ -154,7 +154,7 @@ const $rt = (() => {
     tag: "div",
     attrs: {},
     key: undefined,
-    cls: [kind === "stack" ? "tufa-stack" : "", classFor(layoutDecls(kind, props), "", collapseDecls(kind, props)), props.class]
+    cls: [kind === "stack" ? "nene-stack" : "", classFor(layoutDecls(kind, props), "", collapseDecls(kind, props)), props.class]
       .filter(Boolean)
       .join(" "),
     children: norm(children),
@@ -189,10 +189,10 @@ const $rt = (() => {
 
   const createRenderer = (dispatch) => {
     const listen = (el, name) => {
-      el.$tufa ??= {};
-      if (name in el.$tufa) return;
+      el.$nene ??= {};
+      if (name in el.$nene) return;
       el.addEventListener(EVENTS[name], (ev) => {
-        const handler = el.$tufa[name];
+        const handler = el.$nene[name];
         if (handler === undefined) return;
         if (name === "onSubmit") ev.preventDefault();
         if (name === "onClick") ev.stopPropagation();
@@ -208,7 +208,7 @@ const $rt = (() => {
         setVars(el, old, value);
       } else if (name in EVENTS) {
         listen(el, name);
-        el.$tufa[name] = value;
+        el.$nene[name] = value;
       } else if (name in PROPS) {
         if (el[PROPS[name]] !== value) el[PROPS[name]] = value;
       } else if (BOOLS.has(name)) {
@@ -223,7 +223,7 @@ const $rt = (() => {
       if (name === "vars") {
         setVars(el, old, null);
       } else if (name in EVENTS) {
-        if (el.$tufa) el.$tufa[name] = undefined;
+        if (el.$nene) el.$nene[name] = undefined;
       } else if (name in PROPS) {
         el[PROPS[name]] = name === "value" ? "" : false;
       } else {
@@ -293,7 +293,7 @@ const $rt = (() => {
 img { display: block; max-width: 100%; }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
-.tufa-stack > * { grid-area: 1 / 1; }
+.nene-stack > * { grid-area: 1 / 1; }
 `;
   if (baseStyle) baseStyle.textContent = BASE_CSS;
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Tufa の言語サーバー（Language Server Protocol、標準入出力で通信する）
+// Nene の言語サーバー（Language Server Protocol、標準入出力で通信する）
 //
 // できること:
 //   - 保存前の内容も含めて型検査し、エラーを表示する（diagnostics）
@@ -49,7 +49,7 @@ process.stdin.on("data", (chunk: Buffer) => {
     try {
       handle(JSON.parse(body));
     } catch (e) {
-      process.stderr.write(`tufa lsp: ${e instanceof Error ? e.stack : e}\n`);
+      process.stderr.write(`nene lsp: ${e instanceof Error ? e.stack : e}\n`);
     }
   }
 });
@@ -92,14 +92,14 @@ function validate(uri: string) {
     if (supportsRefresh) send({ id: `refresh-${Date.now()}`, method: "workspace/semanticTokens/refresh" });
   } catch (e) {
     if (!(e instanceof CompileError)) {
-      process.stderr.write(`tufa lsp: ${e instanceof Error ? e.stack : e}\n`);
+      process.stderr.write(`nene lsp: ${e instanceof Error ? e.stack : e}\n`);
       return;
     }
     diagnostics = e.all.map((err) => {
       const here = !err.file || err.file === file;
       const range = here && err.pos ? toRange(err.pos, 1) : toRange({ line: 1, col: 1 }, 0);
       const message = here ? err.message : err.format();
-      return { range, severity: 1, source: "tufa", message };
+      return { range, severity: 1, source: "nene", message };
     });
   }
   notify("textDocument/publishDiagnostics", { uri, diagnostics });
@@ -268,7 +268,7 @@ function handle(msg: Json) {
           completionProvider: { triggerCharacters: ["<", ".", " "] },
           semanticTokensProvider: { legend: { tokenTypes: TOKEN_TYPES, tokenModifiers: [] }, full: true },
         },
-        serverInfo: { name: "tufa", version: "0.1.0" },
+        serverInfo: { name: "nene", version: "0.1.0" },
       });
       return;
     case "textDocument/completion":

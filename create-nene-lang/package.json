@@ -1,0 +1,18 @@
+{
+  "name": "create-nene-lang",
+  "version": "0.1.0",
+  "description": "npm create nene-lang で Nene のプロジェクトを作る",
+  "type": "module",
+  "bin": {
+    "create-nene-lang": "./index.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "dependencies": {
+    "nene-lang": "^0.1.0"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

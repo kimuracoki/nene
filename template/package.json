@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tufa dev",
-    "build": "tufa build",
-    "check": "tufa check"
+    "dev": "nene dev",
+    "build": "nene build",
+    "check": "nene check"
   },
   "devDependencies": {
-    "@tufa/tufa": "{{dependency}}"
+    "nene-lang": "{{dependency}}"
   }
 }

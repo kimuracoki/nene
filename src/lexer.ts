@@ -29,7 +29,7 @@ export interface Token {
 
 const KEYWORDS = new Set(["module", "where", "import", "qualified", "as", "data", "type", "foreign"]);
 
-// Tufa にない構文。書かれたら代わりの書き方を案内する
+// Nene にない構文。書かれたら代わりの書き方を案内する
 export const REMOVED: Record<string, string> = {
   if: "if はありません。ガード（| 条件 = 値）を使ってください",
   then: "if はありません。ガード（| 条件 = 値）を使ってください",

@@ -1,24 +1,24 @@
-# Tufa 入門
+# Nene 入門
 
-画面を 1 つ作りながら、Tufa の書き方を順に見ていく。細かい規則は [spec.md](spec.md) にある。
+画面を 1 つ作りながら、Nene の書き方を順に見ていく。細かい規則は [spec.md](spec.md) にある。
 
 ## 1. 動かしてみる
 
 ```sh
-npm create tufa my-app
+npm create nene-lang my-app
 cd my-app
 npm install
 npm run dev
 ```
 
-`http://localhost:5173/` を開くと、カウンターが表示される。`src/Main.tufa` を書き換えて保存すると、すぐに反映される。
+`http://localhost:5173/` を開くと、カウンターが表示される。`src/Main.nn` を書き換えて保存すると、すぐに反映される。
 
 ## 2. ファイルの形
 
 ```haskell
 module Main (main) where      -- モジュール名（ファイル名と同じ）と、外に見せる名前
 
-import Ui.Button              -- src/Ui/Button.tufa を使う
+import Ui.Button              -- src/Ui/Button.nn を使う
 
 
 type Model = Int              -- アプリの状態
@@ -277,7 +277,7 @@ button :: ButtonProps msg -> [Html msg] -> Html msg
 ### ファイルと部品
 
 - 1 つのファイルに部品はいくつ書いてもよい。
-- 外のファイルからタグで使えるのは、**ファイル名と同じ名前の部品だけ**。`Ui/Button.tufa` の `button` が `<Button>` になる。
+- 外のファイルからタグで使えるのは、**ファイル名と同じ名前の部品だけ**。`Ui/Button.nn` の `button` が `<Button>` になる。
 - `import Ui.Button` と書けば `<Button>` が使える。
 - 部品の見た目は、その部品のファイルの `style` ブロックだけで決まる。使う側から `class` で上書きすることはできない。
 
@@ -339,7 +339,7 @@ main = App.app { init, update, view, onUrlChange = UrlChanged }
 
 ## 10. アプリ全体の色やフォント
 
-テーマ専用の仕組みはない。入口のファイル（`src/Main.tufa`）の `style` ブロックに、CSS 変数と `body` の指定を書く。`:root`・`html`・`body` の 3 つだけは、ページ全体に効く。
+テーマ専用の仕組みはない。入口のファイル（`src/Main.nn`）の `style` ブロックに、CSS 変数と `body` の指定を書く。`:root`・`html`・`body` の 3 つだけは、ページ全体に効く。
 
 ```css
 style
@@ -373,7 +373,7 @@ style
 
 ## 12. Elm・React と比べると
 
-| | Elm | React | Tufa |
+| | Elm | React | Nene |
 | --- | --- | --- | --- |
 | 画面の書き方 | `div [] [ text "a" ]` | JSX | JSX |
 | 並び方 | CSS（または elm-ui） | CSS | レイアウトタグ |

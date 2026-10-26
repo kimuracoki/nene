@@ -137,7 +137,7 @@ style
   body { margin: 0; }`),
   });
   const js = result.entry.js;
-  assert.match(js, /\.Main__title\.tufa-Main \{ color: red; \}/);
+  assert.match(js, /\.Main__title\.nene-Main \{ color: red; \}/);
   assert.match(js, /body \{ margin: 0; \}/);
   assert.match(js, /title: "Main__title"/);
 });
@@ -322,13 +322,13 @@ style
   const main = result.modules.find((m) => m.name === "Main")!.js;
   const card = result.modules.find((m) => m.name === "Card")!.js;
   // セレクタは、それぞれのファイルの印にだけ当たる
-  assert.match(main, /h2\.tufa-Main \{ color: red; \}/);
+  assert.match(main, /h2\.nene-Main \{ color: red; \}/);
   assert.match(main, /body \{ margin: 0; \}/);
-  assert.match(card, /h2\.tufa-Card::before/);
+  assert.match(card, /h2\.nene-Card::before/);
   // タグにはそのファイルの印が付き、ほかのファイルの部品には付かない
-  assert.match(main, /\$rt\.h\("h2", \{\}, \["Main の見出し"\], "tufa-Main"\)/);
-  assert.doesNotMatch(main, /\$M_Card\.card\([^)]*\)[^,]*tufa-Main/);
-  assert.match(card, /\$rt\.h\("h2", \{\}, \["Card の見出し"\], "tufa-Card"\)/);
+  assert.match(main, /\$rt\.h\("h2", \{\}, \["Main の見出し"\], "nene-Main"\)/);
+  assert.doesNotMatch(main, /\$M_Card\.card\([^)]*\)[^,]*nene-Main/);
+  assert.match(card, /\$rt\.h\("h2", \{\}, \["Card の見出し"\], "nene-Card"\)/);
 });
 
 test("vars でレコードの値を CSS 変数として渡せる。style で使っていない名前はエラー", () => {

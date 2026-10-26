@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// tufa コマンド
+// nene コマンド
 //
-//   tufa new <名前>      新しいプロジェクトを作る
-//   tufa dev            開発サーバーを起動する（保存すると自動で再読み込み）
-//   tufa build          dist/ に出力する
-//   tufa check [File]   型検査だけを行う（省略すると index.html の入口から）
-//   tufa lsp            言語サーバーを起動する（エディタから使う）
+//   nene new <名前>      新しいプロジェクトを作る
+//   nene dev            開発サーバーを起動する（保存すると自動で再読み込み）
+//   nene build          dist/ に出力する
+//   nene check [File]   型検査だけを行う（省略すると index.html の入口から）
+//   nene lsp            言語サーバーを起動する（エディタから使う）
 //
 // dev と build は内部で Vite を使う。vite.config があれば、その設定も読み込む。
 
@@ -20,11 +20,11 @@ const packageRoot = join(here, "..");
 
 function usage(): never {
   console.error(`使い方:
-  tufa new <名前>      新しいプロジェクトを作る
-  tufa dev            開発サーバーを起動する
-  tufa build          dist/ に出力する
-  tufa check [File]   型検査だけを行う
-  tufa lsp            言語サーバーを起動する`);
+  nene new <名前>      新しいプロジェクトを作る
+  nene dev            開発サーバーを起動する
+  nene build          dist/ に出力する
+  nene check [File]   型検査だけを行う
+  nene lsp            言語サーバーを起動する`);
   process.exit(2);
 }
 
@@ -44,18 +44,18 @@ function report(e: unknown): never {
   process.exit(1);
 }
 
-// index.html の <script src="/src/Main.tufa"> から入口のファイルを探す
+// index.html の <script src="/src/Main.nn"> から入口のファイルを探す
 function entries(root: string): string[] {
   const html = join(root, "index.html");
-  if (!existsSync(html)) fail("index.html が見つかりません。プロジェクトのフォルダで実行してください（新しく作るときは tufa new <名前>）");
-  const srcs = [...readFileSync(html, "utf8").matchAll(/<script[^>]*src="([^"]+\.tufa)"/g)].map((m) => m[1]);
-  if (srcs.length === 0) fail("index.html に .tufa を読み込む <script> がありません");
+  if (!existsSync(html)) fail("index.html が見つかりません。プロジェクトのフォルダで実行してください（新しく作るときは nene new <名前>）");
+  const srcs = [...readFileSync(html, "utf8").matchAll(/<script[^>]*src="([^"]+\.nn)"/g)].map((m) => m[1]);
+  if (srcs.length === 0) fail("index.html に .nn を読み込む <script> がありません");
   return srcs.map((src) => join(root, src.replace(/^\//, "")));
 }
 
 async function viteOptions(root: string) {
-  const { default: tufa } = await import("./vite.ts");
-  return { root, plugins: [tufa()], logLevel: "info" as const };
+  const { default: nene } = await import("./vite.ts");
+  return { root, plugins: [nene()], logLevel: "info" as const };
 }
 
 const [command, ...args] = process.argv.slice(2);

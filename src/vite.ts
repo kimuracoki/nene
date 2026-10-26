@@ -1,31 +1,31 @@
 // Vite プラグイン
 //
 //   // vite.config.ts
-//   import tufa from "@tufa/tufa/vite";
-//   export default { plugins: [tufa()] };
+//   import nene from "nene-lang/vite";
+//   export default { plugins: [nene()] };
 //
 //   <!-- index.html -->
 //   <div id="app"></div>
-//   <script type="module" src="/src/Main.tufa"></script>
+//   <script type="module" src="/src/Main.nn"></script>
 //
-// 入口の .tufa を、依存する .tufa ごと 1 つの JavaScript にして返す。
-// どれかの .tufa を保存すると、ブラウザが再読み込みされる。
+// 入口の .nn を、依存する .nn ごと 1 つの JavaScript にして返す。
+// どれかの .nn を保存すると、ブラウザが再読み込みされる。
 
 import type { Plugin } from "vite";
 import { LIB_FILES, RUNTIME_FILE, bundle, compileProgram } from "./compiler.ts";
 import { CompileError } from "./syntax.ts";
 
-export interface TufaOptions {
+export interface NeneOptions {
   // 描画先の要素の id（既定は "app"）
   mount?: string;
 }
 
-export default function tufa(options: TufaOptions = {}): Plugin {
+export default function nene(options: NeneOptions = {}): Plugin {
   return {
-    name: "tufa",
+    name: "nene",
     load(id) {
       const file = id.split("?")[0];
-      if (!file.endsWith(".tufa")) return null;
+      if (!file.endsWith(".nn")) return null;
       try {
         const result = compileProgram(file);
         for (const f of [...result.files, ...LIB_FILES, RUNTIME_FILE]) this.addWatchFile(f);
@@ -45,10 +45,10 @@ export default function tufa(options: TufaOptions = {}): Plugin {
       }
     },
     configureServer(server) {
-      // 開発サーバーは未知の拡張子をそのまま返すので、.tufa は自分で JavaScript に変換して返す
+      // 開発サーバーは未知の拡張子をそのまま返すので、.nn は自分で JavaScript に変換して返す
       server.middlewares.use(async (req, res, next) => {
         const url = req.url ?? "";
-        if (!url.split("?")[0].endsWith(".tufa")) return next();
+        if (!url.split("?")[0].endsWith(".nn")) return next();
         try {
           const result = await server.transformRequest(url);
           if (!result) return next();
@@ -60,8 +60,8 @@ export default function tufa(options: TufaOptions = {}): Plugin {
       });
     },
     handleHotUpdate(ctx) {
-      // .tufa はモジュール単位の差し替えをしないので、ページごと読み直す
-      if (ctx.file.endsWith(".tufa")) {
+      // .nn はモジュール単位の差し替えをしないので、ページごと読み直す
+      if (ctx.file.endsWith(".nn")) {
         ctx.server.ws.send({ type: "full-reload" });
         return [];
       }

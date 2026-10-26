@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tufa コマンドの入口。
+// nene コマンドの入口。
 // 手元のリポジトリ（src/ がある）から動かすときは TypeScript のソースをそのまま使い、
 // npm から入れたときはビルド済みの build/ を使う。
 import { existsSync } from "node:fs";

@@ -1,10 +1,10 @@
-# Tufa
+# Nene
 
 **Simple rules. Beautiful structures.**
 
-Tufa（トゥファ）は、Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語。少ない規則で書き、タグを見れば画面の形が分かる。
+Nene（ネネ）は、Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語。少ない規則で書き、タグを見れば画面の形が分かる。
 
-> **ステータス: v0.1（npm には未公開）。** 言語仕様、コンパイラ、ランタイム、`tufa` コマンド、Vite プラグイン、nvim 用のハイライトと言語サーバーがある。
+> **ステータス: v0.1（npm には未公開）。** 言語仕様、コンパイラ、ランタイム、`nene` コマンド、Vite プラグイン、nvim 用のハイライトと言語サーバーがある。
 
 ```haskell
 view :: Model -> Html Msg
@@ -53,7 +53,7 @@ style
 
 Elm でサンプルアプリを作ってみて感じた不満から始まっている。
 
-| 不満 | Tufa での方針 |
+| 不満 | Nene での方針 |
 | --- | --- |
 | `case` と `let ... in` しかなく冗長 | Haskell と同じく、複数等式による関数定義・ガード・`where` を使える |
 | view が `div [ ... ] [ ... ]` で、UI の形が読み取りにくい | JSX を式としてそのまま書ける |
@@ -67,7 +67,7 @@ Elm でサンプルアプリを作ってみて感じた不満から始まって�
 Node.js 20.19 以上が必要。
 
 ```sh
-npm create tufa my-app
+npm create nene-lang my-app
 cd my-app
 npm install
 npm run dev        # http://localhost:5173/ 。保存すると自動で再読み込み
@@ -78,36 +78,36 @@ npm run dev        # http://localhost:5173/ 。保存すると自動で再読み
 ```
 my-app/
   package.json
-  index.html       <script type="module" src="/src/Main.tufa"> が入口
-  src/Main.tufa
+  index.html       <script type="module" src="/src/Main.nn"> が入口
+  src/Main.nn
   public/          画像など。そのままの名前で配信される
 ```
 
 | コマンド | 内容 |
 | --- | --- |
-| `npm run dev`（`tufa dev`） | 開発サーバー。コンパイルエラーはブラウザに場所つきで出る |
-| `npm run build`（`tufa build`） | `dist/` に出力する。そのまま静的ホスティングに置ける |
-| `npm run check`（`tufa check`） | 型検査だけ |
+| `npm run dev`（`nene dev`） | 開発サーバー。コンパイルエラーはブラウザに場所つきで出る |
+| `npm run build`（`nene build`） | `dist/` に出力する。そのまま静的ホスティングに置ける |
+| `npm run check`（`nene check`） | 型検査だけ |
 
 `dev` と `build` は内部で Vite を使う。複数ページなど特別なことをしたいときだけ、普通の `vite.config.ts` を置けば読み込まれる（例: `examples/vite.config.ts`）。
 
 ### npm に公開する前に、手元で試す
 
-`npm create tufa` の代わりに、このリポジトリを `npm link` する。
+`npm create nene-lang` の代わりに、このリポジトリを `npm link` する。
 
 ```sh
-cd /path/to/tufa
+cd /path/to/nene
 npm install
-npm link                  # tufa コマンドが使えるようになる
+npm link                  # nene コマンドが使えるようになる
 
 cd ~/どこか
-tufa new my-app           # 手元のリポジトリを使うプロジェクトとして作られる
+nene new my-app           # 手元のリポジトリを使うプロジェクトとして作られる
 cd my-app
 npm install
 npm run dev
 ```
 
-手元のリポジトリから作ったプロジェクトは、`package.json` の依存先が `file:/path/to/tufa` になる。コンパイラを直すと、そのまま反映される（ビルドは不要）。やめるときは `npm unlink -g @tufa/tufa`。
+手元のリポジトリから作ったプロジェクトは、`package.json` の依存先が `file:/path/to/nene` になる。コンパイラを直すと、そのまま反映される（ビルドは不要）。やめるときは `npm unlink -g nene-lang`。
 
 ### URL で画面を切り替えるアプリを公開するとき
 
@@ -117,33 +117,33 @@ npm run dev
 
 ```ts
 // vite.config.ts
-import tufa from "@tufa/tufa/vite";
+import nene from "nene-lang/vite";
 
-export default { plugins: [tufa()] };
+export default { plugins: [nene()] };
 ```
 
 ## nvim
 
-nvim 0.11 以上。プラグインを入れて `setup()` を呼ぶだけ。言語サーバーは、プロジェクトの `node_modules` にある `tufa` を自動で使う。
+nvim 0.11 以上。プラグインを入れて `setup()` を呼ぶだけ。言語サーバーは、プロジェクトの `node_modules` にある `nene` を自動で使う。
 
 ```lua
 -- lazy.nvim（このリポジトリを GitHub に置いた場合）
 {
-  "<ユーザー名>/tufa",
+  "<ユーザー名>/nene",
   config = function(plugin)
     vim.opt.rtp:append(plugin.dir .. "/editors/nvim")
-    require("tufa").setup()
+    require("nene").setup()
   end,
 }
 
 -- 手元のリポジトリを使う場合
-vim.opt.rtp:append("/path/to/tufa/editors/nvim")
-require("tufa").setup()
+vim.opt.rtp:append("/path/to/nene/editors/nvim")
+require("nene").setup()
 ```
 
-- `.tufa` のハイライト。言語サーバーが動いているときは、その解析結果で色を分ける（部品と HTML 要素、コンストラクタ、フィールド、引数など）
+- `.nn` のハイライト。言語サーバーが動いているときは、その解析結果で色を分ける（部品と HTML 要素、コンストラクタ、フィールド、引数など）
 - 入力中のエラー表示（1 ファイルのエラーをまとめて表示）
-- `K` で型を表示、`gd` で定義へ移動（`<Button>` から `Button.tufa` へも飛べる）
+- `K` で型を表示、`gd` で定義へ移動（`<Button>` から `Button.nn` へも飛べる）
 - 補完
   - `<But` → `<Button onClick={…}>…</Button>`（必須の属性と閉じタグまで入る）
   - タグの中で属性名（まだ書いていないもの。必須のものが先）
@@ -167,11 +167,11 @@ npm pack                  # 配布するパッケージを手元で作る
 
 | ファイル | 内容 |
 | --- | --- |
-| [examples/Counter.tufa](examples/Counter.tufa) | 最小のカウンター |
-| [examples/Todo.tufa](examples/Todo.tufa) | elm-sample のタスク管理画面に相当するもの |
-| [examples/Gallery.tufa](examples/Gallery.tufa) | アルバムごとに写真が横に続くギャラリー。開いた写真は URL に入り、戻るボタンや Esc で閉じる |
-| [examples/Stopwatch.tufa](examples/Stopwatch.tufa) | タイマー・キーボード・ブラウザへの保存・ダークテーマを使う例 |
-| [examples/Button.tufa](examples/Button.tufa) ほか | デフォルト値つきの props を持つ部品 |
+| [examples/Counter.nn](examples/Counter.nn) | 最小のカウンター |
+| [examples/Todo.nn](examples/Todo.nn) | elm-sample のタスク管理画面に相当するもの |
+| [examples/Gallery.nn](examples/Gallery.nn) | アルバムごとに写真が横に続くギャラリー。開いた写真は URL に入り、戻るボタンや Esc で閉じる |
+| [examples/Stopwatch.nn](examples/Stopwatch.nn) | タイマー・キーボード・ブラウザへの保存・ダークテーマを使う例 |
+| [examples/Button.nn](examples/Button.nn) ほか | デフォルト値つきの props を持つ部品 |
 
 ## 構成
 
@@ -184,12 +184,12 @@ npm pack                  # 配布するパッケージを手元で作る
 | `src/exhaust.ts` | パターンの網羅性チェック |
 | `src/codegen.ts` | JavaScript の生成 |
 | `src/compiler.ts` | モジュールを依存順に読み込み、1 つの JavaScript にまとめる |
-| `src/lib/*.tufa` | 標準ライブラリ（Tufa で書かれている） |
+| `src/lib/*.nn` | 標準ライブラリ（Nene で書かれている） |
 | `runtime/runtime.js` | 仮想 DOM、レイアウトタグ、`style` ブロックの CSS の読み込み、The Elm Architecture の実行 |
 | `src/css.ts` | `style` ブロックのクラス名を取り出し、ファイルごとに区別できる名前に書き換える |
-| `src/cli.ts` / `src/vite.ts` / `src/lsp.ts` | `tufa` コマンド、Vite プラグイン、言語サーバー |
-| `template/` | `tufa new` で作るプロジェクトのひな形 |
-| `bin/tufa.js` | コマンドの入口。手元のリポジトリでは `src/` を、npm から入れたときは `build/` を使う |
+| `src/cli.ts` / `src/vite.ts` / `src/lsp.ts` | `nene` コマンド、Vite プラグイン、言語サーバー |
+| `template/` | `nene new` で作るプロジェクトのひな形 |
+| `bin/nene.js` | コマンドの入口。手元のリポジトリでは `src/` を、npm から入れたときは `build/` を使う |
 | `editors/nvim/` | nvim 用のファイル種別判定・ハイライト・設定 |
 
 ## まだないもの

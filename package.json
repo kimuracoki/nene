@@ -1,9 +1,9 @@
 {
-  "name": "@tufa/tufa",
+  "name": "nene-lang",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "tufa": "./bin/tufa.js"
+    "nene": "./bin/nene.js"
   },
   "scripts": {
     "dev": "cd examples && node ../src/cli.ts dev",
@@ -19,7 +19,7 @@
   "exports": {
     "./vite": "./build/vite.js",
     "./compiler": "./build/compiler.js",
-    "./cli": "./bin/tufa.js"
+    "./cli": "./bin/nene.js"
   },
   "description": "Simple rules. Beautiful structures. — Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語",
   "files": [

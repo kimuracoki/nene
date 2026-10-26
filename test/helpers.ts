@@ -6,8 +6,8 @@ const ROOT = "/virtual";
 
 // ファイル名と中身の組から、メモリ上だけでコンパイルする
 export function compile(files: Record<string, string>, entry = "Main"): ProgramResult {
-  const overrides = new Map(Object.entries(files).map(([name, src]) => [`${ROOT}/${name.replace(/\./g, "/")}.tufa`, src]));
-  return compileProgram(`${ROOT}/${entry}.tufa`, { overrides });
+  const overrides = new Map(Object.entries(files).map(([name, src]) => [`${ROOT}/${name.replace(/\./g, "/")}.nn`, src]));
+  return compileProgram(`${ROOT}/${entry}.nn`, { overrides });
 }
 
 // コンパイルエラーのメッセージを返す（成功したら例外）

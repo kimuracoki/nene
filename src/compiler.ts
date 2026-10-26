@@ -20,7 +20,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const LIB_DIR = join(here, "lib");
 export const RUNTIME_FILE = join(here, "..", "runtime", "runtime.js");
 const LIB_ORDER = ["Prelude", "Layout", ...STD_QUALIFIED];
-export const LIB_FILES = LIB_ORDER.map((name) => join(LIB_DIR, `${name}.tufa`));
+export const LIB_FILES = LIB_ORDER.map((name) => join(LIB_DIR, `${name}.nn`));
 
 export interface CompiledModule {
   name: string;
@@ -43,12 +43,12 @@ let libCache: { stamp: number; modules: CompiledModule[] } | null = null;
 
 function libraries(): CompiledModule[] {
   // 標準ライブラリのファイルが変わったときだけ作り直す
-  const stamp = Math.max(...LIB_ORDER.map((name) => statSync(join(LIB_DIR, `${name}.tufa`)).mtimeMs));
+  const stamp = Math.max(...LIB_ORDER.map((name) => statSync(join(LIB_DIR, `${name}.nn`)).mtimeMs));
   if (libCache && libCache.stamp === stamp) return libCache.modules;
   const deps = new Map<string, ModuleIface>();
   const out: CompiledModule[] = [];
   for (const name of LIB_ORDER) {
-    const file = join(LIB_DIR, `${name}.tufa`);
+    const file = join(LIB_DIR, `${name}.nn`);
     const mod = parseModule(readFileSync(file, "utf8"), file);
     const checked = checkModule(mod, file, { deps, builtin: true, entry: false });
     deps.set(name, checked.iface);
@@ -58,7 +58,7 @@ function libraries(): CompiledModule[] {
   return out;
 }
 
-// モジュール名から、プロジェクトのルート（Ui/Button.tufa なら Ui の親）を求める
+// モジュール名から、プロジェクトのルート（Ui/Button.nn なら Ui の親）を求める
 export function projectRoot(file: string, moduleName: string): string {
   const depth = moduleName.split(".").length;
   let root = file;
@@ -73,7 +73,7 @@ export function listModules(root: string): string[] {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist") continue;
       if (entry.isDirectory() && /^[A-Z]/.test(entry.name)) walk(join(dir, entry.name), [...prefix, entry.name]);
-      else if (entry.isFile() && /^[A-Z]\w*\.tufa$/.test(entry.name)) out.push([...prefix, entry.name.slice(0, -".tufa".length)].join("."));
+      else if (entry.isFile() && /^[A-Z]\w*\.nn$/.test(entry.name)) out.push([...prefix, entry.name.slice(0, -".nn".length)].join("."));
     }
   };
   walk(root, []);
@@ -103,10 +103,10 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
   const entrySource = read(entryFile);
   const entryMod = parseModule(entrySource, entryFile);
   const entryName = entryMod.name;
-  // Ui.Button なら、Ui/Button.tufa の 2 つ上がプロジェクトのルート
+  // Ui.Button なら、Ui/Button.nn の 2 つ上がプロジェクトのルート
   const segments = entryName.split(".");
-  const expectedPath = join(...segments) + ".tufa";
-  if (!entryFile.endsWith(expectedPath) || basename(entryFile) !== `${segments[segments.length - 1]}.tufa`) {
+  const expectedPath = join(...segments) + ".nn";
+  if (!entryFile.endsWith(expectedPath) || basename(entryFile) !== `${segments[segments.length - 1]}.nn`) {
     throw new CompileError(`モジュール名とファイルの場所が合いません（${expectedPath} にしてください）`, entryMod.pos, entryFile);
   }
   const root = entryFile.slice(0, entryFile.length - expectedPath.length) || ".";
@@ -120,7 +120,7 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
         throw new CompileError(`モジュールが循環して import されています（${name} → ${imp.module}）`, imp.pos, file);
       }
       if (parsed.has(imp.module)) continue;
-      const depFile = join(root, ...imp.module.split(".")) + ".tufa";
+      const depFile = join(root, ...imp.module.split(".")) + ".nn";
       if (!opts.overrides?.has(depFile) && !existsSync(depFile)) {
         throw new CompileError(`モジュール ${imp.module} が見つかりません（${relative(root, depFile)}）`, imp.pos, file);
       }
@@ -157,7 +157,7 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
 export function bundle(result: ProgramResult, mount = "app"): string {
   const runtime = readFileSync(RUNTIME_FILE, "utf8");
   const parts = [
-    "// tufa が生成したコード",
+    "// nene が生成したコード",
     runtime,
     ...libraries().map((m) => m.js),
     ...result.modules.map((m) => m.js),

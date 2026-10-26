@@ -4,8 +4,8 @@ import { CompileError, type StyleBlock } from "./syntax.ts";
 
 export interface ScopedStyle {
   css: string; // 書き換えたあとの CSS
-  classes: Map<string, string>; // Tufa での名前（itemDone）→ 実際のクラス名（Todo__item-done）
-  scope: string; // このファイルで書いたタグに付ける印のクラス（tufa-Todo）
+  classes: Map<string, string>; // Nene での名前（itemDone）→ 実際のクラス名（Todo__item-done）
+  scope: string; // このファイルで書いたタグに付ける印のクラス（nene-Todo）
   vars: Set<string>; // var(--bar-width) のように使われている CSS 変数の名前（bar-width）
 }
 
@@ -61,7 +61,7 @@ function mapClasses(css: string, f: (name: string) => string): string {
 export function scopeStyle(block: StyleBlock, moduleName: string, file: string): ScopedStyle {
   const prefix = moduleName.replace(/\./g, "-");
   const classes = new Map<string, string>();
-  const fieldOf = new Map<string, string>(); // クラス名 → Tufa での名前（同じ名前になってしまうものを見つける）
+  const fieldOf = new Map<string, string>(); // クラス名 → Nene での名前（同じ名前になってしまうものを見つける）
   let depth = 0;
   for (const ch of block.css.replace(/\/\*[\s\S]*?\*\//g, "")) {
     if (ch === "{") depth++;
@@ -80,16 +80,16 @@ export function scopeStyle(block: StyleBlock, moduleName: string, file: string):
     classes.set(field, scoped);
     return scoped;
   });
-  const scope = `tufa-${prefix}`;
+  const scope = `nene-${prefix}`;
   const vars = new Set([...block.css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/var\(\s*--([\w-]+)/g)].map((m) => m[1]));
   return { css: scopeSelectors(css, scope), classes, scope, vars };
 }
 
 // ---- セレクタを、このファイルのタグにだけ当たるように書き換える ----
 //
-//   h2 { }            → h2.tufa-Card { }
-//   .list > li:hover  → .Card__list > li.tufa-Card:hover
-//   .title::before    → .Card__title.tufa-Card::before
+//   h2 { }            → h2.nene-Card { }
+//   .list > li:hover  → .Card__list > li.nene-Card:hover
+//   .title::before    → .Card__title.nene-Card::before
 //   body, :root, html → そのまま（ページ全体を表すので）
 
 // 文字列とコメントを読み飛ばして、次の位置を返す（どちらでもなければ -1）

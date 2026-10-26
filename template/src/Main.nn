@@ -14,13 +14,13 @@ update Decrement n = n - 1
 view :: Model -> Html Msg
 view n =
   <Column gap={L} align={Center} class={css.page}>
-    <h1>Tufa</h1>
+    <h1>Nene</h1>
     <Row gap={M} align={Center}>
       <CountButton label="-" onClick={Decrement} />
       <p class={css.count}>{show n}</p>
       <CountButton label="+" onClick={Increment} />
     </Row>
-    <p class={css.hint}>src/Main.tufa を編集して保存すると、ここに反映されます</p>
+    <p class={css.hint}>src/Main.nn を編集して保存すると、ここに反映されます</p>
   </Column>
 
 

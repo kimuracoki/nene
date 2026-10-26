@@ -1,4 +1,4 @@
-# Tufa 言語仕様 v0.1
+# Nene 言語仕様 v0.1
 
 ## 0. 原則
 
@@ -25,7 +25,7 @@
 
 ## 1. ファイルとモジュール
 
-- 拡張子は `.tufa`。1 ファイル 1 モジュール。モジュール名はファイルのパスと一致させる（`Ui/Button.tufa` → `Ui.Button`）。
+- 拡張子は `.nn`。1 ファイル 1 モジュール。モジュール名はファイルのパスと一致させる（`Ui/Button.nn` → `Ui.Button`）。
 
 ```haskell
 module Button (ButtonProps, Variant(..), button) where
@@ -528,7 +528,7 @@ style
 
 例外は、ページ全体を表す `:root`・`html`・`body` だけで、これらはそのままページ全体に効く。アプリ全体の色やフォントは、入口のファイルの `style` ブロックにこれらを使って書く。
 
-仕組み: そのファイルで書いたタグ（HTML 要素とレイアウトタグ）には、印のクラス（`tufa-Card` など）が自動で付く。セレクタは、実際に当たる要素がその印を持つように書き換えられる（`h2` は `h2.tufa-Card`、`.title::before` は `.Card__title.tufa-Card::before`）。`@media` などの中も同じように書き換え、`@keyframes` と `@font-face` の中は書き換えない。
+仕組み: そのファイルで書いたタグ（HTML 要素とレイアウトタグ）には、印のクラス（`nene-Card` など）が自動で付く。セレクタは、実際に当たる要素がその印を持つように書き換えられる（`h2` は `h2.nene-Card`、`.title::before` は `.Card__title.nene-Card::before`）。`@media` などの中も同じように書き換え、`@keyframes` と `@font-face` の中は書き換えない。
 
 ```css
 style
@@ -672,6 +672,6 @@ jsx       ::= "<" Name attr* ("/>" | ">" child* "</" Name ">") | "<>" child* "</
 
 `Prelude` `Layout` と上のモジュール名は予約されていて、ユーザーのモジュール名には使えない。
 
-標準ライブラリは Tufa 自身で書かれている（`src/lib/*.tufa`）。
+標準ライブラリは Nene 自身で書かれている（`src/lib/*.nn`）。
 
 `Class`・`Size`・`Align`・`Direction`・`Maybe`・`Result`・`Url` の型とコンストラクタも `Prelude` に含まれる。
