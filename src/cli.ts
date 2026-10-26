@@ -5,6 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpat
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { compileProgram } from "./compiler.ts";
+import { format } from "./format.ts";
 import { prerenderSite } from "./prerender.ts";
 import { displayWidth, formatError } from "./report.ts";
 import { CompileError } from "./syntax.ts";
@@ -74,6 +75,25 @@ const commands: Record<string, Command> = {
       if (args[0]) checkAll([resolve(args[0])], false);
       else checkAll(entries(projectDir()));
       console.log(`${paint("32", "✓")} エラーはありません`);
+    },
+  },
+  fmt: {
+    usage: "fmt [Path...] [--check]",
+    summary: "整形する（フォルダならその中の .nn すべて。省略するとこのフォルダ）。--check は確かめるだけ",
+    run: (args) => {
+      const check = args.includes("--check");
+      const given = args.filter((a) => a !== "--check");
+      const files = (given.length > 0 ? given : ["."]).flatMap((f) => (statSync(f).isDirectory() ? nnFiles(resolve(f)) : [resolve(f)]));
+      const changed = files.filter((file) => {
+        const src = readFileSync(file, "utf8");
+        const out = format(src);
+        if (out === src) return false;
+        if (!check) writeFileSync(file, out);
+        return true;
+      });
+      for (const file of changed) console.log(`${check ? "整形が必要" : "整形した"}: ${relative(process.cwd(), file)}`);
+      if (check && changed.length > 0) process.exit(1);
+      if (changed.length === 0) console.log(`${paint("32", "✓")} 整形済みです（${files.length} ファイル）`);
     },
   },
   lsp: {
@@ -167,6 +187,16 @@ function writeFallbacks(outDir: string, base: string) {
 function builtBase(outDir: string): string {
   const html = readFileSync(join(outDir, "index.html"), "utf8");
   return html.match(/<script[^>]*src="([^"]*\/)assets\//)?.[1] ?? "/";
+}
+
+// フォルダの中の .nn（node_modules と dist は除く）
+function nnFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    if (e.name.startsWith(".") || e.name === "node_modules" || e.name === "dist") return [];
+    const path = join(dir, e.name);
+    if (e.isDirectory()) return nnFiles(path);
+    return e.name.endsWith(".nn") ? [path] : [];
+  });
 }
 
 // ---- nene new ----

@@ -43,9 +43,9 @@ update Lap model
 
     faster (Just b) = min b lap
     faster Nothing  = lap
-update Reset model = { model | running = False, elapsed = 0, lastTick = Nothing, laps = [] }
+update Reset model              = { model | running = False, elapsed = 0, lastTick = Nothing, laps = [] }
 update (BestLoaded saved) model = { model | best = Maybe.andThen String.toInt saved }
-update _ model = model
+update _ model                  = model
 
 
 effect :: Msg -> Model -> Cmd Msg
@@ -82,7 +82,6 @@ view model =
     toggleLabel
       | model.running = "停止"
       | otherwise     = "開始"
-
 
 
 bestTime :: { best :: Maybe Int } -> Html msg

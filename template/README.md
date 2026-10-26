@@ -6,6 +6,7 @@
 npm install
 npm run dev       # 開発サーバー（保存すると自動で再読み込み）
 npm run check     # 型検査だけ
+npm run fmt       # 整形
 npm run build     # dist/ に公開用のファイルを出力
 npm run preview   # dist/ を手元で動かして確かめる
 ```

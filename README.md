@@ -100,6 +100,7 @@ my-app/
 | `npm run build`（`nene build`） | `dist/` に出力する。そのまま静的ホスティングに置ける。`--base /repo/` でサブディレクトリにも置ける |
 | `npm run preview`（`nene preview`） | `dist/` を手元で動かして確かめる |
 | `npm run check`（`nene check`） | 型検査だけ。エラーは該当する行つきで出る |
+| `npm run fmt`（`nene fmt`） | 整形する。`--check` は直さずに確かめるだけ（CI 向け） |
 
 `dev`・`build`・`preview` は内部で Vite を使う。複数ページなど特別なことをしたいときだけ、普通の `vite.config.ts` を置けば読み込まれる（例: `examples/vite.config.ts`）。
 
@@ -157,9 +158,22 @@ vim.opt.rtp:append("/path/to/nene/editors/nvim")
 require("nene").setup()
 ```
 
-- `.nn` のハイライト。言語サーバーが動いているときは、その解析結果で色を分ける（部品と HTML 要素、コンストラクタ、フィールド、引数など）
-- 入力中のエラー表示（1 ファイルのエラーをまとめて表示）
-- `K` で型を表示、`gd` で定義へ移動（`<Button>` から `Button.nn` へも飛べる）
+キーはどれも nvim の標準のもの。
+
+| | |
+| --- | --- |
+| 色分け | `.nn` のハイライト。言語サーバーが動いているときは、その解析結果で色を分ける（部品と HTML 要素、コンストラクタ、フィールド、引数など）。`style` ブロックは CSS として |
+| エラー | 入力中に表示する（1 ファイルのエラーをまとめて） |
+| `K` / `gd` | 型を表示 / 定義へ移動（`<Button>` から `Button.nn` へも飛べる） |
+| `grr` | 参照一覧（プロジェクトのすべてのファイルから） |
+| `grn` | 名前の一括変更（ファイルをまたいで。部品の関数を変えるとタグも変わる） |
+| `gra` | コードアクション（部品の import を足す、JSX の `{}` の式を `where` に取り出す） |
+| `gO` | アウトライン（関数・型・コンストラクタ・フィールド・`where` の中の定義） |
+| 挿入モードの `<C-s>` | 引数のヒント（関数の型と、いま書いている引数） |
+| `gq` | 整形（`nene fmt` と同じ）。`setup({ format_on_save = true })` で保存のたびに |
+| 折りたたみ | 宣言・`where`・JSX の要素・import・コメント（`zc` `zo` など） |
+| `van` / `vin` | 構造に沿った選択（名前 → JSX の要素 → 宣言 と広げる。nvim 0.12 以上） |
+
 - 補完
   - `<But` → `<Button onClick={…}>…</Button>`（必須の属性と閉じタグまで入る）
   - タグの中で属性名（まだ書いていないもの。必須のものが先）
@@ -208,6 +222,8 @@ npm pack                  # 配布するパッケージを手元で作る
 | `ui/` | 公式の部品集 `nene-lang-ui` |
 | `src/css.ts` | `style` ブロックのクラス名を取り出し、ファイルごとに区別できる名前に書き換える |
 | `src/cli.ts` / `src/vite.ts` / `src/lsp.ts` | `nene` コマンド、Vite プラグイン、言語サーバー |
+| `src/format.ts` | 整形（`nene fmt` と言語サーバー） |
+| `src/outline.ts` / `src/references.ts` / `src/actions.ts` | アウトライン・折りたたみ・選択範囲、参照と名前の変更、コードアクション |
 | `src/report.ts` | コンパイルエラーを、該当する行と印つきで見せる |
 | `template/` | `nene new` で作るプロジェクトのひな形 |
 | `bin/nene.js` | コマンドの入口。手元のリポジトリでは `src/` を、npm から入れたときは `build/` を使う |
@@ -217,4 +233,4 @@ npm pack                  # 配布するパッケージを手元で作る
 
 - リクエストごとにサーバーで描く SSR（ビルド時の静的生成はある）
 - VS Code の拡張
-- Tree-sitter の文法（今は Vim の syntax ファイルと、言語サーバーによる色分け）
+- Tree-sitter の文法（色分け・折りたたみ・構造に沿った選択は、言語サーバーで代わりにできる）

@@ -5,6 +5,7 @@
 ## コマンド
 
 - `npm run check` … 型検査。`.nn` を編集すると自動で実行され、エラーがあれば伝えられる（`.claude/hooks/check.mjs`）
+- `npm run fmt` … 整形（`=` の位置などをそろえる）。書き終えたらかける
 - `npm run dev` … 開発サーバー
 - `npm run build` … `dist/` に出力
 

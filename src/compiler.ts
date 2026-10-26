@@ -77,6 +77,11 @@ export function listModules(root: string): string[] {
   return [...new Set(names)].sort();
 }
 
+// プロジェクトの .nn ファイル（パッケージのものは含めない）
+export function projectFiles(root: string): string[] {
+  return modulesIn(root).map((name) => join(root, ...name.split(".")) + ".nn");
+}
+
 function modulesIn(root: string): string[] {
   if (!existsSync(root)) return [];
   const out: string[] = [];

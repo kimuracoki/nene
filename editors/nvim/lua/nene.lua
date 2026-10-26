@@ -3,16 +3,23 @@
 --   vim.opt.rtp:append("/path/to/Nene/editors/nvim")
 --   require("nene").setup()
 --
--- 有効になるもの:
+-- 有効になるもの（キーは nvim の標準のもの）:
 --   - ハイライト（syntax/nene.vim。言語サーバーが動いているときは、その解析結果で色を上書きする）
---   - 言語サーバー: エラー表示、K で型の表示、gd で定義へ移動、補完
+--   - エラー表示、K で型、gd で定義へ、grr で参照一覧、grn で名前の一括変更、gra でコードアクション、
+--     gO でアウトライン、挿入モードの <C-s> で引数のヒント、gq で整形、補完
+--   - 言語サーバーによる折りたたみ（宣言・where・JSX の要素など）
 --
--- 補完は、nvim-cmp や blink.cmp が入っていればそちらに任せ、なければ nvim 標準の補完を使う。
+-- setup の設定:
+--   format_on_save = true   保存するときに整形する（nene fmt と同じ）
+--   folding = false         折りたたみを言語サーバーに任せない
+--   completion = false      nvim 標準の補完を使わない（nvim-cmp や blink.cmp があれば、はじめから使わない）
+--   cmd = { ... }           言語サーバーの起動コマンド
+--
 -- nvim 0.11 以降が必要。
 --
--- lazy.nvim なら（GitHub に置いた場合）:
+-- lazy.nvim なら:
 --   {
---     "<ユーザー名>/Nene",
+--     "kimuracoki/nene",
 --     config = function(plugin)
 --       vim.opt.rtp:append(plugin.dir .. "/editors/nvim")
 --       require("nene").setup()
@@ -77,16 +84,33 @@ function M.setup(opts)
   if builtin == nil then
     builtin = not external
   end
-  if builtin then
-    vim.api.nvim_create_autocmd("LspAttach", {
-      callback = function(args)
-        local client = vim.lsp.get_client_by_id(args.data.client_id)
-        if client and client.name == "nene" then
-          vim.lsp.completion.enable(true, client.id, args.buf, { autotrigger = true })
+
+  vim.api.nvim_create_autocmd("LspAttach", {
+    callback = function(args)
+      local client = vim.lsp.get_client_by_id(args.data.client_id)
+      if not client or client.name ~= "nene" then
+        return
+      end
+      if builtin then
+        vim.lsp.completion.enable(true, client.id, args.buf, { autotrigger = true })
+      end
+      if opts.folding ~= false then
+        for _, win in ipairs(vim.fn.win_findbuf(args.buf)) do
+          vim.wo[win][0].foldmethod = "expr"
+          vim.wo[win][0].foldexpr = "v:lua.vim.lsp.foldexpr()"
+          vim.wo[win][0].foldlevel = 99 -- 開いた時点では畳まない
         end
-      end,
-    })
-  end
+      end
+      if opts.format_on_save then
+        vim.api.nvim_create_autocmd("BufWritePre", {
+          buffer = args.buf,
+          callback = function()
+            vim.lsp.buf.format({ bufnr = args.buf, name = "nene" })
+          end,
+        })
+      end
+    end,
+  })
 end
 
 return M

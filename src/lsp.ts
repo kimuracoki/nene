@@ -4,17 +4,29 @@
 // できること:
 //   - 保存前の内容も含めて型検査し、エラーを表示する（diagnostics）
 //   - 名前やタグにカーソルを置くと型を表示する（hover）
-//   - 定義へ移動する（definition）
+//   - 定義へ移動する（definition）、参照一覧（references）、名前の一括変更（rename）
 //   - 補完（タグと必須の属性・閉じタグ、属性、import するモジュール、フィールド、名前）
+//   - 関数の引数のヒント（signatureHelp）
 //   - 色分け（部品と HTML 要素、コンストラクタ、フィールド、引数などを区別する semantic tokens）
+//   - アウトライン（documentSymbol）、プロジェクト全体のシンボル検索（workspace/symbol）
+//   - 折りたたみ（foldingRange）、構造に沿った選択（selectionRange）
+//   - 整形（formatting。nene fmt と同じ）
+//   - コードアクション（部品の import を足す、JSX の {} の式を where に取り出す）
 
+import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { compileProgram, listModules, projectRoot, type CompiledModule, type ProgramResult } from "./compiler.ts";
+import { codeActions } from "./actions.ts";
+import { compileProgram, listModules, projectFiles, projectRoot, type CompiledModule, type ProgramResult } from "./compiler.ts";
+import { format } from "./format.ts";
+import { foldingRanges, outline, parse, selectionRange, type OutlineSymbol } from "./outline.ts";
+import { definitionOf, referencesOf, renameProblem, replacementFor, type Occurrence } from "./references.ts";
 import { HTML_ATTRS, HTML_ELEMENTS, type HoverInfo, type SemType, type TagCandidate } from "./checker.ts";
 import { CompileError, type Pos } from "./syntax.ts";
 import { flattenRecord, prune } from "./types.ts";
 
 type Json = Record<string, any>;
+
+const VERSION: string = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
 const docs = new Map<string, string>(); // uri → 編集中の内容
 const results = new Map<string, { result: ProgramResult; text: string }>(); // uri → 最後に成功した検査結果と、そのときの内容
@@ -108,6 +120,175 @@ function validate(uri: string) {
 function schedule(uri: string) {
   clearTimeout(timers.get(uri));
   timers.set(uri, setTimeout(() => validate(uri), 150));
+}
+
+// ---- プロジェクト全体 ----
+
+function textOf(uri: string): string {
+  const open = docs.get(uri);
+  if (open !== undefined) return open;
+  try {
+    return readFileSync(fileURLToPath(uri), "utf8");
+  } catch {
+    return "";
+  }
+}
+
+// このファイルのプロジェクトのフォルダ（src/ など。モジュール名から求める）
+function rootOf(uri: string): string | null {
+  const name = /^module\s+([\w.]+)/m.exec(textOf(uri))?.[1];
+  return name ? projectRoot(fileURLToPath(uri), name) : null;
+}
+
+// プロジェクトのすべてのモジュールを、編集中の内容で型検査したもの。型検査の通らないモジュールは除く
+function projectModules(uri: string): CompiledModule[] {
+  const root = rootOf(uri);
+  if (!root) return compiledModule(uri) ? [compiledModule(uri)!] : [];
+  const overrides = new Map<string, string>();
+  for (const [u, text] of docs) overrides.set(fileURLToPath(u), text);
+  const seen = new Map<string, CompiledModule>();
+  for (const file of projectFiles(root)) {
+    if (seen.has(file)) continue;
+    try {
+      for (const m of compileProgram(file, { overrides, requireMain: false }).modules) seen.set(m.file, m);
+    } catch {
+      // エラーのあるモジュールは、参照を数えられない
+    }
+  }
+  return [...seen.values()];
+}
+
+const inside = (file: string, root: string) => file.startsWith(root.endsWith("/") ? root : root + "/");
+
+function locationOf(o: Occurrence) {
+  return { uri: pathToFileURL(o.file).href, range: toRange(o.pos, o.length) };
+}
+
+function references(uri: string, line: number, character: number): Json[] {
+  const h = hoverAt(uri, line, character);
+  const def = h && definitionOf(h);
+  if (!def) return [];
+  return referencesOf(def, projectModules(uri)).map(locationOf);
+}
+
+// 名前を変えられるかを確かめ、変える名前の範囲を返す。変えられないときは理由
+function renameTarget(uri: string, line: number, character: number): { def: ReturnType<typeof definitionOf>; occurrence: Occurrence } | string {
+  const h = hoverAt(uri, line, character);
+  const def = h && definitionOf(h);
+  if (!h || !def || h.label?.().startsWith("module ")) return "ここには変えられる名前がありません";
+  const root = rootOf(uri);
+  if (!root || !inside(def.file, root)) return "標準ライブラリやパッケージの名前は変えられません";
+  const name = h.name.slice(h.name.lastIndexOf(".") + 1);
+  const file = def.file.split("/").pop()!.replace(/\.nn$/, "");
+  if (name.toLowerCase() === file.toLowerCase()) return `${name} はファイルと同じ名前の主部品なので、ファイル名と一緒に変えてください`;
+  const col = h.pos.col + (h.name.length - name.length);
+  return { def, occurrence: { file: fileURLToPath(uri), pos: { line: h.pos.line, col }, length: name.length, text: name } };
+}
+
+function rename(uri: string, line: number, character: number, newName: string): Json {
+  const target = renameTarget(uri, line, character);
+  if (typeof target === "string") throw new LspError(target);
+  const refs = referencesOf(target.def!, projectModules(uri));
+  // 定義に書いてある名前で、新しい名前の種類を確かめる
+  const original = refs.find((r) => r.file === target.def!.file && r.pos.line === target.def!.pos.line)?.text ?? target.occurrence.text;
+  const problem = renameProblem(original, newName);
+  if (problem) throw new LspError(problem);
+  const changes: Record<string, Json[]> = {};
+  for (const r of refs) {
+    const u = pathToFileURL(r.file).href;
+    // 型検査のあとで書き換わっていたら、その場所は変えない
+    const lineText = textOf(u).split("\n")[r.pos.line - 1] ?? "";
+    if (lineText.slice(r.pos.col - 1, r.pos.col - 1 + r.length) !== r.text) continue;
+    (changes[u] ??= []).push({ range: toRange(r.pos, r.length), newText: replacementFor(r.text, newName) });
+  }
+  return { changes };
+}
+
+class LspError extends Error {}
+
+// ---- シンボル ----
+
+function workspaceSymbols(query: string): Json[] {
+  const anyUri = [...docs.keys()][0];
+  const root = anyUri ? rootOf(anyUri) : null;
+  if (!root) return [];
+  const q = query.toLowerCase();
+  const out: Json[] = [];
+  for (const file of projectFiles(root)) {
+    const uri = pathToFileURL(file).href;
+    const text = textOf(uri);
+    const mod = parse(text, file);
+    if (!mod) continue;
+    const walk = (symbols: OutlineSymbol[], container?: string) => {
+      for (const sym of symbols) {
+        if (sym.name.toLowerCase().includes(q)) out.push({ name: sym.name, kind: sym.kind, containerName: container ?? mod.name, location: { uri, range: sym.selectionRange } });
+        if (sym.children) walk(sym.children, sym.name);
+      }
+    };
+    walk(outline(text, mod));
+  }
+  return out.slice(0, 500);
+}
+
+// ---- 引数のヒント ----
+
+// カーソルの前にある関数適用（f a b ...）の、関数の型と、いま何番目の引数を書いているか
+function signatureHelp(uri: string, line: number, character: number): Json | null {
+  const mod = compiledModule(uri);
+  if (!mod) return null;
+  const before = (textOf(uri).split("\n")[line] ?? "").slice(0, character);
+  // 開いた括弧や = のあとから、カーソルまでを見る
+  let depth = 0;
+  let start = before.length;
+  for (let i = before.length - 1; i >= 0; i--) {
+    const c = before[i];
+    if (c === ")" || c === "]" || c === "}") depth++;
+    else if (c === "(" || c === "[" || c === "{") {
+      if (depth === 0) break;
+      depth--;
+    } else if (depth === 0 && (c === "=" || c === "," || c === "|" || c === "$")) break;
+    start = i;
+  }
+  const expr = before.slice(start);
+  const m = /^\s*([A-Z][\w]*(?:\.[A-Z][\w]*)*\.)?([a-z_][\w']*)\s/.exec(expr);
+  if (!m) return null;
+  const name = (m[1] ?? "") + m[2];
+  const detail = m[1]
+    ? mod.completion.quals.get(m[1].slice(0, -1))?.find((q) => q.name === m[2])?.detail
+    : mod.completion.values.find((v) => v.name === name)?.detail;
+  if (!detail || !detail.includes("->")) return null;
+  const params = splitArrows(detail);
+  params.pop(); // 結果の型
+  // 書き終えた引数の数（括弧の中をまとめた単語の数）
+  const args = expr.slice(m[0].length).replace(/\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}|"[^"]*"/g, "x").trim();
+  const written = args === "" ? 0 : args.split(/\s+/).length - (before.endsWith(" ") ? 0 : 1);
+  const label = `${name} :: ${detail}`;
+  let offset = label.indexOf("::") + 3;
+  const parameters = params.map((p) => {
+    const at = label.indexOf(p, offset);
+    offset = at + p.length;
+    return { label: [at, at + p.length] };
+  });
+  return { signatures: [{ label, parameters }], activeSignature: 0, activeParameter: Math.min(written, Math.max(0, params.length - 1)) };
+}
+
+// a -> (b -> c) -> d を [a, (b -> c), d] に分ける
+function splitArrows(type: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < type.length; i++) {
+    const c = type[i];
+    if (c === "(" || c === "[" || c === "{") depth++;
+    else if (c === ")" || c === "]" || c === "}") depth--;
+    else if (depth === 0 && type.startsWith(" -> ", i)) {
+      out.push(type.slice(start, i).trim());
+      start = i + 4;
+      i += 3;
+    }
+  }
+  out.push(type.slice(start).trim());
+  return out;
 }
 
 // ---- 色分け ----
@@ -267,8 +448,17 @@ function handle(msg: Json) {
           definitionProvider: true,
           completionProvider: { triggerCharacters: ["<", ".", " "] },
           semanticTokensProvider: { legend: { tokenTypes: TOKEN_TYPES, tokenModifiers: [] }, full: true },
+          referencesProvider: true,
+          renameProvider: { prepareProvider: true },
+          documentSymbolProvider: true,
+          workspaceSymbolProvider: true,
+          foldingRangeProvider: true,
+          selectionRangeProvider: true,
+          documentFormattingProvider: true,
+          codeActionProvider: { codeActionKinds: ["quickfix", "refactor.extract"] },
+          signatureHelpProvider: { triggerCharacters: [" "], retriggerCharacters: [" "] },
         },
-        serverInfo: { name: "nene", version: "0.1.0" },
+        serverInfo: { name: "nene", version: VERSION },
       });
       return;
     case "textDocument/completion":
@@ -309,6 +499,60 @@ function handle(msg: Json) {
       );
       return;
     }
+    case "textDocument/references":
+      respond(id, references(params.textDocument.uri, params.position.line, params.position.character));
+      return;
+    case "textDocument/prepareRename": {
+      const target = renameTarget(params.textDocument.uri, params.position.line, params.position.character);
+      if (typeof target === "string") send({ id, error: { code: -32803, message: target } });
+      else respond(id, { range: toRange(target.occurrence.pos, target.occurrence.length), placeholder: target.occurrence.text });
+      return;
+    }
+    case "textDocument/rename":
+      try {
+        respond(id, rename(params.textDocument.uri, params.position.line, params.position.character, params.newName));
+      } catch (e) {
+        if (!(e instanceof LspError)) throw e;
+        send({ id, error: { code: -32803, message: e.message } });
+      }
+      return;
+    case "textDocument/documentSymbol": {
+      const uri = params.textDocument.uri;
+      const mod = parse(textOf(uri), fileURLToPath(uri));
+      respond(id, mod ? outline(textOf(uri), mod) : []);
+      return;
+    }
+    case "workspace/symbol":
+      respond(id, workspaceSymbols(params.query ?? ""));
+      return;
+    case "textDocument/foldingRange": {
+      const uri = params.textDocument.uri;
+      respond(id, foldingRanges(textOf(uri), parse(textOf(uri), fileURLToPath(uri))));
+      return;
+    }
+    case "textDocument/selectionRange": {
+      const uri = params.textDocument.uri;
+      const mod = parse(textOf(uri), fileURLToPath(uri));
+      respond(id, params.positions.map((p: Json) => selectionRange(textOf(uri), mod, p.line, p.character) ?? { range: { start: p, end: p } }));
+      return;
+    }
+    case "textDocument/formatting": {
+      const text = textOf(params.textDocument.uri);
+      const formatted = format(text);
+      const lines = text.split("\n");
+      const whole = { start: { line: 0, character: 0 }, end: { line: lines.length, character: 0 } };
+      respond(id, formatted === text ? [] : [{ range: whole, newText: formatted }]);
+      return;
+    }
+    case "textDocument/codeAction": {
+      const uri = params.textDocument.uri;
+      const root = rootOf(uri);
+      respond(id, codeActions({ uri, text: textOf(uri), diagnostics: params.context.diagnostics, modules: root ? listModules(root) : [] }));
+      return;
+    }
+    case "textDocument/signatureHelp":
+      respond(id, signatureHelp(params.textDocument.uri, params.position.line, params.position.character));
+      return;
     case "textDocument/definition": {
       const h = hoverAt(params.textDocument.uri, params.position.line, params.position.character);
       const def = typeof h?.def === "function" ? h.def() : h?.def;

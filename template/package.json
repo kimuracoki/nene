@@ -6,7 +6,8 @@
     "dev": "nene dev",
     "build": "nene build",
     "preview": "nene preview",
-    "check": "nene check"
+    "check": "nene check",
+    "fmt": "nene fmt src"
   },
   "dependencies": {
     "nene-lang-ui": "{{uiDependency}}"

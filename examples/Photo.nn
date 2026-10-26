@@ -27,7 +27,7 @@ photo props =
 
 -- このファイルの中だけで使う部品
 badge :: { label :: Maybe String } -> Html msg
-badge { label = Just s } = <span class={css.badge}>{s}</span>
+badge { label = Just s }  = <span class={css.badge}>{s}</span>
 badge { label = Nothing } = <></>
 
 
