@@ -330,3 +330,37 @@ style
   assert.doesNotMatch(main, /\$M_Card\.card\([^)]*\)[^,]*tufa-Main/);
   assert.match(card, /\$rt\.h\("h2", \{\}, \["Card の見出し"\], "tufa-Card"\)/);
 });
+
+test("vars でレコードの値を CSS 変数として渡せる。style で使っていない名前はエラー", () => {
+  const view = (vars: string) =>
+    app(`v :: Int -> Html Msg
+v n = <div class={css.bar} vars={barVars} />
+  where
+    barVars = ${vars}
+
+
+style
+  .bar { width: var(--bar-width); }`);
+  compile(view(`{ barWidth = show n ++ "%" }`));
+  assert.match(compileError(view(`{ barWdth = "1%" }`)), /var\(--bar-wdth\) が使われていません/);
+  assert.match(compileError(view(`{ barWidth = n }`)), /vars の barWidth/);
+});
+
+test("aria-*・data-*・tabindex・select の onChange などの属性を型で検査する", () => {
+  compile(
+    app(`data Pick = Pick String
+
+v :: Html Pick
+v =
+  <div role="group" aria-label="選択" data-state="open" tabindex={0} hidden>
+    <select onChange={Pick} required>
+      <option value="a" selected>A</option>
+    </select>
+    <table><tbody><tr><td colspan={2}>x</td></tr></tbody></table>
+  </div>`),
+  );
+  assert.match(compileError(app(`v :: Html Msg
+v = <div tabindex="0" />`)), /属性 tabindex/);
+  assert.match(compileError(app(`v :: Html Msg
+v = <div aria-Label="x" />`)), /属性 aria-Label は使えません/);
+});

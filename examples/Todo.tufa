@@ -82,6 +82,9 @@ view :: Model -> Html Msg
 view model =
   <Column gap={L} class={css.page}>
     <h1>タスク</h1>
+    <div class={css.progress} role="progressbar" aria-label="完了した割合">
+      <div class={css.progressBar} vars={progress} />
+    </div>
 
     <Card>
       <form onSubmit={AddTodo}>
@@ -108,6 +111,7 @@ view model =
   where
     visible       = filter (matches model.filter) model.todos
     noneCompleted = countOf Completed == 0
+    progress      = { done = show (countOf Completed * 100 // max 1 (countOf All)) ++ "%" }
     countOf f     = length (filter (matches f) model.todos)
 
     -- where の中の部品も、タグで呼べる。model をそのまま使える
@@ -204,6 +208,18 @@ style
     padding: var(--space-l);
   }
   .toolbar { padding: var(--space-s); }
+  .progress {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .progress-bar {
+    width: var(--done);
+    height: 100%;
+    background: var(--primary);
+    transition: width .3s;
+  }
   .empty {
     padding: var(--space-l);
     color: var(--muted);

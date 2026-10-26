@@ -208,6 +208,20 @@ CSS の当て方はこれだけ。CSS ファイルの読み込みも、CSS-in-JS
 
 レイアウトタグの間隔と同じ値は、CSS からも `var(--space-s)` や `var(--space-m)` で使える。
 
+状態に応じた値（進捗バーの幅など）は、`vars` で CSS 変数として渡す。
+
+```haskell
+<div class={css.bar} vars={progress} />
+  where
+    progress = { done = show percent ++ "%" }
+
+
+style
+  .bar { width: var(--done); }
+```
+
+フィールド名が CSS 変数の名前になる（`barWidth` なら `--bar-width`）。`style` ブロックで使っていない名前を渡すと、コンパイルエラーになる。
+
 ## 7. 部品を作る
 
 部品は「レコードを受け取って `Html` を返す関数」。名前の先頭を大文字にするとタグとして使える。

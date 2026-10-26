@@ -6,6 +6,12 @@ export interface ScopedStyle {
   css: string; // 書き換えたあとの CSS
   classes: Map<string, string>; // Tufa での名前（itemDone）→ 実際のクラス名（Todo__item-done）
   scope: string; // このファイルで書いたタグに付ける印のクラス（tufa-Todo）
+  vars: Set<string>; // var(--bar-width) のように使われている CSS 変数の名前（bar-width）
+}
+
+// barWidth → bar-width（vars のフィールド名から CSS 変数の名前へ）
+export function varName(field: string): string {
+  return field.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 }
 
 // item-done → itemDone
@@ -75,7 +81,8 @@ export function scopeStyle(block: StyleBlock, moduleName: string, file: string):
     return scoped;
   });
   const scope = `tufa-${prefix}`;
-  return { css: scopeSelectors(css, scope), classes, scope };
+  const vars = new Set([...block.css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/var\(\s*--([\w-]+)/g)].map((m) => m[1]));
+  return { css: scopeSelectors(css, scope), classes, scope, vars };
 }
 
 // ---- セレクタを、このファイルのタグにだけ当たるように書き換える ----

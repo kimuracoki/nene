@@ -164,7 +164,28 @@ const $rt = (() => {
 
   // ---- DOM への反映 ----
 
-  const EVENTS = { onClick: "click", onSubmit: "submit", onInput: "input", onCheck: "change" };
+  const EVENTS = {
+    onClick: "click",
+    onDoubleClick: "dblclick",
+    onSubmit: "submit",
+    onFocus: "focus",
+    onBlur: "blur",
+    onMouseEnter: "mouseenter",
+    onMouseLeave: "mouseleave",
+    onInput: "input",
+    onChange: "change",
+    onCheck: "change",
+  };
+  // DOM のプロパティとして持つ属性（属性を書き換えるだけでは、画面上の状態が変わらないもの）
+  const PROPS = { value: "value", checked: "checked", selected: "selected", disabled: "disabled", readonly: "readOnly", open: "open", muted: "muted" };
+  const BOOLS = new Set(["required", "multiple", "hidden", "autofocus", "controls", "autoplay", "loop", "playsinline", "reversed", "novalidate"]);
+
+  // vars={{ barWidth = "40%" }} → --bar-width: 40%
+  const varName = (field) => `--${field.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+  const setVars = (el, oldVars, newVars) => {
+    for (const k of Object.keys(oldVars ?? {})) if (!newVars || !(k in newVars)) el.style.removeProperty(varName(k));
+    for (const [k, v] of Object.entries(newVars ?? {})) if (!oldVars || oldVars[k] !== v) el.style.setProperty(varName(k), v);
+  };
 
   const createRenderer = (dispatch) => {
     const listen = (el, name) => {
@@ -175,33 +196,36 @@ const $rt = (() => {
         if (handler === undefined) return;
         if (name === "onSubmit") ev.preventDefault();
         if (name === "onClick") ev.stopPropagation();
-        if (name === "onInput") dispatch(handler(ev.target.value));
+        if (name === "onInput" || name === "onChange") dispatch(handler(ev.target.value));
         else if (name === "onCheck") dispatch(handler(ev.target.checked));
         else dispatch(handler);
       });
     };
 
-    const setAttr = (el, name, value) => {
+    const setAttr = (el, name, value, old) => {
       if (name === "class" || name === "key") return;
-      if (name in EVENTS) {
+      if (name === "vars") {
+        setVars(el, old, value);
+      } else if (name in EVENTS) {
         listen(el, name);
         el.$tufa[name] = value;
-      } else if (name === "value") {
-        if (el.value !== value) el.value = value;
-      } else if (name === "checked" || name === "disabled") {
-        el[name] = value;
+      } else if (name in PROPS) {
+        if (el[PROPS[name]] !== value) el[PROPS[name]] = value;
+      } else if (BOOLS.has(name)) {
+        if (value) el.setAttribute(name, "");
+        else el.removeAttribute(name);
       } else {
-        el.setAttribute(name, value);
+        el.setAttribute(name, String(value));
       }
     };
 
-    const removeAttr = (el, name) => {
-      if (name in EVENTS) {
+    const removeAttr = (el, name, old) => {
+      if (name === "vars") {
+        setVars(el, old, null);
+      } else if (name in EVENTS) {
         if (el.$tufa) el.$tufa[name] = undefined;
-      } else if (name === "checked" || name === "disabled") {
-        el[name] = false;
-      } else if (name === "value") {
-        el.value = "";
+      } else if (name in PROPS) {
+        el[PROPS[name]] = name === "value" ? "" : false;
       } else {
         el.removeAttribute(name);
       }
@@ -227,9 +251,9 @@ const $rt = (() => {
         return dom;
       }
       if (oldV.cls !== newV.cls) dom.className = newV.cls;
-      for (const k of Object.keys(oldV.attrs)) if (!(k in newV.attrs)) removeAttr(dom, k);
+      for (const k of Object.keys(oldV.attrs)) if (!(k in newV.attrs)) removeAttr(dom, k, oldV.attrs[k]);
       for (const [k, val] of Object.entries(newV.attrs)) {
-        if (k in EVENTS || k === "value" || k === "checked" || oldV.attrs[k] !== val) setAttr(dom, k, val);
+        if (k in EVENTS || k in PROPS || oldV.attrs[k] !== val) setAttr(dom, k, val, oldV.attrs[k]);
       }
       patchChildren(dom, oldV.children, newV.children);
       return dom;

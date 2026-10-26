@@ -29,6 +29,8 @@ test("Todo: 追加・完了・絞り込み・削除ができる", async () => {
   );
   assert.match(app.text(), /牛乳を買う/);
   assert.match(app.text(), /すべて 2/);
+  const bar = app.document.querySelector(".Todo__progress-bar") as HTMLElement;
+  assert.equal(bar.style.getPropertyValue("--done"), "0%");
 
   // 空のまま追加するとエラーが出る
   await app.submit("form");
@@ -47,6 +49,7 @@ test("Todo: 追加・完了・絞り込み・削除ができる", async () => {
   box.dispatchEvent(new app.window.Event("change", { bubbles: true }));
   await app.frame();
   assert.match(app.text(), /完了 1/);
+  assert.equal(bar.style.getPropertyValue("--done"), "33%");
 
   // 「完了」で絞り込む
   const chips = [...app.document.querySelectorAll("button")].filter((b) => b.textContent!.startsWith("完了 "));

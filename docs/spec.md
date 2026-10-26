@@ -545,26 +545,56 @@ style
   }
 ```
 
-### 9.4 CSS が入る順番
+### 9.4 状態に応じた値を CSS に渡す（vars）
+
+進捗バーの幅のように、model から来る値で見た目を変えるときは、CSS 変数として渡す。タグには `vars={名前}` と書き、中身は `where` にレコードで書く。
+
+```haskell
+<div class={css.bar} vars={barVars} />
+  where
+    barVars = { barWidth = show percent ++ "%" }
+
+
+style
+  .bar { width: var(--bar-width); }
+```
+
+- フィールド名が、CSS 変数の名前になる（`barWidth` → `--bar-width`）。
+- 値は単位まで含めた文字列。
+- 各フィールドは、そのファイルの `style` ブロックで `var(--…)` として使われていなければならない。使われていなければコンパイルエラー（打ち間違いが見つかる）。
+- `vars` は HTML 要素に書ける。
+
+### 9.5 CSS が入る順番
 
 ランタイムは、最小限のリセット（`box-sizing`、`margin: 0` など）→ レイアウトタグの CSS → 各ファイルの `style` ブロック、の順にページへ入れる。後のものほど優先されるので、自分で書いた CSS がいちばん強い。
 
 ## 10. HTML 要素
 
-使える要素（v0.1）:
+使える要素:
 
-`h1` `h2` `h3` `p` `span` `strong` `a` `ul` `ol` `li` `section` `header` `footer` `main` `nav` `article` `figure` `figcaption` `img` `button` `input` `label` `form` `textarea` `div`
+| 分類 | 要素 |
+| --- | --- |
+| 文章 | `h1`〜`h6` `p` `span` `strong` `em` `small` `mark` `code` `pre` `blockquote` `abbr` `time` `sub` `sup` `br` `hr` `a` |
+| リスト | `ul` `ol` `li` `dl` `dt` `dd` |
+| 区切り | `div` `section` `header` `footer` `main` `nav` `article` `aside` `address` |
+| 画像と動画 | `figure` `figcaption` `img` `picture` `source` `video` `audio` |
+| フォーム | `form` `fieldset` `legend` `label` `input` `textarea` `select` `option` `optgroup` `button` `progress` `meter` `output` |
+| 表 | `table` `caption` `colgroup` `col` `thead` `tbody` `tfoot` `tr` `th` `td` |
+| その他 | `details` `summary` `dialog` |
 
-HTML 要素は **意味のため** に使う（見出し、リスト、ボタン、入力）。並び方はレイアウトタグで書く。
+HTML 要素は **意味のため** に使う（見出し、リスト、ボタン、入力）。並び方はレイアウトタグで書く。SVG はまだ使えない。
 
 | 属性 | 型 |
 | --- | --- |
 | `class` | `Class`（9 章） |
+| `vars` | フィールドがすべて `String` のレコード（9.4） |
 | `key` | `String`（リストの要素を見分ける） |
-| `src` `alt` `href` `type` `value` `placeholder` `name` `id` `for` `title` | `String` |
-| `disabled` `checked` | `Bool` |
-| `onClick` `onSubmit` | `msg` |
-| `onInput` | `String -> msg` |
+| `id` `title` `role` `lang` `dir` `src` `srcset` `sizes` `alt` `href` `target` `rel` `type` `value` `name` `placeholder` `for` `form` `list` `min` `max` `step` `pattern` `accept` `autocomplete` `width` `height` `loading` `poster` `datetime` `headers` `scope` | `String` |
+| `aria-*` `data-*`（小文字とハイフン） | `String` |
+| `tabindex` `rows` `cols` `colspan` `rowspan` `maxlength` `minlength` `span` `start` | `Int` |
+| `disabled` `checked` `selected` `readonly` `required` `multiple` `hidden` `autofocus` `open` `controls` `autoplay` `loop` `muted` `playsinline` `reversed` `novalidate` | `Bool`（値を書かずに `hidden` とだけ書くと `True`） |
+| `onClick` `onDoubleClick` `onSubmit` `onFocus` `onBlur` `onMouseEnter` `onMouseLeave` | `msg` |
+| `onInput` `onChange` | `String -> msg`（入力された値、`select` で選ばれた値） |
 | `onCheck` | `Bool -> msg` |
 
 ## 11. 副作用と JavaScript

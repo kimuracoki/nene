@@ -184,7 +184,9 @@ class Gen {
   }
 
   object(fields: [string, string][], spread: string | null): string {
-    const parts = fields.map(([k, v]) => `${fieldKey(k)}: ${v}`);
+    // aria-label のような、識別子として使えない名前は引用符で囲む
+    const key = (k: string) => (/^[A-Za-z_$][\w$]*$/.test(fieldKey(k)) ? fieldKey(k) : JSON.stringify(k));
+    const parts = fields.map(([k, v]) => `${key(k)}: ${v}`);
     if (spread) parts.unshift(`...${spread}`);
     return parts.length ? `{ ${parts.join(", ")} }` : "{}";
   }

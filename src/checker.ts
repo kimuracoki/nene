@@ -48,7 +48,7 @@ import {
   type TVar,
 } from "./types.ts";
 import { checkExhaustive } from "./exhaust.ts";
-import { scopeStyle, type ScopedStyle } from "./css.ts";
+import { scopeStyle, varName, type ScopedStyle } from "./css.ts";
 
 // ---- モジュールの外から見える情報 ----
 
@@ -131,46 +131,44 @@ export const STD_QUALIFIED = ["Cmd", "Sub", "List", "Maybe", "String", "Time", "
 export const RESERVED_MODULES = ["Prelude", "Layout", ...STD_QUALIFIED];
 
 export const HTML_ELEMENTS = new Set([
-  "h1", "h2", "h3", "p", "span", "strong", "a", "ul", "ol", "li", "section", "header", "footer", "main", "nav",
-  "article", "figure", "figcaption", "img", "button", "input", "label", "form", "textarea", "div",
+  "h1", "h2", "h3", "h4", "h5", "h6", "p", "span", "strong", "em", "small", "mark", "code", "pre", "blockquote",
+  "abbr", "time", "sub", "sup", "br", "hr", "a", "ul", "ol", "li", "dl", "dt", "dd", "div", "section", "header",
+  "footer", "main", "nav", "article", "aside", "address", "figure", "figcaption", "img", "picture", "source",
+  "video", "audio", "button", "input", "label", "form", "fieldset", "legend", "textarea", "select", "option",
+  "optgroup", "progress", "meter", "output", "table", "caption", "colgroup", "col", "thead", "tbody", "tfoot", "tr",
+  "th", "td", "details", "summary", "dialog",
 ]);
 
+const STRING_ATTRS = [
+  "key", "id", "title", "role", "lang", "dir", "src", "srcset", "sizes", "alt", "href", "target", "rel", "type",
+  "value", "name", "placeholder", "for", "form", "list", "min", "max", "step", "pattern", "accept", "autocomplete",
+  "width", "height", "loading", "poster", "datetime", "headers", "scope",
+];
+const INT_ATTRS = ["tabindex", "rows", "cols", "colspan", "rowspan", "maxlength", "minlength", "span", "start"];
+const BOOL_ATTRS = [
+  "disabled", "checked", "selected", "readonly", "required", "multiple", "hidden", "autofocus", "open", "controls",
+  "autoplay", "loop", "muted", "playsinline", "reversed", "novalidate",
+];
+const MSG_EVENTS = ["onClick", "onDoubleClick", "onSubmit", "onFocus", "onBlur", "onMouseEnter", "onMouseLeave"];
+const STRING_EVENTS = ["onInput", "onChange"];
+const BOOL_EVENTS = ["onCheck"];
+
+// エディタの補完用（aria-* と data-* は自由に書ける）
 export const HTML_ATTRS = [
-  "class", "key", "src", "alt", "href", "type", "value", "placeholder", "name", "id", "for", "title",
-  "disabled", "checked", "onClick", "onSubmit", "onInput", "onCheck",
+  "class", "vars", ...STRING_ATTRS, ...INT_ATTRS, ...BOOL_ATTRS, ...MSG_EVENTS, ...STRING_EVENTS, ...BOOL_EVENTS,
+  "aria-label", "data-",
 ];
 
 function htmlAttrType(name: string, msg: Type): Type | null {
-  switch (name) {
-    case "class":
-      return tClass;
-    case "key":
-    case "src":
-    case "alt":
-    case "href":
-    case "type":
-    case "value":
-    case "placeholder":
-    case "name":
-    case "id":
-    case "for":
-    case "title":
-      return tString;
-    case "disabled":
-    case "checked":
-      return tBool;
-    case "onClick":
-    case "onSubmit":
-      return msg;
-    case "onInput":
-      return fun(tString, msg);
-    case "onCheck":
-      return fun(tBool, msg);
-    default:
-      return null;
-  }
+  if (name === "class") return tClass;
+  if (STRING_ATTRS.includes(name) || /^(aria|data)-[a-z][a-z0-9-]*$/.test(name)) return tString;
+  if (INT_ATTRS.includes(name)) return tInt;
+  if (BOOL_ATTRS.includes(name)) return tBool;
+  if (MSG_EVENTS.includes(name)) return msg;
+  if (STRING_EVENTS.includes(name)) return fun(tString, msg);
+  if (BOOL_EVENTS.includes(name)) return fun(tBool, msg);
+  return null;
 }
-
 
 const JS_RESERVED = new Set(
   (
@@ -1141,6 +1139,10 @@ class Checker {
       if (!HTML_ELEMENTS.has(node.tag)) throw this.error(`HTML 要素 <${node.tag}> は使えません`, node.pos);
       this.tagTokens(node, "macro");
       for (const a of node.attrs) {
+        if (a.name === "vars") {
+          this.checkVars(a.value);
+          continue;
+        }
         const expected = htmlAttrType(a.name, msg);
         if (!expected) throw this.error(`<${node.tag}> に属性 ${a.name} は使えません`, a.pos);
         this.unifyAt(this.infer(a.value), expected, a.value.pos, `属性 ${a.name}`);
@@ -1150,6 +1152,24 @@ class Checker {
       return tHtml(msg);
     }
     return this.inferComponent(node, msg);
+  }
+
+  // vars={…} の値は、フィールドがすべて文字列のレコード。各フィールドは style ブロックの var(--…) と対応する
+  checkVars(value: Expr): Type {
+    const t = this.infer(value);
+    const p = prune(t);
+    const rec = p.k === "rec" ? flattenRecord(p) : null;
+    if (!rec || rec.rest !== null) {
+      throw this.error("vars には { barWidth = \"40%\" } のようなレコードを渡してください", value.pos);
+    }
+    for (const [field, ft] of rec.fields) {
+      this.unifyAt(ft, tString, value.pos, `vars の ${field}（値は単位まで含めた文字列）`);
+      const name = varName(field);
+      if (!this.style?.vars.has(name)) {
+        throw this.error(`vars の ${field} は --${name} になりますが、このファイルの style ブロックで var(--${name}) が使われていません`, value.pos);
+      }
+    }
+    return t;
   }
 
   tagTokens(node: Extract<JsxNode, { k: "element" }>, type: SemType) {
