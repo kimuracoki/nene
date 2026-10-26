@@ -1,0 +1,72 @@
+-- ボタンを押すと開く、自由な中身の吹き出し。外を押すか Esc で閉じる。model に何も足さなくてよい
+--
+--   <Popover id="profile" label="プロフィール">
+--     <Column gap={S}>…</Column>
+--   </Popover>
+--
+-- id は、ページの中でほかと重ならない名前にする
+module Ui.Popover (PopoverProps, popover) where
+
+import Ui.Button (Variant(..))
+
+
+type PopoverProps =
+  { id      :: String
+  , label   :: String
+  , variant :: Variant = Outlined
+  }
+
+
+popover :: PopoverProps -> [Html msg] -> Html msg
+popover props children =
+  <div class={css.popover} vars={anchor}>
+    <button class={trigger} type="button" popovertarget={props.id}>{props.label}</button>
+    <div class={css.panel} id={props.id} popover>{children}</div>
+  </div>
+  where
+    anchor = { anchor = "--popover-" ++ props.id }
+    trigger = classes [css.trigger, variantClass props.variant]
+
+
+variantClass :: Variant -> Class
+variantClass Filled   = css.filled
+variantClass Outlined = css.outlined
+variantClass Plain    = css.plain
+
+
+style
+  .popover { display: inline-block; anchor-name: var(--anchor); }
+  .trigger {
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .filled { background: var(--primary); color: var(--on-tone); }
+  .outlined { border-color: var(--border); background: var(--surface); }
+  .plain { background: none; }
+  .outlined:hover, .plain:hover { background: color-mix(in srgb, var(--text) 6%, var(--surface)); }
+  .trigger:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); }
+  .panel {
+    min-width: 220px;
+    max-width: min(360px, calc(100vw - 32px));
+    margin: 0;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 2px);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 12px 32px rgb(0 0 0 / .14);
+  }
+  /* ボタンのすぐ下に出す。この機能のないブラウザでは、画面の中央に出る */
+  @supports (anchor-name: --a) {
+    .panel {
+      position-anchor: var(--anchor);
+      inset: auto;
+      top: anchor(bottom);
+      left: anchor(left);
+      margin-top: 6px;
+      position-try-fallbacks: flip-block, flip-inline;
+    }
+  }

@@ -44,6 +44,7 @@ import Ui.Theme (Tone(..))
 
 - 色の種類 `tone` はどの部品も `Primary` `Neutral` `Success` `Warning` `Danger`、大きさ `size` は `S` `M` `L`。
 - 部品の見た目は外から `class` で変えられない。色は入口の `style` ブロックで `:root { --primary: …; }` のように CSS 変数を変える。
+- 状態の置き場所: アプリが知る必要のある状態は Model。メニュー・吹き出し・アコーディオンの開け閉めのような見た目だけの状態は Model に入れず、`Menu` `Popover` `Accordion` `Tooltip`（ブラウザが開け閉めを持つ）を使う。部品ごとの状態（useState）は Nene にはない。
 - where の名前がタグとぶつかると、その名前が部品として使われる（`select = …` と書くと `<Select>` が使えない）。
 
 ## アプリの形

@@ -1,0 +1,122 @@
+-- ボタンを押すと開くメニュー。開け閉めはブラウザが受け持つので、model に何も足さなくてよい
+-- （外を押すか Esc で閉じ、項目を押すとメッセージが届いて閉じる）
+--
+--   <Menu id="sort" label="並び替え" items={sortItems} />
+--     where
+--       sortItems =
+--         [ Item { label = "新しい順", onClick = SortBy Newest }
+--         , Item { label = "削除", onClick = Remove, icon = Just Icon.delete, tone = Danger }
+--         ]
+--
+-- id は、ページの中でほかと重ならない名前にする
+module Ui.Menu (MenuProps, Item, menu) where
+
+import Ui.Button (Variant(..))
+import qualified Ui.Icon as Icon
+import Ui.Theme (Tone(..), toneVars)
+
+
+type Item msg =
+  { label   :: String
+  , onClick :: msg
+  , icon    :: Maybe Icon.Icon = Nothing
+  , tone    :: Tone            = Neutral
+  }
+
+type MenuProps msg =
+  { id      :: String
+  , label   :: String
+  , items   :: [Item msg]
+  , variant :: Variant = Outlined
+  }
+
+
+menu :: MenuProps msg -> Html msg
+menu props =
+  <div class={css.menu} vars={anchor}>
+    <button class={trigger} type="button" popovertarget={props.id} aria-haspopup="menu">
+      <Row gap={S} align={Center}>
+        <span>{props.label}</span>
+        <Icon name={Icon.chevronDown} />
+      </Row>
+    </button>
+    <div class={css.list} id={props.id} popover role="menu">
+      <Column>{map entry props.items}</Column>
+    </div>
+  </div>
+  where
+    anchor = { anchor = "--menu-" ++ props.id }
+    trigger = classes [css.trigger, variantClass props.variant]
+
+    -- 項目を押すと、メッセージが届き、メニューが閉じる
+    entry item =
+      <button class={css.item} vars={colors} type="button" role="menuitem" popovertarget={props.id} popovertargetaction="hide" onClick={item.onClick}>
+        <Row gap={S} align={Center}>
+          <Mark icon={item.icon} />
+          <span>{item.label}</span>
+        </Row>
+      </button>
+      where
+        colors = toneVars item.tone
+
+
+mark :: { icon :: Maybe Icon.Icon } -> Html msg
+mark { icon = Just i }  = <Icon name={i} />
+mark { icon = Nothing } = <></>
+
+
+variantClass :: Variant -> Class
+variantClass Filled   = css.filled
+variantClass Outlined = css.outlined
+variantClass Plain    = css.plain
+
+
+style
+  .menu { display: inline-block; anchor-name: var(--anchor); }
+  .trigger {
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .filled { background: var(--primary); color: var(--on-tone); }
+  .outlined { border-color: var(--border); background: var(--surface); }
+  .plain { background: none; }
+  .outlined:hover, .plain:hover { background: color-mix(in srgb, var(--text) 6%, var(--surface)); }
+  .trigger:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); }
+
+  .list {
+    min-width: 180px;
+    margin: 0;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 12px 32px rgb(0 0 0 / .14);
+  }
+  /* ボタンのすぐ下に出す。この機能のないブラウザでは、画面の中央に出る */
+  @supports (anchor-name: --a) {
+    .list {
+      position-anchor: var(--anchor);
+      inset: auto;
+      top: anchor(bottom);
+      left: anchor(left);
+      margin-top: 4px;
+      position-try-fallbacks: flip-block, flip-inline;
+    }
+  }
+  .item {
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: calc(var(--radius) - 4px);
+    background: none;
+    color: var(--tone);
+    text-align: left;
+  }
+  .item:hover, .item:focus-visible {
+    outline: none;
+    background: color-mix(in srgb, var(--tone) 10%, transparent);
+  }

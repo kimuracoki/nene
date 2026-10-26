@@ -63,3 +63,28 @@ test("Button: disabled なら押せず、tone は CSS 変数として渡る", as
   const danger = buttonNamed(app.document, "削除");
   assert.equal(danger.style.getPropertyValue("--tone"), "var(--danger)");
 });
+
+test("Menu・Popover: ボタンと開く枠が popovertarget でつながり、項目を押すと閉じてメッセージが届く", async () => {
+  const app = await showcase();
+  const trigger = app.document.querySelector("[popovertarget=actions]")!;
+  const list = app.document.getElementById("actions")!;
+  assert.equal(list.hasAttribute("popover"), true);
+  assert.equal(trigger.closest("[class*=Ui-Menu]") !== null, true);
+  const items = [...list.querySelectorAll("[role=menuitem]")];
+  assert.deepEqual(items.map((b) => b.getAttribute("popovertargetaction")), ["hide", "hide", "hide"]);
+  (items[0] as HTMLElement).click(); // 進める
+  await app.frame();
+  assert.equal(app.document.querySelector("[aria-valuenow]")!.getAttribute("aria-valuenow"), "40");
+  assert.ok(app.document.getElementById("profile")!.hasAttribute("popover"));
+});
+
+test("Accordion: ユーザーが開け閉めした状態は、model が変わっても保たれる", async () => {
+  const app = await showcase();
+  const details = () => [...app.document.querySelectorAll("details")] as HTMLDetailsElement[];
+  assert.deepEqual(details().map((d) => d.open), [true, false]); // open を渡したものだけ開いている
+  details()[0].open = false;
+  details()[1].open = true;
+  await app.click("[role=tab]", 1); // model を変えて描き直す
+  assert.deepEqual(details().map((d) => d.open), [false, true]);
+  assert.deepEqual(details().map((d) => d.getAttribute("name")), ["faq", "faq"]);
+});

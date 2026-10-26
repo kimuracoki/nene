@@ -179,8 +179,10 @@ const $rt = (() => {
     onCheck: "change",
   };
   // DOM のプロパティとして持つ属性（属性を書き換えるだけでは、画面上の状態が変わらないもの）
-  const PROPS = { value: "value", checked: "checked", selected: "selected", disabled: "disabled", readonly: "readOnly", open: "open", muted: "muted" };
-  const BOOLS = new Set(["required", "multiple", "hidden", "autofocus", "controls", "autoplay", "loop", "playsinline", "reversed", "novalidate"]);
+  // PROPS は描くたびに model の値へ合わせる。BOOLS は値が変わったときだけ変える。
+  // open（details・dialog）と popover は、ユーザーが開け閉めした状態を、model が変わらない限り保つ
+  const PROPS = { value: "value", checked: "checked", selected: "selected", disabled: "disabled", readonly: "readOnly", muted: "muted" };
+  const BOOLS = new Set(["required", "multiple", "hidden", "autofocus", "controls", "autoplay", "loop", "playsinline", "reversed", "novalidate", "open", "popover"]);
 
   // vars={{ barWidth = "40%" }} → --bar-width: 40%
   const varName = (field) => `--${field.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;

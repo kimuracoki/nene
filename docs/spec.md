@@ -438,6 +438,19 @@ URL を変えるときは `Nav.pushUrl` を `effect` から返す。
 
 テーマ専用の仕組みはない。色は CSS 変数で決め、入口のファイルの `style` ブロックに書く（9.3）。ダークモードも CSS のメディアクエリで書く。
 
+### 7.5 状態の置き場所
+
+部品ごとの状態（React の `useState` にあたるもの）はない。状態は次の 2 つに分けて置く。
+
+| 状態 | 置き場所 |
+| --- | --- |
+| アプリが知る必要のある状態（入力した値、選んだタブ、ダイアログを開いているか） | Model |
+| 見た目だけの一時的な状態（メニュー・吹き出しの開け閉め、アコーディオン、ツールチップ） | HTML とブラウザ（`popover` 属性、`<details>`、`:hover` など） |
+
+- `popover` を付けた要素は、`popovertarget` にその id を書いたボタンで開け閉めでき、外を押すか Esc で閉じる。
+- `open`（`<details>`・`<dialog>`）と `popover` は、ユーザーが開け閉めした状態を、Model から渡す値が変わらない限り保つ。`value` や `checked` は、描くたびに Model の値に合わせる。
+- 見た目だけの状態は、アプリから読めない。読む必要が出てきたら Model に移す。
+
 ## 8. レイアウトタグ
 
 並び方はレイアウトタグで書く。HTML 要素は並び方を持たない（ブロック要素として縦に積まれるだけ）。
@@ -595,10 +608,10 @@ HTML 要素は **意味のため** に使う（見出し、リスト、ボタン
 | `class` | `Class`（9 章） |
 | `vars` | フィールドがすべて `String` のレコード（9.4） |
 | `key` | `String`（リストの要素を見分ける） |
-| `id` `title` `role` `lang` `dir` `src` `srcset` `sizes` `alt` `href` `target` `rel` `type` `value` `name` `placeholder` `for` `form` `list` `min` `max` `step` `pattern` `accept` `autocomplete` `width` `height` `loading` `poster` `datetime` `headers` `scope` | `String` |
+| `id` `title` `role` `lang` `dir` `src` `srcset` `sizes` `alt` `href` `target` `rel` `type` `value` `name` `placeholder` `for` `form` `list` `min` `max` `step` `pattern` `accept` `autocomplete` `width` `height` `loading` `poster` `datetime` `headers` `scope` `popovertarget` `popovertargetaction` | `String` |
 | `aria-*` `data-*`（小文字とハイフン） | `String` |
 | `tabindex` `rows` `cols` `colspan` `rowspan` `maxlength` `minlength` `span` `start` | `Int` |
-| `disabled` `checked` `selected` `readonly` `required` `multiple` `hidden` `autofocus` `open` `controls` `autoplay` `loop` `muted` `playsinline` `reversed` `novalidate` | `Bool`（値を書かずに `hidden` とだけ書くと `True`） |
+| `disabled` `checked` `selected` `readonly` `required` `multiple` `hidden` `autofocus` `open` `controls` `autoplay` `loop` `muted` `playsinline` `reversed` `novalidate` `popover` | `Bool`（値を書かずに `hidden` とだけ書くと `True`） |
 | `onClick` `onDoubleClick` `onSubmit` `onFocus` `onBlur` `onMouseEnter` `onMouseLeave` | `msg` |
 | `onInput` `onChange` | `String -> msg`（入力された値、`select` で選ばれた値） |
 | `onCheck` | `Bool -> msg` |

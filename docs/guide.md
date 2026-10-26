@@ -291,6 +291,13 @@ import Ui.Theme (Tone(..))
 
 部品の一覧と、色の変え方は `node_modules/nene-lang-ui/README.md` にある。
 
+メニューやアコーディオンの開け閉めのような、見た目だけの状態は Model に入れなくてよい。ブラウザが覚えておいてくれる。
+
+```haskell
+<Menu id="sort" label="並び替え" items={sortItems} />      -- 項目を押すと、そのメッセージが届いて閉じる
+<Accordion title="よくある質問">…</Accordion>
+```
+
 ### ファイルと部品
 
 - 1 つのファイルに部品はいくつ書いてもよい。

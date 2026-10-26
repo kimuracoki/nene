@@ -1,6 +1,7 @@
 -- nene-lang-ui の部品を一通り並べた見本
 module Showcase (main) where
 
+import Ui.Accordion
 import Ui.Alert
 import Ui.Avatar
 import Ui.Badge
@@ -11,6 +12,8 @@ import Ui.Chip
 import Ui.Dialog
 import qualified Ui.Icon as Icon
 import Ui.IconButton
+import Ui.Menu (Item)
+import Ui.Popover
 import Ui.Progress
 import Ui.Select
 import Ui.Spinner
@@ -18,6 +21,7 @@ import Ui.Switch
 import Ui.Tabs
 import Ui.TextField (InputKind(..))
 import Ui.Theme (Tone(..))
+import Ui.Tooltip
 
 
 type Model =
@@ -130,6 +134,30 @@ view model =
         </Card>
       </Grid>
 
+      <Card title="開け閉め（model に何も足さない）">
+        <Column gap={M}>
+          <Row gap={S} align={Center} wrap={True}>
+            <Menu id="actions" label="操作" items={actions} />
+            <Popover id="profile" label="プロフィール">
+              <Row gap={S} align={Center}>
+                <Avatar name={displayName} />
+                <Column>
+                  <strong>{displayName}</strong>
+                  <span class={css.lead}>{model.email}</span>
+                </Column>
+              </Row>
+            </Popover>
+            <Tooltip text="あとで見るに追加">
+              <IconButton icon={Icon.star} label="あとで見る" onClick={ToggleLike} />
+            </Tooltip>
+          </Row>
+          <Column>
+            <Accordion title="Nene とは？" group="faq" open>Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語です。</Accordion>
+            <Accordion title="部品の状態はどこに置く？" group="faq">アプリが知る必要のある状態は model に、見た目だけの開け閉めはブラウザに任せます。</Accordion>
+          </Column>
+        </Column>
+      </Card>
+
       <Column gap={S}>
         <Alert title="お知らせ">新しいバージョンが使えます。</Alert>
         <Alert tone={Success} title="保存しました">次回からこの設定で開きます。</Alert>
@@ -148,6 +176,11 @@ view model =
   </main>
   where
     plans    = [("free", "無料"), ("pro", "プロ"), ("team", "チーム")]
+    actions =
+      [ Item { label = "進める", onClick = Advance, icon = Just Icon.arrowRight }
+      , Item { label = "最初のタブへ", onClick = TabChanged 0 }
+      , Item { label = "削除", onClick = OpenDialog, icon = Just Icon.delete, tone = Danger }
+      ]
     sections = ["概要", "メンバー", "設定"]
     backToFirst = Just (TabChanged 0)
     displayName

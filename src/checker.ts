@@ -146,12 +146,12 @@ export const HTML_ELEMENTS = new Set([
 const STRING_ATTRS = [
   "key", "id", "title", "role", "lang", "dir", "src", "srcset", "sizes", "alt", "href", "target", "rel", "type",
   "value", "name", "placeholder", "for", "form", "list", "min", "max", "step", "pattern", "accept", "autocomplete",
-  "width", "height", "loading", "poster", "datetime", "headers", "scope",
+  "width", "height", "loading", "poster", "datetime", "headers", "scope", "popovertarget", "popovertargetaction",
 ];
 const INT_ATTRS = ["tabindex", "rows", "cols", "colspan", "rowspan", "maxlength", "minlength", "span", "start"];
 const BOOL_ATTRS = [
   "disabled", "checked", "selected", "readonly", "required", "multiple", "hidden", "autofocus", "open", "controls",
-  "autoplay", "loop", "muted", "playsinline", "reversed", "novalidate",
+  "autoplay", "loop", "muted", "playsinline", "reversed", "novalidate", "popover",
 ];
 const MSG_EVENTS = ["onClick", "onDoubleClick", "onSubmit", "onFocus", "onBlur", "onMouseEnter", "onMouseLeave"];
 const STRING_EVENTS = ["onInput", "onChange"];

@@ -1,6 +1,6 @@
 # nene-lang-ui
 
-[Nene](https://github.com/kimuracoki/nene) の公式 UI 部品集。ボタン・入力欄・ダイアログなど、アプリを作るのに必要な部品がそろっている。ライトとダークの両方に対応し、色は CSS 変数で変えられる。
+[Nene](https://github.com/kimuracoki/nene) の公式 UI 部品集。ボタン・入力欄・ダイアログ・メニューなど 20 の部品がそろっている。ライトとダークの両方に対応し、色は CSS 変数で変えられる。
 
 `nene new` で作ったプロジェクトには、はじめから入っている。あとから入れるときは:
 
@@ -39,10 +39,15 @@ import Ui.Theme (Tone(..))
 | `Ui.Spinner` | `<Spinner />` | `size`、`label` |
 | `Ui.Avatar` | `<Avatar />` | `name`（頭文字を出す）、`src`、`size` |
 | `Ui.Badge` | `<Badge>…</Badge>` | `count`（0 なら出さない）、`max`、`tone` |
+| `Ui.Menu` | `<Menu />` | `id`、`label`、`items`（`Item { label, onClick, icon, tone }` のリスト）、`variant` |
+| `Ui.Popover` | `<Popover>…</Popover>` | `id`、`label`、`variant`。中身は自由 |
+| `Ui.Accordion` | `<Accordion>…</Accordion>` | `title`、`open`（最初から開くか）、`group`（同じ group は 1 つだけ開く） |
+| `Ui.Tooltip` | `<Tooltip>…</Tooltip>` | `text` |
 
 - 色の種類 `tone` は、どの部品でも `Ui.Theme` の `Primary` `Neutral` `Success` `Warning` `Danger`。
 - 大きさ `size` は、レイアウトタグと同じ `S` `M` `L`。
-- 開いているか・選んでいるかなどの状態は、ほかの値と同じく model に持つ。
+- アプリが知る必要のある状態（入力した値、選んだタブ、Dialog を開いているか）は model に持つ。
+- Menu・Popover・Accordion・Tooltip の開け閉めはブラウザが受け持つので、model に何も足さなくてよい。Menu と Popover の `id` は、ページの中で重ならない名前にする。
 
 ## 色と形を変える
 

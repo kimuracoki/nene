@@ -1,0 +1,43 @@
+-- 見出しを押すと開け閉めできる枠。開け閉めはブラウザが受け持つので、model に何も足さなくてよい
+--
+--   <Accordion title="よくある質問">…</Accordion>
+--   <Accordion title="支払い" group="faq">…</Accordion>   -- 同じ group のものは、1 つだけが開く
+module Ui.Accordion (AccordionProps, accordion) where
+
+import qualified Ui.Icon as Icon
+
+
+type AccordionProps =
+  { title :: String
+  , open  :: Bool   = False    -- 最初から開いておくか
+  , group :: String = ""
+  }
+
+
+accordion :: AccordionProps -> [Html msg] -> Html msg
+accordion props children =
+  <details class={css.accordion} open={props.open} name={props.group}>
+    <summary class={css.summary}>
+      <Row gap={S} align={Center}>
+        <span class={css.title}>{props.title}</span>
+        <Spacer />
+        <span class={css.chevron}><Icon name={Icon.chevronDown} /></span>
+      </Row>
+    </summary>
+    <div class={css.body}>{children}</div>
+  </details>
+
+
+style
+  .accordion { border-bottom: 1px solid var(--border); }
+  .summary {
+    padding: 12px 4px;
+    list-style: none;
+    cursor: pointer;
+  }
+  .summary::-webkit-details-marker { display: none; }
+  .summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); border-radius: 4px; }
+  .title { font-weight: 600; }
+  .chevron { display: inline-flex; color: var(--muted); transition: transform .2s; }
+  .accordion[open] .chevron { transform: rotate(180deg); }
+  .body { padding: 0 4px 16px; color: var(--muted); }
