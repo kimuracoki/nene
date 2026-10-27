@@ -31,11 +31,27 @@ function bump(version) {
 
 function published(name, version) {
   try {
-    execFileSync("npm", ["view", `${name}@${version}`, "version"], { stdio: ["ignore", "pipe", "ignore"] });
+    execFileSync("npm", ["view", `${name}@${version}`, "version", "--prefer-online"], { stdio: ["ignore", "pipe", "ignore"] });
     return true;
   } catch {
     return false;
   }
+}
+
+// 公開した直後は npm の配信に届いていないことがある。次のパッケージ（これに依存するもの）を出す前に、
+// 取得できるようになるまで待つ。待たないと、npm create が「その版は見つからない」で失敗する
+function waitUntilPublished(name, version) {
+  const LIMIT_SECONDS = 300;
+  process.stdout.write(`${name}@${version} が npm から取得できるようになるのを待っています`);
+  for (let waited = 0; waited < LIMIT_SECONDS; waited += 5) {
+    if (published(name, version)) {
+      console.log(" … OK");
+      return;
+    }
+    process.stdout.write(".");
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000);
+  }
+  throw new Error(`${LIMIT_SECONDS} 秒待っても ${name}@${version} が取得できません。しばらくしてから npm run release をもう一度実行してください（公開済みのものは飛ばします）`);
 }
 
 function release() {
@@ -58,6 +74,7 @@ function release() {
     }
     console.log(`\n${name}@${version} を公開します`);
     execFileSync("npm", ["publish", "--auth-type=web"], { cwd: join(root, dir), stdio: "inherit" });
+    waitUntilPublished(name, version);
   }
 }
 
