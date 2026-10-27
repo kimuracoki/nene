@@ -1,0 +1,250 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Nene",
+  "scopeName": "source.nene",
+  "patterns": [
+    {
+      "include": "#style"
+    },
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#jsx"
+    },
+    {
+      "include": "#code"
+    }
+  ],
+  "repository": {
+    "style": {
+      "comment": "1 列目の style から、次に 1 列目から始まる行の手前までは CSS",
+      "begin": "^(style)\\s*$",
+      "end": "^(?=\\S)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.nene"
+        }
+      },
+      "contentName": "meta.embedded.block.css",
+      "patterns": [
+        {
+          "include": "source.css"
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.nene",
+          "match": "--(?![!#$%&*+./<=>?@\\\\^|~:]).*$"
+        },
+        {
+          "include": "#blockComment"
+        }
+      ]
+    },
+    "blockComment": {
+      "name": "comment.block.nene",
+      "begin": "\\{-",
+      "end": "-\\}",
+      "patterns": [
+        {
+          "include": "#blockComment"
+        }
+      ]
+    },
+    "code": {
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "comment": "foreign import の JavaScript",
+          "match": "^(foreign)\\s+(import)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.other.nene"
+            },
+            "2": {
+              "name": "keyword.other.nene"
+            }
+          }
+        },
+        {
+          "name": "keyword.other.nene",
+          "match": "\\b(module|where|import|qualified|as|data|type|foreign)\\b"
+        },
+        {
+          "name": "keyword.control.nene",
+          "match": "\\botherwise\\b"
+        },
+        {
+          "name": "constant.language.boolean.nene",
+          "match": "\\b(True|False)\\b"
+        },
+        {
+          "name": "constant.numeric.nene",
+          "match": "\\b\\d+(\\.\\d+)?\\b"
+        },
+        {
+          "comment": "型注釈の名前（name ::）",
+          "match": "^(\\s*)([a-z_][\\w']*)\\s*(::)",
+          "captures": {
+            "2": {
+              "name": "entity.name.function.nene"
+            },
+            "3": {
+              "name": "keyword.operator.double-colon.nene"
+            }
+          }
+        },
+        {
+          "name": "entity.name.namespace.nene",
+          "match": "\\b([A-Z][\\w']*\\.)+(?=[a-z_A-Z])"
+        },
+        {
+          "name": "entity.name.type.nene",
+          "match": "\\b[A-Z][\\w']*\\b"
+        },
+        {
+          "name": "keyword.operator.arrow.nene",
+          "match": "->|=>|::"
+        },
+        {
+          "name": "keyword.operator.guard.nene",
+          "match": "^\\s*\\|"
+        },
+        {
+          "name": "keyword.operator.nene",
+          "match": "[-+*/<>=!&|:.\\\\^%$#@?~]+"
+        },
+        {
+          "name": "variable.other.nene",
+          "match": "\\b[a-z_][\\w']*\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.nene",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.nene",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "jsx": {
+      "patterns": [
+        {
+          "comment": "閉じタグ </Row>",
+          "match": "(</)([A-Za-z][\\w.]*)?(>)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.nene"
+            },
+            "2": {
+              "patterns": [
+                {
+                  "include": "#tagName"
+                }
+              ]
+            },
+            "3": {
+              "name": "punctuation.definition.tag.end.nene"
+            }
+          }
+        },
+        {
+          "comment": "開きタグ <Row gap={S}>（属性は何行にわたってもよい）",
+          "begin": "(<)([A-Za-z][\\w.]*)(?=[\\s/>])",
+          "end": "(/?>)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.nene"
+            },
+            "2": {
+              "patterns": [
+                {
+                  "include": "#tagName"
+                }
+              ]
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.end.nene"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "name": "entity.other.attribute-name.nene",
+              "match": "\\b[a-z][\\w-]*(?==)"
+            },
+            {
+              "name": "keyword.operator.assignment.nene",
+              "match": "="
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "include": "#braces"
+            }
+          ]
+        },
+        {
+          "comment": "フラグメント <> </>",
+          "name": "punctuation.definition.tag.nene",
+          "match": "</?>"
+        },
+        {
+          "include": "#braces"
+        }
+      ]
+    },
+    "tagName": {
+      "patterns": [
+        {
+          "name": "support.class.component.nene",
+          "match": "[A-Z][\\w.]*"
+        },
+        {
+          "name": "entity.name.tag.nene",
+          "match": "[a-z][\\w]*"
+        }
+      ]
+    },
+    "braces": {
+      "comment": "JSX の中の {式}",
+      "begin": "\\{(?!-)",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.braces.begin.nene"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.braces.end.nene"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#jsx"
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    }
+  }
+}

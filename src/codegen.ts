@@ -9,7 +9,12 @@
 
 import type { CheckResult } from "./checker.ts";
 import { fieldKey, jsName } from "./checker.ts";
-import type { Binding, CtorRef, Equation, Expr, JsxChild, JsxNode, Module, Pat } from "./syntax.ts";
+import type { Binding, CtorRef, Equation, Expr, JsxChild, JsxNode, Module, Pat, Pos } from "./syntax.ts";
+
+// ソースマップのための印。式の前に元の位置（行:列）を埋め込み、bundle がまとめるときに取り除く
+const mark = (p: Pos) => `\u0001${p.line}:${p.col}\u0001`;
+export const MARKS = /\u0001(\d+):(\d+)\u0001/g;
+const unmarked = (js: string) => js.replace(MARKS, "");
 
 export function generateModule(mod: Module, checked: CheckResult): string {
   const g = new Gen(checked.style?.scope ?? null);
@@ -58,10 +63,10 @@ class Gen {
     const arity = b.equations[0].params.length;
     const params = Array.from({ length: arity }, (_, i) => `$a${i}`);
     const body = this.equations(b, params);
-    if (arity === 0) return `const ${b.js} = $rt.lazy(() => {\n${indent(body)}\n});`;
+    if (arity === 0) return `${mark(b.pos)}const ${b.js} = $rt.lazy(() => {\n${indent(body)}\n});`;
     const [first, ...rest] = params;
     const head = rest.length ? `return ${rest.map((p) => `(${p}) => `).join("")}{\n${indent(body)}\n};` : body;
-    return `function ${b.js}(${first}) {\n${indent(head)}\n}`;
+    return `${mark(b.pos)}function ${b.js}(${first}) {\n${indent(head)}\n}`;
   }
 
   equations(b: Binding, params: string[]): string {
@@ -145,6 +150,10 @@ class Gen {
   }
 
   expr(e: Expr): string {
+    return mark(e.pos) + this.exprCode(e);
+  }
+
+  exprCode(e: Expr): string {
     switch (e.k) {
       case "var": {
         const ref = e.ref!;
@@ -203,7 +212,7 @@ class Gen {
       return ctorValue(e.fn.ref, args);
     }
     const fn = this.expr(e.fn);
-    const callee = /^[\w$.]+$/.test(fn) ? fn : `(${fn})`;
+    const callee = /^[\w$.]+$/.test(unmarked(fn)) ? fn : `(${fn})`;
     return `${callee}${args.map((a) => `(${a})`).join("")}`;
   }
 

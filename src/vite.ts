@@ -9,10 +9,10 @@
 //   <script type="module" src="/src/Main.nn"></script>
 //
 // 入口の .nn を、依存する .nn ごと 1 つの JavaScript にして返す。
-// どれかの .nn を保存すると、ブラウザが再読み込みされる。
+// どれかの .nn を保存すると、ブラウザが再読み込みされる。ソースマップつきなので、開発者ツールでは .nn の行で止められる。
 
 import type { Plugin } from "vite";
-import { LIB_FILES, RUNTIME_FILES, bundle, compileProgram } from "./compiler.ts";
+import { LIB_FILES, RUNTIME_FILES, bundleWithMap, compileProgram } from "./compiler.ts";
 import { errorFrame } from "./report.ts";
 import { CompileError } from "./syntax.ts";
 
@@ -32,8 +32,8 @@ export default function nene(options: NeneOptions = {}): Plugin {
       try {
         const result = compileProgram(file);
         for (const f of [...result.files, ...LIB_FILES, ...RUNTIME_FILES]) this.addWatchFile(f);
-        const code = bundle(result, { mount: options.mount, base: "import.meta.env.BASE_URL", env: "import.meta.env" });
-        return { code, map: null };
+        // ソースマップで、ブラウザの開発者ツールに .nn の行が出る（止める場所も .nn に置ける）
+        return bundleWithMap(result, { mount: options.mount, base: "import.meta.env.BASE_URL", env: "import.meta.env" });
       } catch (e) {
         if (e instanceof CompileError) throw overlayError(e, file);
         throw e;
@@ -48,7 +48,8 @@ export default function nene(options: NeneOptions = {}): Plugin {
           const result = await server.transformRequest(url);
           if (!result) return next();
           res.setHeader("Content-Type", "text/javascript; charset=utf-8");
-          res.end(result.code);
+          const map = result.map && "mappings" in result.map ? `\n//# sourceMappingURL=data:application/json;base64,${Buffer.from(JSON.stringify(result.map)).toString("base64")}\n` : "";
+          res.end(result.code + map);
         } catch (e) {
           next(e);
         }

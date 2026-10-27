@@ -436,7 +436,39 @@ style
 
 部品の CSS では `var(--primary)` のように変数を使っておけば、色の変更は入口の 1 か所で済む。
 
-## 11. よくあるエラー
+## 11. テストを書く
+
+`update` や `route` は、引数が同じなら必ず同じ値を返す関数なので、値を比べるだけでテストできる。テストは `test/` の下に書き、`npm test`（`nene test`）で実行する。
+
+```haskell
+-- test/MainTest.nn
+module MainTest (tests) where
+
+import Main (route, update)
+import Model (Msg(..), Page(..), init)
+
+tests :: [Test]
+tests =
+  [ Test.equal "/guide は使い方" (route (url ["guide"])) Guide
+  , Test.equal "増やす" (update Increment init).count 1
+  ]
+
+url :: [String] -> Url
+url path = { path, query = [], hash = "" }
+```
+
+失敗すると、期待した値と実際の値が Nene の書き方で出る。
+
+```
+test/MainTest.nn
+  ✗ /guide は使い方
+      期待: Guide
+      実際: NotFound
+```
+
+テストから使う名前は、そのモジュールで export しておく（`module Main (main, route, update) where`）。
+
+## 12. よくあるエラー
 
 | エラー | 直し方 |
 | --- | --- |
@@ -449,7 +481,7 @@ style
 | `レコードにフィールド titel がありません` | `css.titel` の打ち間違い。`style` ブロックのクラス名を確かめる |
 | `Maybe は標準モジュールなので import せずに…` | `import` を消して、`Maybe.map` のように書く |
 
-## 12. Elm・React と比べると
+## 13. Elm・React と比べると
 
 | | Elm | React | Nene |
 | --- | --- | --- | --- |

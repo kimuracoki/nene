@@ -1,0 +1,28 @@
+-- npm test で実行する。update や route のような純粋な関数は、値を比べるだけでテストできる
+module MainTest (tests) where
+
+import Main (route, update)
+import Model (Msg(..), Page(..), init)
+
+
+tests :: [Test]
+tests =
+  [ Test.group "route"
+      [ Test.equal "/ はホーム" (route (url [])) Home
+      , Test.equal "/guide は使い方" (route (url ["guide"])) Guide
+      , Test.equal "ほかは見つからないページ" (route (url ["nowhere"])) NotFound
+      ]
+  , Test.group "カウンター"
+      [ Test.equal "増やす" (countAfter [Increment, Increment]) 2
+      , Test.equal "減らす" (countAfter [Decrement]) (-1)
+      , Test.equal "リセット" (countAfter [Increment, Reset]) 0
+      ]
+  ]
+
+
+url :: [String] -> Url
+url path = { path, query = [], hash = "" }
+
+-- メッセージを順に update に渡したあとの数
+countAfter :: [Msg] -> Int
+countAfter msgs = (foldr update init (reverse msgs)).count

@@ -1,6 +1,6 @@
 -- 入口。アプリの骨組み（ヘッダーとページの切り替え）、URL の振り分け、状態の変え方を書く。
 -- 型は Model.nn、各ページは Page/ の下にある。定義の順番は自由で、全体から細部へ並べている
-module Main (main) where
+module Main (main, route, update) where
 
 import Model (Model, Msg(..), Page(..), init)
 import Page.Guide

@@ -130,7 +130,7 @@ export interface ModuleIface {
 
 // 依存される順に並べる（App は Cmd と Sub を使う）
 export const STD_QUALIFIED = [
-  "Cmd", "Sub", "List", "Maybe", "Result", "String", "Dict", "Json", "Http", "Random", "Time", "Window", "Keyboard", "Dom", "Nav", "Storage", "Env", "App",
+  "Cmd", "Sub", "List", "Maybe", "Result", "String", "Dict", "Json", "Http", "Random", "Time", "Window", "Keyboard", "Dom", "Nav", "Storage", "Env", "App", "Test",
 ];
 export const RESERVED_MODULES = ["Prelude", "Layout", ...STD_QUALIFIED];
 
@@ -377,7 +377,7 @@ class Checker {
         if (iface && q !== this.mod.name) this.env.quals.set(q, iface);
       }
     } else {
-      for (const name of ["Int", "Float", "String", "Html", "Class", "Cmd", "Sub", "Program"]) {
+      for (const name of ["Int", "Float", "String", "Html", "Class", "Cmd", "Sub", "Program", "Test"]) {
         const arity = name === "Html" || name === "Cmd" || name === "Sub" ? 1 : name === "Program" ? 2 : 0;
         this.env.types.set(name, { name, display: name, arity, kind: "opaque", ctors: [] });
       }

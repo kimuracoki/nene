@@ -39,6 +39,7 @@ import qualified Ui.Dialog as Modal
 - `import M` は M が export したものをすべて取り込む。`import M (a, B(..))` は指定したものだけを取り込む。
 - `import qualified M as N` は `N.x` の形でだけ使えるようにする。
 - `import` したモジュールは、プロジェクトのフォルダと、Nene のパッケージから探す。Nene のパッケージは、`package.json` に `"nene": { "source": "src" }` と書いた npm パッケージで、`source` のフォルダにモジュールを置く（`nene-lang-ui` の `src/Ui/Button.nn` は `Ui.Button`）。プロジェクトの `dependencies` と `devDependencies`、そこからたどれるパッケージが対象。同じ名前のモジュールが 2 か所にあればコンパイルエラー。
+- プロジェクトの `test/` の下のファイルは、`src/` のモジュールも import できる（15 章）。
 - 標準モジュール（14 章）のうち `Prelude` はつねに取り込まれている。`App` `Cmd` `Sub` `List` `Maybe` `String` `Time` `Window` `Keyboard` `Nav` `Storage` は import なしで `App.app` のように修飾名で使う。
 
 ## 2. 字句
@@ -736,9 +737,36 @@ jsx       ::= "<" Name attr* ("/>" | ">" child* "</" Name ">") | "<>" child* "</
 | `Keyboard` | `onKeyDown :: (String -> msg) -> Sub msg`（キーの名前は `"Enter"` `"Escape"` `" "` など） |
 | `Nav` | `pushUrl :: String -> Cmd msg`、`replaceUrl`、`back` |
 | `Storage` | `get :: String -> (Maybe String -> msg) -> Cmd msg`、`set :: String -> String -> Cmd msg`、`remove` |
+| `Test` | `equal :: String -> a -> a -> Test`、`group :: String -> [Test] -> Test`（15 章） |
 
 `Prelude` `Layout` と上のモジュール名は予約されていて、ユーザーのモジュール名には使えない。
 
 標準ライブラリは Nene 自身で書かれている（`src/lib/*.nn`）。出力には、使っているモジュールだけが入る。
 
 `Class`・`Size`・`Align`・`Direction`・`Maybe`・`Result`・`Url` の型とコンストラクタも `Prelude` に含まれる。
+
+## 15. テスト
+
+テストはプロジェクトの `test/` の下に置き、`tests :: [Test]` を export する。`nene test` が型検査をしてから実行する。
+
+```haskell
+module MainTest (tests) where
+
+import Main (route, update)
+import Model (Msg(..), Page(..), init)
+
+tests :: [Test]
+tests =
+  [ Test.equal "/guide は使い方" (route { path = ["guide"], query = [], hash = "" }) Guide
+  , Test.group "カウンター"
+      [ Test.equal "増やす" (update Increment init).count 1
+      ]
+  ]
+```
+
+- `Test.equal 名前 実際の値 期待する値` は、2 つの値が等しければ通る（`==` と同じ比べ方）。2 つの値は同じ型でなければならない。
+- `Test.group 見出し テスト` でまとめる。
+- テストするものは、`update`・`route`・`view` の補助関数のような純粋な関数。`effect` が返す `Cmd` や、`Html` の中身は比べられない。
+- `test/` の下のファイルは `src/` のモジュールを import できる。テストで使う名前は、そのモジュールで export しておく。
+- `nene check` は `test/` の下のファイルも型検査する。
+

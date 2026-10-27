@@ -27,7 +27,7 @@
     "build",
     "runtime",
     "template",
-    "editors",
+    "editors/nvim",
     "docs"
   ],
   "dependencies": {
