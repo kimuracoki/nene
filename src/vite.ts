@@ -56,8 +56,13 @@ export default function nene(options: NeneOptions = {}): Plugin {
       });
     },
     handleHotUpdate(ctx) {
-      // .nn はモジュール単位の差し替えをしないので、ページごと読み直す
+      // .nn はモジュール単位の差し替えをしないので、ページごと読み直す。
+      // 入口の .nn は依存する .nn ごと 1 つにまとめているので、変換済みのものをすべて捨てる
       if (ctx.file.endsWith(".nn")) {
+        const graph = ctx.server.moduleGraph;
+        for (const mod of graph.idToModuleMap.values()) {
+          if (mod.id?.split("?")[0].endsWith(".nn")) graph.invalidateModule(mod);
+        }
         ctx.server.ws.send({ type: "full-reload" });
         return [];
       }
