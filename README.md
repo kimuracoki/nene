@@ -59,7 +59,7 @@ style
 | [docs/spec.md](docs/spec.md) | 言語仕様。すべての規則を正確に書いた参照用 |
 | [docs/design.md](docs/design.md) | 設計の考え方。なぜこういう言語なのか、何を入れなかったのか |
 
-サンプルと部品の見本は、ブラウザでそのまま動かせる（下の「[サンプル](#サンプル)」）。
+サンプルと部品の見本は、[ブラウザでそのまま動かせる](https://kimuracoki.github.io/nene/)（一覧は下の「[サンプル](#サンプル)」）。
 
 ## 動機
 
@@ -211,12 +211,12 @@ npm pack                  # 配布するパッケージを手元で作る
 | ファイル | 動かす | 内容 |
 | --- | --- | --- |
 | [examples/Counter.nn](examples/Counter.nn) | [開く](https://kimuracoki.github.io/nene/counter.html) | 最小のカウンター |
-| [examples/Todo.nn](examples/Todo.nn) | [開く](https://kimuracoki.github.io/nene/) | elm-sample のタスク管理画面に相当するもの |
+| [examples/Todo.nn](examples/Todo.nn) | [開く](https://kimuracoki.github.io/nene/todo.html) | elm-sample のタスク管理画面に相当するもの |
 | [examples/Gallery.nn](examples/Gallery.nn) | [開く](https://kimuracoki.github.io/nene/gallery.html) | アルバムごとに写真が横に続くギャラリー。開いた写真は URL に入り、戻るボタンや Esc で閉じる |
 | [examples/Stopwatch.nn](examples/Stopwatch.nn) | [開く](https://kimuracoki.github.io/nene/stopwatch.html) | タイマー・キーボード・ブラウザへの保存・ダークテーマを使う例 |
 | [examples/Showcase.nn](examples/Showcase.nn) | [開く](https://kimuracoki.github.io/nene/showcase.html) | nene-lang-ui の部品を一通り並べた見本 |
 
-`main` に push すると、`.github/workflows/pages.yml` がこれらを GitHub Pages に出す。
+[一覧のページ](https://kimuracoki.github.io/nene/)は [examples/Examples.nn](examples/Examples.nn)。`main` に push すると、`.github/workflows/pages.yml` がこれらを GitHub Pages に出す。
 
 ## 構成
 
