@@ -77,6 +77,15 @@ export function listModules(root: string): string[] {
   return [...new Set(names)].sort();
 }
 
+// プロジェクトとパッケージにあるモジュールと、そのファイル（エディタの部品の補完用）
+export function listModuleFiles(root: string): { name: string; file: string }[] {
+  const out = new Map<string, string>();
+  for (const r of [root, ...findPackages(root).map((p) => p.root)]) {
+    for (const name of modulesIn(r)) if (!out.has(name)) out.set(name, join(r, ...name.split(".")) + ".nn");
+  }
+  return [...out].map(([name, file]) => ({ name, file })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // プロジェクトの .nn ファイル（パッケージのものは含めない）
 export function projectFiles(root: string): string[] {
   return modulesIn(root).map((name) => join(root, ...name.split(".")) + ".nn");

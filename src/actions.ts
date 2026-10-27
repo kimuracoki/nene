@@ -47,7 +47,7 @@ function fix(ctx: ActionContext, d: Diagnostic, title: string, edit: Json): Json
 }
 
 // 最後の import の次の行に足す。import がなければ module の行の後に、空行を挟んで足す
-function addImport(text: string, line: string): Json {
+export function addImport(text: string, line: string): Json {
   const lines = text.split("\n");
   const last = lines.reduce((found, l, i) => (l.startsWith("import ") ? i : found), -1);
   if (last >= 0) return insertAt(last + 1, `${line}\n`);

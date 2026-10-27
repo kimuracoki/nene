@@ -1451,7 +1451,7 @@ function showScheme(s: Scheme): string {
 }
 
 // 部品として使える関数なら、タグの補完候補にする
-function tagCandidate(name: string, v: ValueInfo): TagCandidate | null {
+export function tagCandidate(name: string, v: ValueInfo): TagCandidate | null {
   const t = prune(v.scheme.type);
   if (t.k !== "fun") return null;
   const props = prune(t.from);
