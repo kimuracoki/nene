@@ -1,0 +1,49 @@
+-- 表。headers は列の見出し、rows は 1 行ずつのセルの並び
+--
+--   <Table headers={["名前", "役割", "参加日"]} rows={map row model.members} />
+--     where
+--       row m = [<>{m.name}</>, <Chip>{m.role}</Chip>, <>{m.joined}</>]
+--
+-- 横に収まらないときは、表だけを横に送れる。行を詰めるときは dense
+module Ui.Table (TableProps, table) where
+
+
+type TableProps msg =
+  { headers :: [String]
+  , rows    :: [[Html msg]]
+  , dense   :: Bool = False
+  }
+
+
+table :: TableProps msg -> Html msg
+table props =
+  <div class={css.scroll}>
+    <table class={look}>
+      <thead><tr>{map heading props.headers}</tr></thead>
+      <tbody>{map row props.rows}</tbody>
+    </table>
+  </div>
+  where
+    look
+      | props.dense = classes [css.table, css.dense]
+      | otherwise   = css.table
+    heading text = <th class={css.head} scope="col">{text}</th>
+    row cells = <tr class={css.row}>{map cell cells}</tr>
+    cell content = <td class={css.cell}>{content}</td>
+
+
+style
+  .scroll { width: 100%; overflow-x: auto; }
+  .table { width: 100%; border-collapse: collapse; font-size: .875rem; line-height: 1.43; letter-spacing: .01071em; }
+  .head, .cell {
+    padding: 16px;
+    border-bottom: 1px solid var(--divider);
+    text-align: left;
+    vertical-align: middle;
+  }
+  .head { color: var(--text); font-weight: 500; line-height: 1.5rem; }
+  .cell { color: var(--text); }
+  .dense .head, .dense .cell { padding: 6px 16px; }
+  .row { transition: background-color .15s var(--ease); }
+  .row:hover { background: var(--hover); }
+  .row:last-child .cell { border-bottom: none; }

@@ -1,4 +1,6 @@
 -- 選択肢から 1 つを選ぶ。options は（値, 表示する文字）の組
+-- 見た目は TextField と同じ。いつも何かが選ばれているので、ラベルは枠の上に縮んだまま出る
+-- 開いた一覧も Material Design の形になる（appearance: base-select に対応したブラウザ。ほかのブラウザでは標準の一覧）
 --
 --   <Select label="並び順" value={model.order} options={orders} onChange={OrderChanged} />
 --     where
@@ -18,12 +20,15 @@ type SelectProps msg =
 select :: SelectProps msg -> Html msg
 select props =
   <label class={css.field}>
-    <Column gap={XS}>
-      <Caption text={props.label} />
-      <select class={css.box} disabled={props.disabled} onChange={props.onChange}>
+    <div class={css.box}>
+      <select class={css.control} disabled={props.disabled} onChange={props.onChange}>
         {map choice props.options}
       </select>
-    </Column>
+      <Floating text={props.label} />
+      <fieldset class={css.outline} aria-hidden="true">
+        <legend class={css.notch}><Gap text={props.label} /></legend>
+      </fieldset>
+    </div>
   </label>
   where
     choice (value, text) = <option value={value} selected={chosen}>{text}</option>
@@ -31,26 +36,135 @@ select props =
         chosen = value == props.value
 
 
-caption :: { text :: String } -> Html msg
-caption { text = "" } = <></>
-caption { text }      = <span class={css.caption}>{text}</span>
+floating :: { text :: String } -> Html msg
+floating { text = "" } = <></>
+floating { text }      = <span class={css.label}>{text}</span>
+
+-- 枠の切れ目。縮んだラベルと同じ幅になるよう、同じ文字を見えないように置く
+gap :: { text :: String } -> Html msg
+gap { text = "" } = <></>
+gap { text }      = <span>{text}</span>
 
 
 style
-  .field { display: block; }
-  .caption { font-size: .8125rem; font-weight: 600; }
+  .field { display: block; min-width: 0; }
   .box {
-    width: 100%;
-    padding: 9px 36px 9px 12px;
-    border: 1px solid var(--border);
+    position: relative;
     border-radius: var(--radius);
-    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") right 10px center / 16px no-repeat;
+  }
+  .control {
+    display: block;
+    box-sizing: content-box;
+    width: calc(100% - 46px);
+    height: 1.4375em;
+    padding: 16.5px 32px 16.5px 14px;
+    border: 0;
+    margin: 0;
+    font: inherit;
+    color: var(--text);
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") right 7px center / 24px no-repeat;
     appearance: none;
     cursor: pointer;
   }
-  .box:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+  .control:focus { outline: none; }
+  .control:disabled { color: var(--muted); cursor: not-allowed; }
+
+  .label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: calc(133% - 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4375em;
+    color: var(--muted);
+    pointer-events: none;
+    transform: translate(14px, -9px) scale(.75);
+    transform-origin: top left;
+    transition: color .2s;
   }
-  .box:disabled { opacity: .55; cursor: not-allowed; }
+  .control:focus ~ .label { color: var(--primary); }
+
+  .outline {
+    position: absolute;
+    inset: -5px 0 0;
+    min-width: 0;
+    padding: 0 8px;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: inherit;
+    overflow: hidden;
+    text-align: left;
+    pointer-events: none;
+    transition: border-color .15s;
+  }
+  .notch {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: 11px;
+    padding: 0;
+    overflow: hidden;
+    font-size: .75em;
+    white-space: nowrap;
+    visibility: hidden;
+  }
+  .notch > span { display: inline-block; padding: 0 5px; }
+  .box:hover .control:not(:disabled) ~ .outline { border-color: var(--text); }
+  .control:focus ~ .outline,
+  .box:hover .control:focus ~ .outline { border: 2px solid var(--primary); padding: 0 7px; }
+  .control:disabled ~ .outline { border-color: color-mix(in srgb, var(--border) 60%, transparent); }
+
+  /* 開いた一覧の見た目。対応していないブラウザでは、ここは使われず、標準の一覧が出る */
+  @supports (appearance: base-select) {
+    .control, .control::picker(select) { appearance: base-select; }
+    .control { background: none; }
+    .control::picker-icon {
+      content: "";
+      position: absolute;
+      top: calc(50% - 12px);
+      right: 7px;
+      width: 24px;
+      height: 24px;
+      background: var(--muted);
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") center / contain no-repeat;
+      transition: rotate .2s var(--ease);
+    }
+    .control:open::picker-icon { rotate: 180deg; }
+    .control::picker(select) {
+      min-width: anchor-size(width);
+      max-height: min(50vh, 400px);
+      padding: 8px 0;
+      margin: 4px 0;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-8);
+      opacity: 0;
+      scale: .95;
+      transform-origin: top;
+      transition: opacity .15s var(--ease), scale .15s var(--ease), display .15s allow-discrete, overlay .15s allow-discrete;
+    }
+    .control:open::picker(select) { opacity: 1; scale: 1; }
+    @starting-style {
+      .control:open::picker(select) { opacity: 0; scale: .95; }
+    }
+    .control option {
+      position: relative;
+      overflow: hidden;
+      min-height: 36px;
+      padding: 6px 16px;
+      font-size: 1rem;
+      line-height: 1.5;
+      cursor: pointer;
+      transition: background-color .15s var(--ease);
+    }
+    .control option::checkmark { display: none; }
+    .control option:hover { background: var(--hover); }
+    .control option:focus-visible { outline: none; background: var(--selected); }
+    .control option:checked { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+    .control option:checked:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+    .control option:checked:focus-visible { background: color-mix(in srgb, var(--primary) 20%, transparent); }
+  }

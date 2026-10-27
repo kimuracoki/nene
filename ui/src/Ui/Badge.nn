@@ -31,20 +31,25 @@ badge props children =
 
 
 style
-  .anchor { position: relative; display: inline-flex; }
+  .anchor { position: relative; display: inline-flex; flex: none; vertical-align: middle; }
   .badge {
     position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border: 2px solid var(--surface);
-    border-radius: 999px;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
     background: var(--tone);
     color: var(--on-tone);
-    font-size: .6875rem;
-    font-weight: 700;
-    line-height: 14px;
-    text-align: center;
+    font-size: .75rem;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    transform: translate(50%, -50%);
+    transform-origin: 100% 0;
   }

@@ -32,6 +32,7 @@
 - 標準モジュール（`List` `Maybe` `Result` `String` `Dict` `Json` `Http` `Storage` `Time` `Random` `Nav` `Dom` `Env` `Cmd` `Sub` `App` など）は import せず `List.head` のように修飾して使う。
 - 定義の順番は自由（上から実行されるわけではない）。ファイルの中は全体から細部へ（`main` → `view` → `route` → `update` / `effect` → 型 → ファイル内の部品）並べる。`import` は先頭、`style` は末尾、同じ関数の等式は続けて書く。
 - 型クラスと演算子は自分で定義できない。`null` は無く `Maybe` を使う。パターンの漏れはエラー。
+- 式の代わりに `_` と書くと「まだ書いていない所」になり、入る型が警告で分かる（`onInput={_}`）。動くのは `npm run dev` だけで、`check`・`test`・`build` ではエラーになる。作業を終えるときは残さない。
 
 ## 部品（nene-lang-ui）
 
@@ -46,8 +47,8 @@ import Ui.Theme (Tone(..))
 ```
 
 - 色の種類 `tone` はどの部品も `Primary` `Neutral` `Success` `Warning` `Danger`、大きさ `size` は `S` `M` `L`。
-- 部品の見た目は外から `class` で変えられない。色は入口の `style` ブロックで `:root { --primary: …; }` のように CSS 変数を変える。
-- 状態の置き場所: アプリが知る必要のある状態は Model。メニュー・吹き出し・アコーディオンの開け閉めのような見た目だけの状態は Model に入れず、`Menu` `Popover` `Accordion` `Tooltip`（ブラウザが開け閉めを持つ）を使う。部品ごとの状態（useState）は Nene にはない。
+- 部品の見た目は外から `class` で変えられない。色・角の丸み・文字は入口の `style` ブロックで `:root { --primary: …; --radius: …; --font: …; }` のように CSS 変数を変える（一覧は nene-lang-ui の README の「テーマ」）。body の文字・色・背景は nene-lang-ui が整えるので、書かなくてよい。
+- 状態の置き場所: アプリが知る必要のある状態は Model。メニュー・吹き出し・アコーディオンの開け閉めのような見た目だけの状態は Model に入れず、`Menu` `Popover` `Accordion` `Tooltip`（ブラウザが開け閉めを持つ）を使う。候補を出す入力欄は `Autocomplete` で、model には打った文字だけを持つ。部品ごとの状態（useState）は Nene にはない。
 - where の名前がタグとぶつかると、その名前が部品として使われる（`select = …` と書くと `<Select>` が使えない）。
 
 ## ファイルの分け方

@@ -1,0 +1,111 @@
+-- つまみを動かして数を選ぶ。動かしているあいだ、つまみの上に値が出る
+--
+--   <Slider label="音量" value={model.volume} onChange={VolumeChanged} />
+--   <Slider value={model.rate} min={0.5} max={2.0} step={0.1} onChange={RateChanged} />
+module Ui.Slider (SliderProps, slider) where
+
+
+type SliderProps msg =
+  { value    :: Float
+  , onChange :: Float -> msg
+  , min      :: Float  = 0.0
+  , max      :: Float  = 100.0
+  , step     :: Float  = 1.0
+  , label    :: String = ""
+  , disabled :: Bool   = False
+  }
+
+
+slider :: SliderProps msg -> Html msg
+slider props =
+  <label class={css.field}>
+    <Caption text={props.label} />
+    <span class={css.rail} vars={position}>
+      <input class={css.range} type="range" min={show props.min} max={show props.max} step={show props.step} value={show props.value} disabled={props.disabled} onInput={changed} />
+      <output class={css.bubble}>{show props.value}</output>
+    </span>
+  </label>
+  where
+    position = { ratio = show ratio }
+    ratio
+      | props.max > props.min = clamp ((props.value - props.min) / (props.max - props.min))
+      | otherwise             = 0.0
+    changed text = props.onChange (Maybe.withDefault props.value (String.toFloat text))
+
+
+caption :: { text :: String } -> Html msg
+caption { text = "" } = <></>
+caption { text }      = <span class={css.caption}>{text}</span>
+
+
+clamp :: Float -> Float
+clamp v = max 0.0 (min 1.0 v)
+
+
+style
+  .field { display: block; }
+  .caption { display: block; color: var(--muted); font-size: .875rem; }
+  .field:focus-within .caption { color: var(--primary); }
+  /* つまみの中心が端から 10px の所までしか動かないので、色の境目と値の吹き出しもそれに合わせる */
+  .rail {
+    --at: calc(10px + (100% - 20px) * var(--ratio));
+    position: relative;
+    display: block;
+    padding: 13px 0;
+  }
+  .range {
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 4px;
+    margin: 0;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--primary) var(--at), color-mix(in srgb, var(--primary) 38%, transparent) var(--at));
+    cursor: pointer;
+  }
+  .range:focus-visible { outline: none; }
+  .range::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: var(--shadow-1), 0 0 0 0 transparent;
+    transition: box-shadow .15s var(--ease);
+  }
+  .range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: var(--shadow-1), 0 0 0 0 transparent;
+    transition: box-shadow .15s var(--ease);
+  }
+  .range:hover::-webkit-slider-thumb, .range:focus-visible::-webkit-slider-thumb { box-shadow: var(--shadow-1), 0 0 0 8px color-mix(in srgb, var(--primary) 16%, transparent); }
+  .range:hover::-moz-range-thumb, .range:focus-visible::-moz-range-thumb { box-shadow: var(--shadow-1), 0 0 0 8px color-mix(in srgb, var(--primary) 16%, transparent); }
+  .range:active::-webkit-slider-thumb { box-shadow: var(--shadow-1), 0 0 0 14px color-mix(in srgb, var(--primary) 16%, transparent); }
+  .range:active::-moz-range-thumb { box-shadow: var(--shadow-1), 0 0 0 14px color-mix(in srgb, var(--primary) 16%, transparent); }
+  .range:disabled { cursor: default; background: var(--selected); }
+  .range:disabled::-webkit-slider-thumb { background: var(--disabled); box-shadow: none; }
+  .range:disabled::-moz-range-thumb { background: var(--disabled); box-shadow: none; }
+
+  .bubble {
+    position: absolute;
+    bottom: calc(100% - 4px);
+    left: var(--at);
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    background: light-dark(#757575, #bdbdbd);
+    color: light-dark(#ffffff, rgb(0 0 0 / .87));
+    font-size: .875rem;
+    font-weight: 500;
+    line-height: 1.43;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translateX(-50%) scale(0);
+    transform-origin: bottom center;
+    transition: transform .15s var(--ease);
+  }
+  .range:active ~ .bubble, .range:focus-visible ~ .bubble { transform: translateX(-50%) scale(1); }

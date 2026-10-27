@@ -1,4 +1,4 @@
--- 子要素にマウスを載せるか、キーボードで選んだときに出る説明
+-- 子要素にマウスを載せるか、キーボードで選んだときに、下に出る説明
 --
 --   <Tooltip text="保存（⌘S）">
 --     <IconButton icon={Icon.check} label="保存" onClick={Save} />
@@ -23,23 +23,27 @@ style
   .anchor { position: relative; display: inline-flex; }
   .tip {
     position: absolute;
-    bottom: calc(100% + 6px);
+    top: calc(100% + 14px);
     left: 50%;
-    z-index: 50;
+    z-index: 1500;
+    max-width: 300px;
     padding: 4px 8px;
-    border-radius: 6px;
-    background: var(--text);
-    color: var(--surface);
-    font-size: .75rem;
+    border-radius: var(--radius);
+    background: rgb(97 97 97 / .92);
+    color: #ffffff;
+    font-size: .6875rem;
+    font-weight: 500;
+    line-height: 1.4;
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
-    transform: translate(-50%, 4px);
-    transition: opacity .12s, transform .12s;
+    transform: translateX(-50%) scale(.75);
+    transform-origin: top center;
+    transition: opacity .2s var(--ease), transform .15s var(--ease);
   }
   .anchor:hover > .tip,
   .anchor:focus-within > .tip {
     opacity: 1;
-    transform: translate(-50%, 0);
-    transition-delay: .3s;
+    transform: translateX(-50%) scale(1);
+    transition-delay: .1s;
   }

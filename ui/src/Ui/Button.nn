@@ -59,39 +59,69 @@ sizeClass _  = css.medium
 
 style
   .button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 64px;
+    overflow: hidden;
     border: 1px solid transparent;
     border-radius: var(--radius);
-    font-weight: 600;
-    line-height: 1.2;
+    font-weight: 500;
+    line-height: 1.75;
+    letter-spacing: .02857em;
+    text-transform: uppercase;
     white-space: nowrap;
-    transition: background-color .15s, border-color .15s, box-shadow .15s, transform .1s;
+    transition: background-color .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease);
   }
-  .button:focus-visible { outline: 3px solid color-mix(in srgb, var(--tone) 35%, transparent); outline-offset: 1px; }
-  .button:active:not(:disabled) { transform: translateY(1px); }
-  .button:disabled { opacity: .45; cursor: not-allowed; }
-  .small  { padding: 6px 12px; font-size: .8125rem; }
-  .medium { padding: 9px 16px; font-size: .9375rem; }
-  .large  { padding: 12px 22px; font-size: 1.0625rem; }
-  .full   { width: 100%; }
+  .button:focus-visible { outline: none; }
+  .button:disabled { cursor: default; pointer-events: none; }
+
+  /* 押したときの波紋。押した所（ランタイムが --press-x と --press-y に入れる）から広がり、離すと消える */
+  .button::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  .button[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  .button[data-pressed=down]::after { opacity: .3; }
+  .button[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+
+  .medium { padding: 5px 15px; font-size: .875rem; }
+  .small  { padding: 3px 9px; font-size: .8125rem; }
+  .large  { padding: 7px 21px; font-size: .9375rem; }
+  .plain.medium { padding: 5px 7px; }
+  .plain.small  { padding: 3px 4px; }
+  .plain.large  { padding: 7px 10px; }
+  .full { width: 100%; }
 
   .filled {
     background: var(--tone);
     color: var(--on-tone);
+    box-shadow: var(--shadow-2);
   }
-  .filled:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--tone) 88%, var(--text));
-    box-shadow: 0 4px 14px color-mix(in srgb, var(--tone) 30%, transparent);
-  }
+  .filled:hover { background: color-mix(in srgb, var(--tone) 80%, black); box-shadow: var(--shadow-4); }
+  .filled:focus-visible { box-shadow: var(--shadow-6); }
+  .filled:active { box-shadow: var(--shadow-8); }
+  .filled:disabled { background: var(--selected); color: var(--disabled); box-shadow: none; }
+
   .outlined {
-    border-color: color-mix(in srgb, var(--tone) 55%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 50%, transparent);
     background: none;
     color: var(--tone);
   }
-  .plain {
-    background: none;
-    color: var(--tone);
-  }
-  .outlined:hover:not(:disabled),
-  .plain:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--tone) 10%, transparent);
-  }
+  .outlined:hover { border-color: var(--tone); }
+  .plain { background: none; color: var(--tone); }
+  .outlined:hover, .plain:hover { background: color-mix(in srgb, var(--tone) 4%, transparent); }
+  .outlined:focus-visible, .plain:focus-visible { background: color-mix(in srgb, var(--tone) 12%, transparent); }
+  .outlined:disabled { border-color: var(--divider); color: var(--disabled); }
+  .plain:disabled { color: var(--disabled); }

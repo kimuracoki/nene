@@ -16,9 +16,9 @@ type AlertProps =
 alert :: AlertProps -> [Html msg] -> Html msg
 alert props children =
   <div class={css.alert} vars={colors} role="status">
-    <Row gap={S}>
+    <Row gap={M}>
       <span class={css.mark}><Icon name={symbol props.tone} /></span>
-      <Column gap={XS}>
+      <Column>
         <Heading text={props.title} />
         <div class={css.body}>{children}</div>
       </Column>
@@ -43,11 +43,15 @@ symbol Danger  = Icon.error
 
 style
   .alert {
-    padding: 12px 16px;
-    border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent);
+    padding: 6px 16px;
     border-radius: var(--radius);
-    background: color-mix(in srgb, var(--tone) 8%, var(--surface));
+    background: color-mix(in srgb, var(--tone) 12%, var(--surface));
+    color: color-mix(in srgb, var(--tone) 40%, light-dark(black, white));
+    font-size: .875rem;
+    line-height: 1.43;
+    letter-spacing: .01071em;
   }
-  .mark { color: var(--tone); line-height: 1.5; }
-  .title { color: var(--tone); }
-  .body { font-size: .9375rem; }
+  .mark { display: flex; padding: 7px 0; color: var(--tone); font-size: 1.1875rem; }
+  .title { padding-top: 8px; font-size: 1rem; font-weight: 500; line-height: 1.5; }
+  .body { padding: 8px 0; }
+  .title + .body { padding-top: 0; }

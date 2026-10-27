@@ -73,11 +73,9 @@ style
     --primary: light-dark(#7c5cff, #9d85ff);
     --accent: #ff6fa8;
   }
+  /* 文字と色は nene-lang-ui が整える。ここでは背景だけを変えている */
   body {
     min-height: 100vh;
-    font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif;
-    line-height: 1.6;
-    color: var(--text);
     background:
       radial-gradient(60rem 30rem at 50% -10rem, color-mix(in srgb, var(--primary) 18%, transparent), transparent),
       var(--background);

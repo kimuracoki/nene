@@ -1,0 +1,56 @@
+-- 画面の一番上の帯。題名を左に、子要素（ボタンなど）を右に並べる。スクロールしても上に残る
+--
+--   <AppBar title="受信トレイ">
+--     <IconButton icon={Icon.search} label="検索" onClick={OpenSearch} />
+--     <Button variant={Plain} onClick={Login}>ログイン</Button>
+--   </AppBar>
+--
+-- 中の Button と IconButton は、帯の上で読める色に変わる
+module Ui.AppBar (AppBarProps, appBar) where
+
+
+type AppBarProps =
+  { title :: String
+  }
+
+
+appBar :: AppBarProps -> [Html msg] -> Html msg
+appBar props children =
+  <header class={css.bar}>
+    <div class={css.inner}>
+      <Row gap={S} align={Center}>
+        <h1 class={css.title}>{props.title}</h1>
+        <Spacer />
+        {children}
+      </Row>
+    </div>
+  </header>
+
+
+style
+  .bar {
+    /* ダークでは、色の付いた帯ではなく灰色の帯にする（Material Design のダークテーマ） */
+    --bar-background: light-dark(var(--primary), #272727);
+    --bar-text: light-dark(var(--on-tone), #ffffff);
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+    background: var(--bar-background);
+    color: var(--bar-text);
+    box-shadow: var(--shadow-4);
+  }
+  /* 中の部品の色を、帯の上で読める色に入れ替える */
+  .inner {
+    --primary: var(--bar-text);
+    --neutral: var(--bar-text);
+    --on-tone: var(--bar-background);
+    display: flex;
+    align-items: center;
+    min-height: 64px;
+    padding: 0 24px;
+  }
+  .inner > * { flex: 1; }
+  .title { font-size: 1.25rem; font-weight: 500; line-height: 1.6; letter-spacing: .0075em; }
+  @media (max-width: 600px) {
+    .inner { min-height: 56px; padding: 0 16px; }
+  }

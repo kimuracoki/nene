@@ -1,0 +1,264 @@
+-- 文字を打つと、候補を絞り込んで欄の下に出す入力欄。見た目は TextField と同じ
+-- 候補を押す（矢印キーで選んで Enter でもよい）と、その文字が onInput に届く。打った文字も同じく onInput に届く
+-- 一覧の開け閉めと、矢印キーで選んでいる候補はブラウザの側（ランタイム）が受け持つので、model には打った文字だけを持つ
+--
+--   <Autocomplete id="city" label="都市" value={model.city} options={cities} onInput={CityChanged} />
+--     where
+--       cities = ["札幌", "仙台", "東京", "名古屋", "大阪", "福岡"]
+--
+-- 打った文字を含む候補を出す（大文字と小文字は区別しない）。候補と同じ文字が入っているときは、すべての候補を出す
+-- id は、ページの中でほかと重ならない名前にする
+module Ui.Autocomplete (AutocompleteProps, autocomplete) where
+
+import qualified Ui.Icon as Icon
+
+
+type AutocompleteProps msg =
+  { id          :: String
+  , value       :: String
+  , options     :: [String]
+  , onInput     :: String -> msg
+  , label       :: String       = ""
+  , placeholder :: String       = ""
+  , helper      :: String       = ""
+  , error       :: Maybe String = Nothing
+  , disabled    :: Bool         = False
+  , noOptions   :: String       = "候補がありません"   -- 絞り込んで 1 つも残らないときに出す文字
+  }
+
+
+autocomplete :: AutocompleteProps msg -> Html msg
+autocomplete props =
+  <div class={css.field}>
+    <div class={box}>
+      <input class={css.input} id={inputId} type="text" role="combobox" aria-controls={props.id} aria-expanded="false" aria-autocomplete="list" autocomplete="off" value={props.value} placeholder={hint} disabled={props.disabled} aria-invalid={ariaInvalid} onInput={props.onInput} />
+      <Floating text={props.label} for={inputId} />
+      <fieldset class={css.outline} aria-hidden="true">
+        <legend class={css.notch}><Gap text={props.label} /></legend>
+      </fieldset>
+      <div class={css.buttons}>
+        <Clear shown={hasValue} controls={props.id} onClear={cleared} />
+        <button class={css.toggle} type="button" tabindex={-1} aria-controls={props.id} aria-haspopup="listbox" aria-label="候補を開く" disabled={props.disabled}>
+          <Icon name={Icon.chevronDown} />
+        </button>
+      </div>
+      <div class={css.list} id={props.id} role="listbox" aria-label={props.label}>
+        {choices}
+        <Empty none={nothingShown} text={props.noOptions} />
+      </div>
+    </div>
+    <Note helper={props.helper} error={props.error} />
+  </div>
+  where
+    inputId = props.id ++ "-input"
+    box = classes [css.box, invalid, labelled]
+    invalid
+      | props.error /= Nothing = css.invalid
+      | otherwise              = classes []
+    labelled
+      | props.label /= "" = css.labelled
+      | otherwise         = classes []
+    ariaInvalid
+      | props.error /= Nothing = "true"
+      | otherwise              = "false"
+    -- 空でないプレースホルダーがあると、:placeholder-shown で「値が入っているか」を CSS から見分けられる
+    hint
+      | props.placeholder == "" = " "
+      | otherwise               = props.placeholder
+    hasValue = props.value /= ""
+    cleared = props.onInput ""
+
+    shown
+      | elem props.value props.options = props.options
+      | otherwise                      = filter matches props.options
+    matches option = String.contains needle (String.toLower option)
+    needle = String.toLower props.value
+    nothingShown = null shown
+    choices = List.indexedMap choice shown
+
+    choice i option = <div class={css.option} id={optionId} role="option" aria-selected={chosen} onClick={picked}>{option}</div>
+      where
+        optionId = props.id ++ "-" ++ show i
+        picked = props.onInput option
+        chosen
+          | option == props.value = "true"
+          | otherwise             = "false"
+
+
+-- 欄の中のラベル。input のあとに置き、input の状態を CSS の ~ で受け取る
+floating :: { text :: String, for :: String } -> Html msg
+floating { text = "" } = <></>
+floating { text, for } = <label class={css.label} for={for}>{text}</label>
+
+-- 枠の切れ目。縮んだラベルと同じ幅になるよう、同じ文字を見えないように置く
+gap :: { text :: String } -> Html msg
+gap { text = "" } = <></>
+gap { text }      = <span>{text}</span>
+
+-- 文字が入っているときだけ出す、消すボタン
+clear :: { shown :: Bool, controls :: String, onClear :: msg } -> Html msg
+clear { shown = False }     = <></>
+clear { controls, onClear } = <button class={css.clear} type="button" tabindex={-1} aria-controls={controls} aria-label="消す" onClick={onClear}><Icon name={Icon.close} /></button>
+
+empty :: { none :: Bool, text :: String } -> Html msg
+empty { none = False } = <></>
+empty { text }         = <div class={css.empty}>{text}</div>
+
+note :: { helper :: String, error :: Maybe String } -> Html msg
+note { error = Just message } = <span class={css.error}>{message}</span>
+note { helper = "" }          = <></>
+note { helper }               = <span class={css.helper}>{helper}</span>
+
+
+style
+  .field { display: block; flex: 1; min-width: 0; }
+  .box {
+    position: relative;
+    border-radius: var(--radius);
+  }
+  .input {
+    display: block;
+    box-sizing: content-box;
+    width: calc(100% - 79px);
+    height: 1.4375em;
+    padding: 16.5px 65px 16.5px 14px;
+    border: 0;
+    margin: 0;
+    font: inherit;
+    color: var(--text);
+    background: none;
+  }
+  .input:focus { outline: none; }
+  .input::placeholder { color: var(--muted); opacity: 1; transition: opacity .2s; }
+  .labelled .input:not(:focus)::placeholder { opacity: 0; }
+  .input:disabled { color: var(--muted); cursor: not-allowed; }
+
+  .label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: calc(100% - 79px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4375em;
+    color: var(--muted);
+    pointer-events: none;
+    transform: translate(14px, 16.5px) scale(1);
+    transform-origin: top left;
+    transition: transform .2s cubic-bezier(0, 0, .2, 1), color .2s, max-width .2s;
+  }
+  .input:focus ~ .label,
+  .input:not(:placeholder-shown) ~ .label {
+    max-width: calc(133% - 32px);
+    transform: translate(14px, -9px) scale(.75);
+  }
+  .input:focus ~ .label { color: var(--primary); }
+
+  .outline {
+    position: absolute;
+    inset: -5px 0 0;
+    min-width: 0;
+    padding: 0 8px;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: inherit;
+    overflow: hidden;
+    text-align: left;
+    pointer-events: none;
+    transition: border-color .15s;
+  }
+  .notch {
+    display: block;
+    width: auto;
+    max-width: .01px;
+    height: 11px;
+    padding: 0;
+    overflow: hidden;
+    font-size: .75em;
+    white-space: nowrap;
+    visibility: hidden;
+    transition: max-width 50ms cubic-bezier(0, 0, .2, 1);
+  }
+  .notch > span { display: inline-block; padding: 0 5px; }
+  .input:focus ~ .outline .notch,
+  .input:not(:placeholder-shown) ~ .outline .notch {
+    max-width: 100%;
+    transition: max-width 100ms cubic-bezier(0, 0, .2, 1) 50ms;
+  }
+  .box:hover .input:not(:disabled) ~ .outline { border-color: var(--text); }
+  .input:focus ~ .outline,
+  .box:hover .input:focus ~ .outline { border: 2px solid var(--primary); padding: 0 7px; }
+  .input:disabled ~ .outline { border-color: color-mix(in srgb, var(--border) 60%, transparent); }
+
+  /* ホバーやフォーカスの色より強くするため、.box.invalid と重ねて書く */
+  .invalid .input ~ .label { color: var(--danger); }
+  .box.invalid .input ~ .outline { border-color: var(--danger); }
+
+  /* 欄の右の、消すボタンと開くボタン */
+  .buttons {
+    position: absolute;
+    top: calc(50% - 14px);
+    right: 9px;
+    display: flex;
+  }
+  .clear, .toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--muted);
+    font-size: 1.25rem;
+    transition: background-color .15s var(--ease), rotate .2s var(--ease);
+  }
+  .clear:hover, .toggle:hover { background: var(--hover); }
+  .toggle:disabled { color: var(--disabled); cursor: default; background: none; }
+  /* 消すボタンは、マウスを載せたときとフォーカスしているときだけ出す */
+  .clear { visibility: hidden; }
+  .box:hover .clear, .input:focus ~ .buttons .clear { visibility: visible; }
+  .input[aria-expanded="true"] ~ .buttons .toggle { rotate: 180deg; }
+
+  /* 候補の一覧。開いているかは、ランタイムが input の aria-expanded に書く */
+  .list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1300;
+    display: none;
+    max-height: 40vh;
+    padding: 8px 0;
+    overflow-y: auto;
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-8);
+  }
+  .input[aria-expanded="true"] ~ .list { display: block; }
+  .option {
+    min-height: 36px;
+    padding: 6px 16px;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: background-color .15s var(--ease);
+  }
+  /* data-active は、矢印キーで選んでいる候補（ランタイムが付ける） */
+  .option:hover, .option[data-active] { background: var(--hover); }
+  .option[aria-selected="true"] { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+  .option[aria-selected="true"]:hover,
+  .option[aria-selected="true"][data-active] { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+  .empty { padding: 14px 16px; color: var(--muted); }
+
+  .helper, .error {
+    display: block;
+    margin: 3px 14px 0;
+    font-size: .75rem;
+    line-height: 1.66;
+  }
+  .helper { color: var(--muted); }
+  .error { color: var(--danger); }

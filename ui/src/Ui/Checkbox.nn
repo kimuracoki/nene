@@ -15,7 +15,7 @@ type CheckboxProps msg =
 checkbox :: CheckboxProps msg -> Html msg
 checkbox props =
   <label class={css.option}>
-    <Row gap={S} align={Center}>
+    <Row align={Center}>
       <input class={css.box} type="checkbox" checked={props.checked} disabled={props.disabled} onCheck={props.onCheck} />
       <span>{props.label}</span>
     </Row>
@@ -23,12 +23,43 @@ checkbox props =
 
 
 style
-  .option { cursor: pointer; user-select: none; }
+  .option { display: inline-block; margin-left: -11px; cursor: pointer; user-select: none; }
+  /* 42px の丸い当たり判定の中に、18px の四角を描く */
   .box {
-    width: 18px;
-    height: 18px;
+    appearance: none;
+    position: relative;
+    flex: none;
+    width: 42px;
+    height: 42px;
     margin: 0;
-    accent-color: var(--primary);
+    border-radius: 50%;
     cursor: pointer;
+    transition: background-color .15s var(--ease);
   }
-  .box:disabled, .box:disabled + span { opacity: .5; cursor: not-allowed; }
+  .box::before {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border: 2px solid var(--muted);
+    border-radius: 2px;
+    transition: background-color .15s var(--ease), border-color .15s var(--ease);
+  }
+  .box::after {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    background: var(--on-tone);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E") center / 100% no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E") center / 100% no-repeat;
+    transform: scale(0);
+    transition: transform .15s var(--ease);
+  }
+  .box:checked::before { border-color: var(--primary); background: var(--primary); }
+  .box:checked::after { transform: scale(1); }
+  .box:hover { background: var(--hover); }
+  .box:checked:hover { background: color-mix(in srgb, var(--primary) 4%, transparent); }
+  .box:focus-visible, .box:active { outline: none; background: color-mix(in srgb, var(--primary) 12%, transparent); }
+  .box:disabled { cursor: default; background: none; }
+  .box:disabled::before { border-color: var(--disabled); }
+  .box:disabled:checked::before { border-color: transparent; background: var(--disabled); }
+  .box:disabled + span { color: var(--disabled); cursor: default; }

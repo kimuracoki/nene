@@ -1,0 +1,61 @@
+-- 手順のどこにいるかを示す。active は 0 から数える。終わった手順には印が付く
+--
+--   <Stepper steps={["カート", "お届け先", "支払い"]} active={model.step} />
+module Ui.Stepper (StepperProps, stepper) where
+
+import qualified Ui.Icon as Icon
+
+
+type StepperProps =
+  { steps  :: [String]
+  , active :: Int
+  }
+
+
+stepper :: StepperProps -> Html msg
+stepper props = <ol class={css.stepper}>{List.indexedMap step props.steps}</ol>
+  where
+    step i label =
+      <li class={look} aria-current={current}>
+        <span class={css.circle}><Mark done={done} n={number} /></span>
+        <span class={css.label}>{label}</span>
+      </li>
+      where
+        done   = i < props.active
+        number = i + 1
+        look
+          | i < props.active  = classes [css.step, css.done]
+          | i == props.active = classes [css.step, css.active]
+          | otherwise         = css.step
+        current
+          | i == props.active = "step"
+          | otherwise         = "false"
+
+
+mark :: { done :: Bool, n :: Int } -> Html msg
+mark { done = True } = <Icon name={Icon.check} />
+mark { n }           = <>{show n}</>
+
+
+style
+  .stepper { display: flex; align-items: center; padding: 0; list-style: none; }
+  .step { display: flex; flex: 1; align-items: center; gap: 8px; color: var(--muted); font-size: .875rem; }
+  .step:first-child { flex: none; }
+  /* 前の手順とのあいだの線 */
+  .step:not(:first-child)::before { content: ""; flex: 1; min-width: 16px; margin-right: 0; border-top: 1px solid light-dark(#bdbdbd, #757575); }
+  .circle {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin-left: 8px;
+    border-radius: 50%;
+    background: var(--disabled);
+    color: var(--on-tone);
+    font-size: .75rem;
+  }
+  .step:first-child .circle { margin-left: 0; }
+  .label { margin-right: 8px; white-space: nowrap; }
+  .active, .done { color: var(--text); font-weight: 500; }
+  .active .circle, .done .circle { background: var(--primary); }

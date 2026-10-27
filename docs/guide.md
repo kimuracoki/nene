@@ -289,7 +289,7 @@ import Ui.Theme (Tone(..))
 <Dialog open={model.asking} title="削除しますか？" onClose={Cancel}>…</Dialog>
 ```
 
-部品の一覧と、色の変え方は `node_modules/nene-lang-ui/README.md` にある。
+部品の一覧（すべての属性の型と既定値、使い方の例）と、色の変え方は [nene-lang-ui の README](https://github.com/kimuracoki/nene/blob/main/ui/README.md) にある（手元では `node_modules/nene-lang-ui/README.md`）。見た目と動きは[部品の見本](https://kimuracoki.github.io/nene/showcase.html)で確かめられる。
 
 メニューやアコーディオンの開け閉めのような、見た目だけの状態は Model に入れなくてよい。ブラウザが覚えておいてくれる。
 
@@ -297,6 +297,46 @@ import Ui.Theme (Tone(..))
 <Menu id="sort" label="並び替え" items={sortItems} />      -- 項目を押すと、そのメッセージが届いて閉じる
 <Accordion title="よくある質問">…</Accordion>
 ```
+
+### 入力欄を 1 つ足す
+
+入力欄 1 つにつき、書くところは 5 か所ある。入力された文字を Model に持ち、打つたびに届くメッセージで書き換える。
+
+```haskell
+import Ui.TextField
+
+
+type Model = { name :: String }                         -- 1. 状態に、入力された文字を入れる場所
+
+init :: Model
+init = { name = "" }                                    -- 2. 最初の値
+
+data Msg = NameChanged String                           -- 3. 打つたびに届くメッセージ（打った後の文字を持つ）
+
+update :: Msg -> Model -> Model
+update (NameChanged s) model = { model | name = s }     -- 4. 届いた文字で状態を書き換える
+
+view :: Model -> Html Msg
+view model =
+  <Column gap={M}>
+    <TextField label="名前" value={model.name} onInput={NameChanged} />   -- 5. 画面に置く
+    <p>{greeting}</p>
+  </Column>
+  where
+    greeting = "こんにちは、" ++ model.name
+```
+
+`value` に Model の値を渡し、`onInput` にメッセージのコンストラクタを渡す。`NameChanged` は `String -> Msg` の関数なので、そのまま書ける。
+
+### まだ書いていない所を `_` にしておく
+
+入力欄を見た目だけ先に置きたいときは、まだ書けない所に `_` と書く。開発サーバーでは、そのまま画面に出る。
+
+```haskell
+<TextField label="メール" value="" onInput={_} />
+```
+
+エディタには「ここには String -> Msg 型の値が入ります」と警告が出るので、それを見て `Msg` と `update` を足していけばよい。`_` が残っていると `nene build` はエラーになり、公開はできない。
 
 ### ファイルと部品
 
@@ -480,6 +520,7 @@ test/MainTest.nn
 | `<Button> には属性 onClick が必要です` | 必須の属性を書く |
 | `レコードにフィールド titel がありません` | `css.titel` の打ち間違い。`style` ブロックのクラス名を確かめる |
 | `Maybe は標準モジュールなので import せずに…` | `import` を消して、`Maybe.map` のように書く |
+| `まだ書いていない所（_）が残っています` | `_` を、示された型の値に書き換える（`_` が通るのは `nene dev` だけ） |
 
 ## 13. Elm・React と比べると
 

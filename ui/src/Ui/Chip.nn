@@ -22,9 +22,15 @@ chip props children = <Body action={props.onClick}>{children}</Body>
     body { action = Nothing } kids  = <span class={look} vars={colors}>{kids}</span>
 
     colors = toneVars props.tone
-    look
-      | props.selected = classes [css.chip, css.selected]
-      | otherwise      = css.chip
+    -- 押せないチップと選ばれたチップは塗りつぶし、選ばれていない押せるチップは枠だけ
+    look = classes [css.chip, fill, grey]
+    fill
+      | props.selected           = css.filled
+      | props.onClick == Nothing = css.filled
+      | otherwise                = css.outlined
+    grey
+      | props.tone == Neutral = css.neutral
+      | otherwise             = classes []
     pressed
       | props.selected = "true"
       | otherwise      = "false"
@@ -32,22 +38,47 @@ chip props children = <Body action={props.onClick}>{children}</Body>
 
 style
   .chip {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 12px;
-    border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--tone) 10%, transparent);
-    color: var(--tone);
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    overflow: hidden;
+    border: 1px solid transparent;
+    border-radius: 16px;
     font-size: .8125rem;
-    font-weight: 600;
-    line-height: 1.5;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color .25s var(--ease), box-shadow .25s var(--ease);
   }
-  button.chip { transition: background-color .15s; }
-  button.chip:hover { background: color-mix(in srgb, var(--tone) 18%, transparent); }
-  .selected, button.selected:hover {
-    border-color: var(--tone);
-    background: var(--tone);
-    color: var(--on-tone);
+  .filled { background: var(--tone); color: var(--on-tone); }
+  .outlined { border-color: color-mix(in srgb, var(--tone) 70%, transparent); background: none; color: var(--tone); }
+  .neutral.filled { background: var(--selected); color: var(--text); }
+  .neutral.outlined { border-color: var(--border); color: var(--text); }
+
+  button.chip { cursor: pointer; }
+  /* 押したときの波紋。押した所から広がり、離すと消える */
+  button.chip::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
   }
+  button.chip[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  button.chip[data-pressed=down]::after { opacity: .3; }
+  button.chip[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+  button.filled:hover { background: color-mix(in srgb, var(--tone) 80%, black); }
+  button.neutral.filled:hover { background: light-dark(rgb(0 0 0 / .12), rgb(255 255 255 / .24)); }
+  button.outlined:hover { background: color-mix(in srgb, var(--tone) 4%, transparent); }
+  button.neutral.outlined:hover { background: var(--hover); }
+  button.chip:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 30%, transparent); }
+  button.chip:active { box-shadow: var(--shadow-1); }

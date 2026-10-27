@@ -46,7 +46,7 @@ style
 | 層 | 中身 | パッケージ |
 | --- | --- | --- |
 | 言語 | コンパイラ、ランタイム、`nene` コマンド、標準ライブラリ（ルーティング・HTTP・JSON など） | `nene-lang` |
-| 部品集 | ボタン・入力欄・ダイアログ・メニューなど 20 の部品 | [`nene-lang-ui`](ui/README.md) |
+| 部品集 | Material Design に合わせたボタン・入力欄・表・ダイアログ・メニューなど 36 の部品 | [`nene-lang-ui`](ui/README.md) |
 
 標準ライブラリは差し替えられない（ルーティングも HTTP も一通りだけ）。部品集は別のパッケージで、使わなくてもよい。出力には、アプリが使っている標準モジュールとランタイムの部分だけが入る。
 
@@ -55,8 +55,11 @@ style
 | | 内容 |
 | --- | --- |
 | [docs/guide.md](docs/guide.md) | **入門。** 最初に読むもの。画面を作りながら書き方を一通り見る |
+| [ui/README.md](ui/README.md) | 部品集 nene-lang-ui。全部品の使い方の例と、属性の型と既定値、テーマの変え方 |
 | [docs/spec.md](docs/spec.md) | 言語仕様。すべての規則を正確に書いた参照用 |
 | [docs/design.md](docs/design.md) | 設計の考え方。なぜこういう言語なのか、何を入れなかったのか |
+
+サンプルと部品の見本は、ブラウザでそのまま動かせる（下の「[サンプル](#サンプル)」）。
 
 ## 動機
 
@@ -205,13 +208,15 @@ npm pack                  # 配布するパッケージを手元で作る
 
 ## サンプル
 
-| ファイル | 内容 |
-| --- | --- |
-| [examples/Counter.nn](examples/Counter.nn) | 最小のカウンター |
-| [examples/Todo.nn](examples/Todo.nn) | elm-sample のタスク管理画面に相当するもの |
-| [examples/Gallery.nn](examples/Gallery.nn) | アルバムごとに写真が横に続くギャラリー。開いた写真は URL に入り、戻るボタンや Esc で閉じる |
-| [examples/Stopwatch.nn](examples/Stopwatch.nn) | タイマー・キーボード・ブラウザへの保存・ダークテーマを使う例 |
-| [examples/Showcase.nn](examples/Showcase.nn) | nene-lang-ui の部品を一通り並べた見本 |
+| ファイル | 動かす | 内容 |
+| --- | --- | --- |
+| [examples/Counter.nn](examples/Counter.nn) | [開く](https://kimuracoki.github.io/nene/counter.html) | 最小のカウンター |
+| [examples/Todo.nn](examples/Todo.nn) | [開く](https://kimuracoki.github.io/nene/) | elm-sample のタスク管理画面に相当するもの |
+| [examples/Gallery.nn](examples/Gallery.nn) | [開く](https://kimuracoki.github.io/nene/gallery.html) | アルバムごとに写真が横に続くギャラリー。開いた写真は URL に入り、戻るボタンや Esc で閉じる |
+| [examples/Stopwatch.nn](examples/Stopwatch.nn) | [開く](https://kimuracoki.github.io/nene/stopwatch.html) | タイマー・キーボード・ブラウザへの保存・ダークテーマを使う例 |
+| [examples/Showcase.nn](examples/Showcase.nn) | [開く](https://kimuracoki.github.io/nene/showcase.html) | nene-lang-ui の部品を一通り並べた見本 |
+
+`main` に push すると、`.github/workflows/pages.yml` がこれらを GitHub Pages に出す。
 
 ## 構成
 

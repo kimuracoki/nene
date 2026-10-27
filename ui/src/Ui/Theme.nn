@@ -1,11 +1,15 @@
--- 色と形の決まり（CSS 変数）と、部品に共通の色の種類（Tone）
+-- テーマ（色・形・影・文字の CSS 変数）と、部品に共通の色の種類（Tone）
+-- 値は Material Design（MUI の既定のテーマ）に合わせている
 --
--- 色を変えるときは、アプリの入口のファイルの style ブロックで :root の変数を上書きする:
+-- テーマを変えるときは、アプリの入口のファイルの style ブロックで :root の変数を上書きする。
+-- すべての部品がこの変数を使うので、ここを変えれば全体が変わる:
 --
 --   style
---     :root { --primary: #e11d48; --radius: 6px; }
+--     :root { --primary: light-dark(#7c3aed, #c4b5fd); --radius: 8px; --font: "Noto Sans JP", sans-serif; }
 --
 -- ライトとダークの両方の色を light-dark() で持つ。ダークにしないときは :root { color-scheme: light; }
+--
+-- body の文字・色・背景もここで整える（MUI の CssBaseline にあたる）。変えるときはアプリの style で body を上書きする
 module Ui.Theme (Tone(..), toneVars) where
 
 
@@ -25,17 +29,50 @@ toneVars Danger  = { tone = "var(--danger)" }
 style
   :root {
     color-scheme: light dark;
-    --primary: light-dark(#5b5bd6, #8b8bf5);
-    --neutral: light-dark(#5f6372, #a4a8b5);
-    --success: light-dark(#18864b, #3dd68c);
-    --warning: light-dark(#b45309, #f5b14c);
-    --danger: light-dark(#d03a3a, #ff6b6b);
-    --on-tone: light-dark(#ffffff, #111216);
-    --text: light-dark(#1d1e24, #ecedf2);
-    --muted: light-dark(#6b6f7d, #9a9eab);
-    --surface: light-dark(#ffffff, #1b1c22);
-    --background: light-dark(#f6f6f9, #111216);
-    --border: light-dark(#dfe0e6, #2e3039);
-    --radius: 10px;
-    --shadow: 0 1px 2px rgb(0 0 0 / .06), 0 4px 16px rgb(0 0 0 / .06);
+
+    /* 色 */
+    --primary: light-dark(#1976d2, #90caf9);
+    --neutral: light-dark(#616161, #bdbdbd);
+    --success: light-dark(#2e7d32, #66bb6a);
+    --warning: light-dark(#ed6c02, #ffa726);
+    --danger: light-dark(#d32f2f, #f44336);
+    --on-tone: light-dark(#ffffff, rgb(0 0 0 / .87));   /* 色の付いた面の上の文字 */
+    --text: light-dark(rgb(0 0 0 / .87), #ffffff);
+    --muted: light-dark(rgb(0 0 0 / .6), rgb(255 255 255 / .7));
+    --disabled: light-dark(rgb(0 0 0 / .38), rgb(255 255 255 / .5));
+    --surface: light-dark(#ffffff, #1e1e1e);            /* カード・メニューなどの面 */
+    --background: light-dark(#ffffff, #121212);         /* ページの背景 */
+    --border: light-dark(rgb(0 0 0 / .23), rgb(255 255 255 / .23));   /* 入力欄などの枠 */
+    --divider: light-dark(rgb(0 0 0 / .12), rgb(255 255 255 / .12));  /* 区切り線 */
+    --hover: light-dark(rgb(0 0 0 / .04), rgb(255 255 255 / .08));    /* マウスを載せた項目の背景 */
+    --selected: light-dark(rgb(0 0 0 / .08), rgb(255 255 255 / .16));
+
+    /* 形 */
+    --radius: 4px;
+
+    /* 影（数が大きいほど浮いて見える） */
+    --shadow-1: 0 2px 1px -1px rgb(0 0 0 / .2), 0 1px 1px 0 rgb(0 0 0 / .14), 0 1px 3px 0 rgb(0 0 0 / .12);
+    --shadow-2: 0 3px 1px -2px rgb(0 0 0 / .2), 0 2px 2px 0 rgb(0 0 0 / .14), 0 1px 5px 0 rgb(0 0 0 / .12);
+    --shadow-4: 0 2px 4px -1px rgb(0 0 0 / .2), 0 4px 5px 0 rgb(0 0 0 / .14), 0 1px 10px 0 rgb(0 0 0 / .12);
+    --shadow-6: 0 3px 5px -1px rgb(0 0 0 / .2), 0 6px 10px 0 rgb(0 0 0 / .14), 0 1px 18px 0 rgb(0 0 0 / .12);
+    --shadow-8: 0 5px 5px -3px rgb(0 0 0 / .2), 0 8px 10px 1px rgb(0 0 0 / .14), 0 3px 14px 2px rgb(0 0 0 / .12);
+    --shadow-12: 0 7px 8px -4px rgb(0 0 0 / .2), 0 12px 17px 2px rgb(0 0 0 / .14), 0 5px 22px 4px rgb(0 0 0 / .12);
+    --shadow-16: 0 8px 10px -5px rgb(0 0 0 / .2), 0 16px 24px 2px rgb(0 0 0 / .14), 0 6px 30px 5px rgb(0 0 0 / .12);
+    --shadow-24: 0 11px 15px -7px rgb(0 0 0 / .2), 0 24px 38px 3px rgb(0 0 0 / .14), 0 9px 46px 8px rgb(0 0 0 / .12);
+    --shadow: var(--shadow-1);
+
+    /* 文字 */
+    --font: Roboto, system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    --ease: cubic-bezier(.4, 0, .2, 1);
   }
+  body {
+    font-family: var(--font);
+    font-size: 1rem;
+    line-height: 1.5;
+    letter-spacing: .00938em;
+    color: var(--text);
+    background: var(--background);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  strong, b { font-weight: 700; }

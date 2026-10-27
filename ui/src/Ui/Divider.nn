@@ -1,0 +1,22 @@
+-- 区切り線。label を書くと、線の中央に文字が入る
+--
+--   <Divider />
+--   <Divider label="または" />
+module Ui.Divider (DividerProps, divider) where
+
+
+type DividerProps =
+  { label :: String = ""
+  }
+
+
+divider :: DividerProps -> Html msg
+divider { label = "" } = <hr class={css.line} />
+divider { label }      = <div class={css.labelled} role="separator"><span class={css.text}>{label}</span></div>
+
+
+style
+  .line { flex: none; height: 0; border: 0; border-bottom: 1px solid var(--divider); }
+  .labelled { display: flex; align-items: center; color: var(--muted); font-size: .875rem; white-space: nowrap; }
+  .labelled::before, .labelled::after { content: ""; flex: 1; border-top: 1px solid var(--divider); }
+  .text { padding: 0 9.6px; }

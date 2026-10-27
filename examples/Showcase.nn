@@ -2,186 +2,324 @@
 module Showcase (main) where
 
 import Ui.Accordion
+import Ui.AppBar
 import Ui.Alert
+import Ui.Autocomplete
 import Ui.Avatar
 import Ui.Badge
+import Ui.Breadcrumbs
 import Ui.Button (Variant(..))
 import Ui.Card
 import Ui.Checkbox
 import Ui.Chip
 import Ui.Dialog
+import Ui.Divider
+import Ui.Drawer
+import Ui.Fab
 import qualified Ui.Icon as Icon
 import Ui.IconButton
+import Ui.ListItem
 import Ui.Menu (Item)
+import Ui.Pagination
 import Ui.Popover
 import Ui.Progress
+import Ui.RadioGroup
+import Ui.Rating
 import Ui.Select
+import Ui.Skeleton (Shape(..))
+import Ui.Slider
+import Ui.Snackbar
 import Ui.Spinner
+import Ui.Stepper
 import Ui.Switch
+import Ui.Table
 import Ui.Tabs
 import Ui.TextField (InputKind(..))
 import Ui.Theme (Tone(..))
+import Ui.ToggleGroup
 import Ui.Tooltip
 
 
 type Model =
   { name     :: String
   , email    :: String
+  , bio      :: String
   , agreed   :: Bool
   , notify   :: Bool
   , plan     :: String
+  , contact  :: String
+  , volume   :: Float
+  , stars    :: Int
+  , layout   :: String
   , tab      :: Int
+  , page     :: Int
+  , step     :: Int
   , dialog   :: Bool
+  , drawer   :: Bool
+  , saved    :: Bool
   , progress :: Float
   , liked    :: Bool
+  , city     :: String
+  , day      :: String
   }
 
 data Msg
   = NameChanged String
   | EmailChanged String
+  | BioChanged String
   | Agreed Bool
   | NotifyChanged Bool
   | PlanChanged String
+  | ContactChanged String
+  | VolumeChanged Float
+  | Rated Int
+  | LayoutChanged String
   | TabChanged Int
+  | PageChanged Int
+  | NextStep
   | OpenDialog
   | CloseDialog
+  | OpenDrawer
+  | CloseDrawer
+  | Save
+  | HideSaved
   | Advance
   | ToggleLike
+  | CityChanged String
+  | DayChanged String
 
 
 init :: Model
 init =
-  { name = "", email = "", agreed = False, notify = True, plan = "free"
-  , tab = 0, dialog = False, progress = 0.3, liked = False
+  { name = "", email = "", bio = "", agreed = False, notify = True, plan = "free"
+  , contact = "mail", volume = 40.0, stars = 3, layout = "list"
+  , tab = 0, page = 1, step = 1, dialog = False, drawer = False, saved = False
+  , progress = 0.3, liked = False, city = "", day = ""
   }
 
 
 update :: Msg -> Model -> Model
-update (NameChanged s) model   = { model | name = s }
-update (EmailChanged s) model  = { model | email = s }
-update (Agreed b) model        = { model | agreed = b }
-update (NotifyChanged b) model = { model | notify = b }
-update (PlanChanged p) model   = { model | plan = p }
-update (TabChanged i) model    = { model | tab = i }
-update OpenDialog model        = { model | dialog = True }
-update CloseDialog model       = { model | dialog = False }
-update Advance model           = { model | progress = next }
+update (NameChanged s) model    = { model | name = s }
+update (EmailChanged s) model   = { model | email = s }
+update (BioChanged s) model     = { model | bio = s }
+update (Agreed b) model         = { model | agreed = b }
+update (NotifyChanged b) model  = { model | notify = b }
+update (PlanChanged p) model    = { model | plan = p }
+update (ContactChanged c) model = { model | contact = c }
+update (VolumeChanged v) model  = { model | volume = v }
+update (Rated n) model          = { model | stars = n }
+update (LayoutChanged l) model  = { model | layout = l }
+update (TabChanged i) model     = { model | tab = i }
+update (PageChanged n) model    = { model | page = n }
+update NextStep model           = { model | step = mod (model.step + 1) 4 }
+update OpenDialog model         = { model | dialog = True }
+update CloseDialog model        = { model | dialog = False }
+update OpenDrawer model         = { model | drawer = True }
+update CloseDrawer model        = { model | drawer = False }
+update Save model               = { model | saved = True }
+update HideSaved model          = { model | saved = False }
+update Advance model            = { model | progress = next }
   where
     next
       | model.progress >= 1.0 = 0.0
       | otherwise             = model.progress + 0.1
-update ToggleLike model        = { model | liked = not model.liked }
+update ToggleLike model      = { model | liked = not model.liked }
+update (CityChanged c) model = { model | city = c }
+update (DayChanged d) model  = { model | day = d }
+
+
+-- 知らせは 4 秒で消す
+subscriptions :: Model -> Sub Msg
+subscriptions model
+  | model.saved = Time.every 4000 (always HideSaved)
+  | otherwise   = Sub.none
 
 
 view :: Model -> Html Msg
 view model =
-  <main class={css.page}>
-    <Column gap={L}>
-      <Column gap={XS}>
-        <h1 class={css.title}>nene-lang-ui</h1>
-        <p class={css.lead}>Nene の公式 UI 部品集。色は CSS 変数で変えられ、ライトとダークの両方に対応している。</p>
-      </Column>
+  <div>
+    <AppBar title="nene-lang-ui">
+      <IconButton icon={Icon.menu} label="メニュー" onClick={OpenDrawer} />
+      <Button variant={Plain} onClick={Save}>保存</Button>
+    </AppBar>
 
-      <Card title="ボタン">
-        <Row gap={S} wrap={True} align={Center}>
-          <Button onClick={OpenDialog}>開く</Button>
-          <Button variant={Outlined} onClick={Advance} startIcon={Just Icon.add}>進める</Button>
-          <Button variant={Plain} tone={Neutral} onClick={Advance}>あとで</Button>
-          <Button tone={Danger} startIcon={Just Icon.delete} onClick={OpenDialog}>削除</Button>
-          <Button tone={Success} size={S} onClick={Advance}>小さい</Button>
-          <Button size={L} endIcon={Just Icon.arrowRight} onClick={Advance}>大きい</Button>
-          <Button disabled onClick={Advance}>押せない</Button>
-          <IconButton icon={heart} label="いいね" tone={Danger} onClick={ToggleLike} />
-          <IconButton icon={Icon.settings} label="設定" variant={Outlined} onClick={OpenDialog} />
-          <IconButton icon={Icon.add} label="追加" variant={Filled} tone={Primary} onClick={Advance} />
-        </Row>
-      </Card>
+    <main class={css.page}>
+      <Column gap={L}>
+        <Column gap={XS}>
+          <Breadcrumbs links={crumbs} current="一覧" />
+          <h1 class={css.title}>部品の一覧</h1>
+          <p class={css.lead}>Nene の公式 UI 部品集。見た目は Material Design に合わせてあり、色は CSS 変数で変えられる。</p>
+        </Column>
 
-      <Grid columns={2} gap={L} collapse={M}>
-        <Card title="入力">
+        <Card title="ボタン">
           <Column gap={M}>
-            <TextField label="名前" placeholder="木村 太郎" value={model.name} onInput={NameChanged} helper="あとから変えられます" />
-            <TextField label="メール" kind={Email} value={model.email} onInput={EmailChanged} error={emailError} />
-            <Select label="プラン" value={model.plan} options={plans} onChange={PlanChanged} />
-            <Checkbox label="利用規約に同意する" checked={model.agreed} onCheck={Agreed} />
-            <Switch label="お知らせを受け取る" checked={model.notify} onCheck={NotifyChanged} />
+            <Row gap={S} wrap={True} align={Center}>
+              <Button onClick={OpenDialog}>開く</Button>
+              <Button variant={Outlined} onClick={Advance} startIcon={Just Icon.add}>進める</Button>
+              <Button variant={Plain} onClick={Advance}>あとで</Button>
+              <Button tone={Danger} startIcon={Just Icon.delete} onClick={OpenDialog}>削除</Button>
+              <Button tone={Success} size={S} onClick={Advance}>小さい</Button>
+              <Button size={L} endIcon={Just Icon.arrowRight} onClick={Advance}>大きい</Button>
+              <Button disabled onClick={Advance}>押せない</Button>
+            </Row>
+            <Row gap={S} wrap={True} align={Center}>
+              <IconButton icon={heart} label="いいね" tone={Danger} onClick={ToggleLike} />
+              <IconButton icon={Icon.settings} label="設定" variant={Outlined} onClick={OpenDialog} />
+              <IconButton icon={Icon.add} label="追加" variant={Filled} tone={Primary} onClick={Advance} />
+              <ToggleGroup value={model.layout} options={layouts} onChange={LayoutChanged} />
+              <Fab icon={Icon.add} label="新しく作る" onClick={Save} />
+              <Fab icon={Icon.edit} label="書く" extended onClick={Save} />
+            </Row>
           </Column>
         </Card>
 
-        <Card title="表示">
-          <Column gap={M}>
-            <Tabs labels={sections} selected={model.tab} onSelect={TabChanged} />
-            <Row gap={S} align={Center}>
-              <Avatar name={displayName} />
-              <Avatar name="Ada Lovelace" size={S} />
-              <Badge count={3}>
-                <IconButton icon={Icon.mail} label="メール" onClick={OpenDialog} />
-              </Badge>
-              <Badge count={120}>
-                <IconButton icon={Icon.calendar} label="予定" onClick={OpenDialog} />
-              </Badge>
-              <Spinner size={S} />
-            </Row>
-            <Row gap={XS} wrap={True}>
-              <Chip>下書き</Chip>
-              <Chip tone={Success}>公開中</Chip>
-              <Chip tone={Warning}>確認待ち</Chip>
-              <Chip tone={Primary} selected={True} onClick={backToFirst}>選択中</Chip>
-            </Row>
-            <Progress value={Just model.progress} />
-            <Progress tone={Success} />
-          </Column>
-        </Card>
-      </Grid>
+        <Grid columns={2} gap={L} collapse={M}>
+          <Card title="入力">
+            <Column gap={M}>
+              <TextField label="名前" placeholder="木村 太郎" value={model.name} onInput={NameChanged} helper="あとから変えられます" />
+              <TextField label="メール" kind={Email} value={model.email} onInput={EmailChanged} error={emailError} />
+              <TextField label="自己紹介" rows={3} value={model.bio} onInput={BioChanged} />
+              <Select label="プラン" value={model.plan} options={plans} onChange={PlanChanged} />
+              <Row gap={M} collapse={S}>
+                <Autocomplete id="city" label="都市" value={model.city} options={cities} onInput={CityChanged} helper="打つと候補が絞られます" />
+                <TextField label="日付" kind={Date} value={model.day} onInput={DayChanged} />
+              </Row>
+              <RadioGroup name="contact" label="連絡方法" row value={model.contact} options={contacts} onChange={ContactChanged} />
+              <Slider label="音量" value={model.volume} onChange={VolumeChanged} />
+              <Rating value={model.stars} onChange={Just Rated} />
+              <Column>
+                <Checkbox label="利用規約に同意する" checked={model.agreed} onCheck={Agreed} />
+                <Switch label="お知らせを受け取る" checked={model.notify} onCheck={NotifyChanged} />
+              </Column>
+            </Column>
+          </Card>
 
-      <Card title="開け閉め（model に何も足さない）">
-        <Column gap={M}>
-          <Row gap={S} align={Center} wrap={True}>
-            <Menu id="actions" label="操作" items={actions} />
-            <Popover id="profile" label="プロフィール">
-              <Row gap={S} align={Center}>
+          <Card title="表示">
+            <Column gap={M}>
+              <Tabs labels={sections} selected={model.tab} onSelect={TabChanged} />
+              <Row gap={M} align={Center}>
                 <Avatar name={displayName} />
-                <Column>
-                  <strong>{displayName}</strong>
-                  <span class={css.lead}>{model.email}</span>
+                <Avatar name="Ada Lovelace" size={S} />
+                <Badge count={3}>
+                  <IconButton icon={Icon.mail} label="メール" onClick={OpenDialog} />
+                </Badge>
+                <Badge count={120}>
+                  <IconButton icon={Icon.calendar} label="予定" onClick={OpenDialog} />
+                </Badge>
+                <Spinner size={S} />
+                <Spinner />
+              </Row>
+              <Row gap={S} wrap={True}>
+                <Chip>下書き</Chip>
+                <Chip tone={Success}>公開中</Chip>
+                <Chip tone={Warning}>確認待ち</Chip>
+                <Chip tone={Primary} selected={True} onClick={backToFirst}>選択中</Chip>
+                <Chip onClick={backToFirst}>押せる</Chip>
+              </Row>
+              <Progress value={Just model.progress} />
+              <Progress tone={Success} />
+              <Divider label="読み込み中" />
+              <Row gap={M} align={Center}>
+                <Skeleton shape={Circle} />
+                <Column gap={XS}>
+                  <Skeleton width="180px" />
+                  <Skeleton width="120px" />
                 </Column>
               </Row>
-            </Popover>
-            <Tooltip text="あとで見るに追加">
-              <IconButton icon={Icon.star} label="あとで見る" onClick={ToggleLike} />
-            </Tooltip>
-          </Row>
-          <Column>
-            <Accordion title="Nene とは？" group="faq" open>Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語です。</Accordion>
-            <Accordion title="部品の状態はどこに置く？" group="faq">アプリが知る必要のある状態は model に、見た目だけの開け閉めはブラウザに任せます。</Accordion>
-          </Column>
-        </Column>
-      </Card>
+              <Skeleton shape={Block} height="80px" />
+              <Stepper steps={steps} active={model.step} />
+              <Row justify={End}>
+                <Button variant={Plain} onClick={NextStep}>次の手順</Button>
+              </Row>
+            </Column>
+          </Card>
+        </Grid>
 
-      <Column gap={S}>
-        <Alert title="お知らせ">新しいバージョンが使えます。</Alert>
-        <Alert tone={Success} title="保存しました">次回からこの設定で開きます。</Alert>
-        <Alert tone={Warning}>容量の 90% を使っています。</Alert>
-        <Alert tone={Danger} title="送信できませんでした">ネットワークを確かめてください。</Alert>
+        <Card title="リストと表" padding={None}>
+          <Column>
+            <ListItem icon={Just Icon.mail} primary="受信トレイ" secondary="未読 3 件" selected={inbox} onClick={backToFirst} />
+            <ListItem icon={Just Icon.star} primary="スター付き" selected={starred} onClick={toStarred} />
+            <ListItem icon={Just Icon.delete} primary="ゴミ箱" secondary="30 日で消えます" />
+            <Divider />
+            <Table headers={columns} rows={members} />
+            <div class={css.pager}>
+              <Pagination count={10} page={model.page} onChange={PageChanged} />
+            </div>
+          </Column>
+        </Card>
+
+        <Card title="開け閉め（model に何も足さない）">
+          <Column gap={M}>
+            <Row gap={S} align={Center} wrap={True}>
+              <Menu id="actions" label="操作" items={actions} />
+              <Popover id="profile" label="プロフィール">
+                <Row gap={S} align={Center}>
+                  <Avatar name={displayName} />
+                  <Column>
+                    <strong>{displayName}</strong>
+                    <span class={css.lead}>{model.email}</span>
+                  </Column>
+                </Row>
+              </Popover>
+              <Tooltip text="あとで見るに追加">
+                <IconButton icon={Icon.star} label="あとで見る" onClick={ToggleLike} />
+              </Tooltip>
+            </Row>
+            <Column>
+              <Accordion title="Nene とは？" group="faq" open>Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語です。</Accordion>
+              <Accordion title="部品の状態はどこに置く？" group="faq">アプリが知る必要のある状態は model に、見た目だけの開け閉めはブラウザに任せます。</Accordion>
+              <Accordion title="見た目は変えられる？" group="faq">入口のファイルの style で、:root の CSS 変数を上書きします。</Accordion>
+            </Column>
+          </Column>
+        </Card>
+
+        <Column gap={S}>
+          <Alert title="お知らせ">新しいバージョンが使えます。</Alert>
+          <Alert tone={Success} title="保存しました">次回からこの設定で開きます。</Alert>
+          <Alert tone={Warning}>容量の 90% を使っています。</Alert>
+          <Alert tone={Danger} title="送信できませんでした">ネットワークを確かめてください。</Alert>
+        </Column>
       </Column>
-    </Column>
+    </main>
 
     <Dialog open={model.dialog} title="削除しますか？" onClose={CloseDialog}>
       <p class={css.lead}>この操作は取り消せません。</p>
       <Row gap={S} justify={End}>
-        <Button variant={Plain} tone={Neutral} onClick={CloseDialog}>やめる</Button>
+        <Button variant={Plain} onClick={CloseDialog}>やめる</Button>
         <Button tone={Danger} onClick={CloseDialog}>削除する</Button>
       </Row>
     </Dialog>
-  </main>
+
+    <Drawer open={model.drawer} onClose={CloseDrawer}>
+      <ListItem icon={Just Icon.home} primary="ホーム" selected onClick={Just CloseDrawer} />
+      <ListItem icon={Just Icon.settings} primary="設定" onClick={Just CloseDrawer} />
+    </Drawer>
+
+    <Snackbar open={model.saved} message="保存しました" onClose={HideSaved} action={undo} />
+  </div>
   where
     plans    = [("free", "無料"), ("pro", "プロ"), ("team", "チーム")]
+    contacts = [("mail", "メール"), ("phone", "電話")]
+    cities   = ["札幌", "仙台", "東京", "横浜", "名古屋", "京都", "大阪", "神戸", "広島", "福岡", "那覇"]
+    layouts  = [("list", "リスト"), ("grid", "グリッド")]
     actions =
       [ Item { label = "進める", onClick = Advance, icon = Just Icon.arrowRight }
       , Item { label = "最初のタブへ", onClick = TabChanged 0 }
       , Item { label = "削除", onClick = OpenDialog, icon = Just Icon.delete, tone = Danger }
       ]
+    members =
+      [ [<>Ada Lovelace</>, <Chip tone={Primary}>管理者</Chip>, <>2024-01-10</>]
+      , [<>Alan Turing</>, <Chip>編集者</Chip>, <>2024-03-02</>]
+      , [<>Grace Hopper</>, <Chip>閲覧者</Chip>, <>2024-05-21</>]
+      ]
     sections = ["概要", "メンバー", "設定"]
+    crumbs   = [("/", "ホーム"), ("/showcase.html", "部品")]
+    steps    = ["カート", "お届け先", "支払い"]
+    columns  = ["名前", "役割", "参加日"]
+    undo     = Just ("元に戻す", HideSaved)
+    inbox    = model.tab == 0
+    starred  = model.tab == 1
+    toStarred = Just (TabChanged 1)
     backToFirst = Just (TabChanged 0)
     displayName
       | String.isEmpty model.name = "Nene"
@@ -195,20 +333,15 @@ view model =
 
 
 main :: Program Model Msg
-main = App.app { init, update, view }
+main = App.app { init, update, view, subscriptions }
 
 
 style
-  body {
-    font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif;
-    line-height: 1.6;
-    color: var(--text);
-    background: var(--background);
-  }
   .page {
-    max-width: 960px;
+    max-width: 1040px;
     margin: 0 auto;
-    padding: 48px 16px;
+    padding: 32px 16px 96px;
   }
-  .title { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+  .title { font-size: 2.125rem; font-weight: 400; line-height: 1.235; letter-spacing: .00735em; }
   .lead { color: var(--muted); }
+  .pager { padding: 16px; }
