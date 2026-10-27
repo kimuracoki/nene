@@ -1,0 +1,19 @@
+-- アプリ全体の状態とメッセージ。ページのファイルからも import して使う
+module Model (Model, Msg(..), Page(..), init) where
+
+
+type Model = { page :: Page, count :: Int }
+
+-- ページを足すときは、ここに 1 つ足して、Main.nn の route と content に 1 行ずつ足す
+data Page = Home | Guide | NotFound
+
+data Msg
+  = UrlChanged Url
+  | Navigate String
+  | Increment
+  | Decrement
+  | Reset
+
+
+init :: Model
+init = { page = Home, count = 0 }

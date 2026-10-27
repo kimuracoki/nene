@@ -1,0 +1,17 @@
+module Page.NotFound (notFound) where
+
+
+notFound :: {} -> Html msg
+notFound _ =
+  <Column gap={M} align={Center}>
+    <h1 class={css.heading}>ページが見つかりません</h1>
+    <a href="/">ホームへ戻る</a>
+  </Column>
+
+
+style
+  .heading {
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }

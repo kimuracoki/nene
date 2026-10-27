@@ -1,0 +1,65 @@
+module Page.Home (home) where
+
+import Model (Msg(..))
+import Ui.Button (Variant(..))
+import qualified Ui.Icon as Icon
+import Ui.IconButton
+import Ui.Theme (Tone(..))
+
+
+home :: { count :: Int } -> Html Msg
+home props =
+  <Column gap={XL} align={Center}>
+    <Column gap={S} align={Center}>
+      <img class={css.logo} src="/nene.svg" alt="" />
+      <h1 class={css.title}>{{name}}</h1>
+      <p class={css.tagline}>Simple rules. Beautiful structures.</p>
+    </Column>
+
+    <section class={css.counter}>
+      <Row gap={L} align={Center}>
+        <IconButton icon={Icon.remove} label="減らす" variant={Filled} tone={Primary} size={L} onClick={Decrement} />
+        <p class={css.count}>{show props.count}</p>
+        <IconButton icon={Icon.add} label="増やす" variant={Filled} tone={Primary} size={L} onClick={Increment} />
+      </Row>
+      <Button variant={Plain} tone={Neutral} size={S} onClick={Reset}>リセット</Button>
+    </section>
+
+    <Button variant={Outlined} endIcon={Just Icon.arrowRight} onClick={Navigate "/guide"}>使い方を見る</Button>
+  </Column>
+
+
+style
+  .logo {
+    width: 72px;
+    height: 72px;
+    filter: drop-shadow(0 8px 24px color-mix(in srgb, var(--primary) 40%, transparent));
+  }
+  .title {
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(120deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .tagline { color: var(--muted); }
+
+  .counter {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    padding: 28px 40px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface);
+    box-shadow: 0 12px 40px rgb(30 20 80 / .08);
+  }
+  .count {
+    min-width: 3ch;
+    font-size: 3rem;
+    font-weight: 800;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }

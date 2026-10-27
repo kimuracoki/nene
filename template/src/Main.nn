@@ -1,13 +1,12 @@
+-- 入口。アプリの骨組み（ヘッダーとページの切り替え）、URL の振り分け、状態の変え方を書く。
+-- 型は Model.nn、各ページは Page/ の下にある。定義の順番は自由で、全体から細部へ並べている
 module Main (main) where
 
--- 部品は nene-lang-ui（公式の部品集）のもの。一覧は node_modules/nene-lang-ui/README.md
-import Ui.Button (Variant(..))
-import qualified Ui.Icon as Icon
-import Ui.IconButton
-import Ui.Theme (Tone(..))
+import Model (Model, Msg(..), Page(..), init)
+import Page.Guide
+import Page.Home
+import Page.NotFound
 
-
--- 定義の順番は自由。このファイルは全体（main）から細部（型・部品）へ並べている
 
 main :: Program Model Msg
 main = App.app { init, update, view, effect, onUrlChange = UrlChanged }
@@ -32,9 +31,9 @@ view model =
     <main class={css.page}>{content model.page}</main>
   </div>
   where
-    content Home     = homePage model.count
-    content Guide    = guidePage
-    content NotFound = notFoundPage
+    content Home     = <Home count={model.count} />
+    content Guide    = <Guide />
+    content NotFound = <NotFound />
 
     -- いま表示しているページのリンクに印をつける
     navLink props children = <a href={props.href} class={css.navLink} aria-current={current}>{children}</a>
@@ -42,49 +41,6 @@ view model =
         current
           | model.page == props.target = "page"
           | otherwise                  = "false"
-
-
-homePage :: Int -> Html Msg
-homePage n =
-  <Column gap={XL} align={Center}>
-    <Column gap={S} align={Center}>
-      <img class={css.logo} src="/nene.svg" alt="" />
-      <h1 class={css.title}>{{name}}</h1>
-      <p class={css.tagline}>Simple rules. Beautiful structures.</p>
-    </Column>
-
-    <section class={css.counter}>
-      <Row gap={L} align={Center}>
-        <IconButton icon={Icon.remove} label="減らす" variant={Filled} tone={Primary} size={L} onClick={Decrement} />
-        <p class={css.count}>{show n}</p>
-        <IconButton icon={Icon.add} label="増やす" variant={Filled} tone={Primary} size={L} onClick={Increment} />
-      </Row>
-      <Button variant={Plain} tone={Neutral} size={S} onClick={Reset}>リセット</Button>
-    </section>
-
-    <Button variant={Outlined} endIcon={Just Icon.arrowRight} onClick={Navigate "/guide"}>使い方を見る</Button>
-  </Column>
-
-
-guidePage :: Html msg
-guidePage =
-  <Column gap={L}>
-    <h1 class={css.heading}>使い方</h1>
-    <Grid columns={2} gap={M} collapse={M}>
-      <Step title="書く" file="src/Main.nn">保存すると、すぐに画面へ反映されます。</Step>
-      <Step title="ページを足す" file="route">route に URL を 1 行、view の content に画面を 1 行足します。</Step>
-      <Step title="確かめる" file="npm run check">型のエラーを、場所と直し方つきで知らせます。</Step>
-      <Step title="公開する" file="npm run build">リンクをたどったページが HTML になり、dist/ をそのまま置けます。</Step>
-    </Grid>
-  </Column>
-
-
-notFoundPage :: Html msg
-notFoundPage =
-  <Column gap={M} align={Center}>
-    <h1 class={css.heading}>ページが見つかりません</h1>
-    <a href="/">ホームへ戻る</a>
-  </Column>
 
 
 -- URL → ページ
@@ -110,36 +66,7 @@ effect (Navigate path) _ = Nav.pushUrl path
 effect _ _               = Cmd.none
 
 
--- MODEL
-
-type Model = { page :: Page, count :: Int }
-
-data Page = Home | Guide | NotFound
-
-data Msg
-  = UrlChanged Url
-  | Navigate String
-  | Increment
-  | Decrement
-  | Reset
-
-init :: Model
-init = { page = Home, count = 0 }
-
-
--- このファイルの中だけで使う部品
-
-step :: { title :: String, file :: String } -> [Html msg] -> Html msg
-step props children =
-  <article class={css.step}>
-    <Column gap={S}>
-      <h2 class={css.stepTitle}>{props.title}</h2>
-      <code class={css.file}>{props.file}</code>
-      <p class={css.stepBody}>{children}</p>
-    </Column>
-  </article>
-
-
+-- アプリ全体の色やフォントは、入口のこのファイルに書く
 style
   /* 色は nene-lang-ui と同じ変数で決める。--primary を変えると、ボタンなどの色も変わる */
   :root {
@@ -190,68 +117,4 @@ style
     max-width: 960px;
     margin: 0 auto;
     padding: 48px 16px;
-  }
-  .logo {
-    width: 72px;
-    height: 72px;
-    filter: drop-shadow(0 8px 24px color-mix(in srgb, var(--primary) 40%, transparent));
-  }
-  .title {
-    font-size: clamp(2.25rem, 6vw, 3.5rem);
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    background: linear-gradient(120deg, var(--primary), var(--accent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .tagline { color: var(--muted); }
-  .heading {
-    font-size: 1.75rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-  }
-
-  .counter {
-    display: grid;
-    justify-items: center;
-    gap: 12px;
-    padding: 28px 40px;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    background: var(--surface);
-    box-shadow: 0 12px 40px rgb(30 20 80 / .08);
-  }
-  .count {
-    min-width: 3ch;
-    font-size: 3rem;
-    font-weight: 800;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .step {
-    height: 100%;
-    padding: 20px;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    background: var(--surface);
-    transition: border-color .15s, transform .15s;
-  }
-  .step:hover {
-    border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
-    transform: translateY(-2px);
-  }
-  .step-title { font-size: 1rem; }
-  .file {
-    align-self: flex-start;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--primary) 10%, transparent);
-    color: var(--primary);
-    font-size: .8125rem;
-  }
-  .step-body {
-    color: var(--muted);
-    font-size: .875rem;
   }
