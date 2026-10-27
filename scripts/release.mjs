@@ -1,7 +1,8 @@
 // nene-lang・nene-lang-ui・create-nene-lang を、いつも同じ版で出す
 //
-//   npm run bump -- 0.1.4   3 つの版（と、互いを指す依存）を 0.1.4 にする
-//   npm run release         npm にまだない版を、nene-lang → nene-lang-ui → create-nene-lang の順に公開する
+//   npm run release         公開済みの版なら 1 つ上げて（0.1.3 → 0.1.4）コミット・push し、
+//                           nene-lang → nene-lang-ui → create-nene-lang の順に公開する
+//   npm run bump -- 0.2.0   版を指定して上げるときだけ使う
 //
 // create-nene-lang の版が変わらないと、npm create は前にダウンロードしたもの（古いテンプレート）を使い続ける。
 // そのため、テンプレートを変えたときに限らず、毎回 3 つとも出す。
@@ -40,6 +41,15 @@ function published(name, version) {
 function release() {
   const versions = new Set(PACKAGES.map((dir) => read(dir).version));
   if (versions.size !== 1) throw new Error(`版がそろっていません（${[...versions].join("、")}）。npm run bump -- <版> でそろえてください`);
+  // 3 つとも公開済みなら、次の版にしてから出す（途中で失敗したときは、版を変えずに残りを出す）
+  if (PACKAGES.every((dir) => published(read(dir).name, read(dir).version))) {
+    const [major, minor, patch] = [...versions][0].split(".").map(Number);
+    const next = `${major}.${minor}.${patch + 1}`;
+    bump(next);
+    const files = PACKAGES.map((dir) => join(dir, "package.json"));
+    execFileSync("git", ["commit", "-m", next, "--", ...files], { cwd: root, stdio: "inherit" });
+    execFileSync("git", ["push"], { cwd: root, stdio: "inherit" });
+  }
   for (const dir of PACKAGES) {
     const { name, version } = read(dir);
     if (published(name, version)) {
