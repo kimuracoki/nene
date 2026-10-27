@@ -332,6 +332,28 @@ style
   assert.match(card, /\$rt\.h\("h2", \{\}, \["Card の見出し"\], "nene-Card"\)/);
 });
 
+test("@supports や @starting-style の中のセレクタにも、ファイルの印が付く", () => {
+  const result = compile({
+    Main: `module Main (main) where
+
+main :: Program Int Int
+main = App.app { init = 0, update = always identity, view = always (<p>ok</p>) }
+
+
+style
+  @supports (display: grid) {
+    p { display: grid; }
+    @starting-style {
+      p { opacity: 0; }
+    }
+  }
+`,
+  });
+  const main = result.modules.find((m) => m.name === "Main")!.js;
+  assert.match(main, /p\.nene-Main \{ display: grid; \}/);
+  assert.match(main, /@starting-style \{[^}]*p\.nene-Main \{ opacity: 0; \}/);
+});
+
 test("vars でレコードの値を CSS 変数として渡せる。style で使っていない名前はエラー", () => {
   const view = (vars: string) =>
     app(`v :: Int -> Html Msg
