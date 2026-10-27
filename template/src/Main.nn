@@ -7,46 +7,128 @@ import Ui.IconButton
 import Ui.Theme (Tone(..))
 
 
-type Model = Int
+-- 定義の順番は自由。このファイルは全体（main）から細部（型・部品）へ並べている
 
-data Msg = Increment | Decrement | Reset
+main :: Program Model Msg
+main = App.app { init, update, view, effect, onUrlChange = UrlChanged }
 
 
-update :: Msg -> Model -> Model
-update Increment n = n + 1
-update Decrement n = n - 1
-update Reset _     = 0
-
+-- VIEW
 
 view :: Model -> Html Msg
-view n =
-  <main class={css.page}>
-    <Column gap={XL} align={Center}>
-      <Column gap={S} align={Center}>
-        <img class={css.logo} src="/nene.svg" alt="" />
-        <h1 class={css.title}>{{name}}</h1>
-        <p class={css.tagline}>Simple rules. Beautiful structures.</p>
-      </Column>
+view model =
+  <div>
+    <header class={css.header}>
+      <Row gap={S} align={Center}>
+        <a href="/" class={css.brand}>
+          <img class={css.brandLogo} src="/nene.svg" alt="" />
+          {{name}}
+        </a>
+        <Spacer />
+        <NavLink href="/" target={Home}>ホーム</NavLink>
+        <NavLink href="/guide" target={Guide}>使い方</NavLink>
+      </Row>
+    </header>
+    <main class={css.page}>{content model.page}</main>
+  </div>
+  where
+    content Home     = homePage model.count
+    content Guide    = guidePage
+    content NotFound = notFoundPage
 
-      <section class={css.counter}>
-        <Row gap={L} align={Center}>
-          <IconButton icon={Icon.remove} label="減らす" variant={Filled} tone={Primary} size={L} onClick={Decrement} />
-          <p class={css.count}>{show n}</p>
-          <IconButton icon={Icon.add} label="増やす" variant={Filled} tone={Primary} size={L} onClick={Increment} />
-        </Row>
-        <Button variant={Plain} tone={Neutral} size={S} onClick={Reset}>リセット</Button>
-      </section>
+    -- いま表示しているページのリンクに印をつける
+    navLink props children = <a href={props.href} class={css.navLink} aria-current={current}>{children}</a>
+      where
+        current
+          | model.page == props.target = "page"
+          | otherwise                  = "false"
 
-      <Grid columns={3} gap={M} collapse={M} class={css.steps}>
-        <Step title="書く" file="src/Main.nn">保存すると、すぐに画面へ反映されます。</Step>
-        <Step title="確かめる" file="npm run check">型のエラーを、場所と直し方つきで知らせます。</Step>
-        <Step title="公開する" file="npm run build">dist/ をそのまま静的ホスティングに置けます。</Step>
-      </Grid>
+
+homePage :: Int -> Html Msg
+homePage n =
+  <Column gap={XL} align={Center}>
+    <Column gap={S} align={Center}>
+      <img class={css.logo} src="/nene.svg" alt="" />
+      <h1 class={css.title}>{{name}}</h1>
+      <p class={css.tagline}>Simple rules. Beautiful structures.</p>
     </Column>
-  </main>
+
+    <section class={css.counter}>
+      <Row gap={L} align={Center}>
+        <IconButton icon={Icon.remove} label="減らす" variant={Filled} tone={Primary} size={L} onClick={Decrement} />
+        <p class={css.count}>{show n}</p>
+        <IconButton icon={Icon.add} label="増やす" variant={Filled} tone={Primary} size={L} onClick={Increment} />
+      </Row>
+      <Button variant={Plain} tone={Neutral} size={S} onClick={Reset}>リセット</Button>
+    </section>
+
+    <Button variant={Outlined} endIcon={Just Icon.arrowRight} onClick={Navigate "/guide"}>使い方を見る</Button>
+  </Column>
+
+
+guidePage :: Html msg
+guidePage =
+  <Column gap={L}>
+    <h1 class={css.heading}>使い方</h1>
+    <Grid columns={2} gap={M} collapse={M}>
+      <Step title="書く" file="src/Main.nn">保存すると、すぐに画面へ反映されます。</Step>
+      <Step title="ページを足す" file="route">route に URL を 1 行、view の content に画面を 1 行足します。</Step>
+      <Step title="確かめる" file="npm run check">型のエラーを、場所と直し方つきで知らせます。</Step>
+      <Step title="公開する" file="npm run build">リンクをたどったページが HTML になり、dist/ をそのまま置けます。</Step>
+    </Grid>
+  </Column>
+
+
+notFoundPage :: Html msg
+notFoundPage =
+  <Column gap={M} align={Center}>
+    <h1 class={css.heading}>ページが見つかりません</h1>
+    <a href="/">ホームへ戻る</a>
+  </Column>
+
+
+-- URL → ページ
+
+route :: Url -> Page
+route { path = [] }        = Home
+route { path = ["guide"] } = Guide
+route _                    = NotFound
+
+
+-- UPDATE
+
+update :: Msg -> Model -> Model
+update (UrlChanged url) model = { model | page = route url }
+update Increment model        = { model | count = model.count + 1 }
+update Decrement model        = { model | count = model.count - 1 }
+update Reset model            = { model | count = 0 }
+update (Navigate _) model     = model
+
+-- URL を変えるような外への働きかけは effect に書く（update は状態を変えるだけ）
+effect :: Msg -> Model -> Cmd Msg
+effect (Navigate path) _ = Nav.pushUrl path
+effect _ _               = Cmd.none
+
+
+-- MODEL
+
+type Model = { page :: Page, count :: Int }
+
+data Page = Home | Guide | NotFound
+
+data Msg
+  = UrlChanged Url
+  | Navigate String
+  | Increment
+  | Decrement
+  | Reset
+
+init :: Model
+init = { page = Home, count = 0 }
 
 
 -- このファイルの中だけで使う部品
+
 step :: { title :: String, file :: String } -> [Html msg] -> Html msg
 step props children =
   <article class={css.step}>
@@ -56,10 +138,6 @@ step props children =
       <p class={css.stepBody}>{children}</p>
     </Column>
   </article>
-
-
-main :: Program Model Msg
-main = App.app { init = 0, update, view }
 
 
 style
@@ -78,10 +156,40 @@ style
       var(--background);
   }
 
+  .header {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: inherit;
+    text-decoration: none;
+  }
+  .brand-logo {
+    width: 28px;
+    height: 28px;
+  }
+  .nav-link {
+    padding: 4px 12px;
+    border-radius: 999px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: background-color .15s, color .15s;
+  }
+  .nav-link:hover { color: var(--text); }
+  .nav-link[aria-current="page"] {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
+
   .page {
     max-width: 960px;
     margin: 0 auto;
-    padding: 72px 16px 48px;
+    padding: 48px 16px;
   }
   .logo {
     width: 72px;
@@ -98,6 +206,11 @@ style
     color: transparent;
   }
   .tagline { color: var(--muted); }
+  .heading {
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
 
   .counter {
     display: grid;
@@ -117,7 +230,6 @@ style
     font-variant-numeric: tabular-nums;
   }
 
-  .steps { width: 100%; }
   .step {
     height: 100%;
     padding: 20px;

@@ -29,6 +29,7 @@
 - model の値を CSS に渡すときは `vars={barVars}`、`where barVars = { barWidth = show p ++ "%" }`、CSS では `var(--bar-width)`。
 - **部品は「第 1 引数がレコードで `Html msg` を返す関数」。** `<Card title="…">` で呼べる。外のファイルからタグで呼べるのは、ファイル名と同じ名前の関数だけ（`Ui/Card.nn` の `card`）。省略できる属性は型にデフォルト値を書く: `{ onClick :: msg, disabled :: Bool = False }`。
 - 標準モジュール（`List` `Maybe` `Result` `String` `Dict` `Json` `Http` `Storage` `Time` `Random` `Nav` `Dom` `Env` `Cmd` `Sub` `App` など）は import せず `List.head` のように修飾して使う。
+- 定義の順番は自由（上から実行されるわけではない）。ファイルは全体から細部へ、`main` → `view` → ページ → `route` → `update` / `effect` → 型 → 部品の順に並べる。`import` は先頭、`style` は末尾、同じ関数の等式は続けて書く。
 - 型クラスと演算子は自分で定義できない。`null` は無く `Maybe` を使う。パターンの漏れはエラー。
 
 ## 部品（nene-lang-ui）
