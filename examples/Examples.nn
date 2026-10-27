@@ -1,0 +1,65 @@
+-- 見本の入口（https://kimuracoki.github.io/nene/）。サンプルと部品の見本へのリンクを並べる
+module Examples (main) where
+
+import Ui.Card
+
+
+type Sample =
+  { title       :: String
+  , page        :: String
+  , file        :: String
+  , description :: String
+  }
+
+samples :: [Sample]
+samples =
+  [ { title = "部品の見本", page = "/showcase.html", file = "Showcase.nn", description = "nene-lang-ui の部品を一通り並べたもの。見た目と動きを確かめられる" }
+  , { title = "タスク管理", page = "/todo.html", file = "Todo.nn", description = "入力欄・絞り込み・ブラウザへの保存。elm-sample のタスク管理画面に相当する" }
+  , { title = "ギャラリー", page = "/gallery.html", file = "Gallery.nn", description = "アルバムごとに写真が横に続く。開いた写真は URL に入り、戻るボタンや Esc で閉じる" }
+  , { title = "ストップウォッチ", page = "/stopwatch.html", file = "Stopwatch.nn", description = "タイマー・キーボード・ブラウザへの保存・ダークテーマ" }
+  , { title = "カウンター", page = "/counter.html", file = "Counter.nn", description = "いちばん小さいアプリ" }
+  ]
+
+
+main :: Program () ()
+main = App.app { init = (), update = always identity, view = always view }
+
+
+view :: Html ()
+view =
+  <Column gap={L} class={css.page}>
+    <Column gap={XS}>
+      <h1>Nene の見本</h1>
+      <p class={css.lead}>どれも Nene で書いてある。ソースは GitHub の examples/ にある。</p>
+    </Column>
+    <Grid columns={2} gap={M} collapse={M}>{map sampleCard samples}</Grid>
+    <a href="https://github.com/kimuracoki/nene">GitHub のリポジトリ</a>
+  </Column>
+
+
+sampleCard :: Sample -> Html ()
+sampleCard sample =
+  <Card title={sample.title}>
+    <Column gap={S}>
+      <p class={css.description}>{sample.description}</p>
+      <Row gap={M}>
+        <a href={sample.page}>開く</a>
+        <a href={source}>ソース</a>
+      </Row>
+    </Column>
+  </Card>
+  where
+    source = "https://github.com/kimuracoki/nene/blob/main/examples/" ++ sample.file
+
+
+style
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: var(--space-xl) var(--space-m);
+  }
+  .lead { color: var(--muted); }
+  .description {
+    min-height: 3em;
+    color: var(--muted);
+  }
