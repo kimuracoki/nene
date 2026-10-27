@@ -44,20 +44,45 @@ sizeClass _  = css.medium
 
 style
   .icon-button {
+    position: relative;
     display: inline-grid;
+    flex: none;
     place-items: center;
+    overflow: hidden;
     border: 1px solid transparent;
-    border-radius: 999px;
-    transition: background-color .15s, color .15s;
+    border-radius: 50%;
+    color: var(--tone);
+    transition: background-color .15s var(--ease), box-shadow .25s var(--ease);
   }
-  .icon-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--tone) 35%, transparent); }
-  .icon-button:disabled { opacity: .45; cursor: not-allowed; }
-  .small  { width: 30px; height: 30px; font-size: .8125rem; }
-  .medium { width: 38px; height: 38px; font-size: .9375rem; }
-  .large  { width: 48px; height: 48px; font-size: 1.125rem; }
-  .filled { background: var(--tone); color: var(--on-tone); }
-  .filled:hover:not(:disabled) { background: color-mix(in srgb, var(--tone) 88%, var(--text)); }
-  .outlined { border-color: var(--border); background: none; color: var(--tone); }
-  .plain { background: none; color: var(--tone); }
-  .outlined:hover:not(:disabled),
-  .plain:hover:not(:disabled) { background: color-mix(in srgb, var(--tone) 12%, transparent); }
+  .icon-button:focus-visible { outline: none; background: color-mix(in srgb, var(--tone) 12%, transparent); }
+  .icon-button:disabled { color: var(--disabled); cursor: default; pointer-events: none; }
+
+  /* 押したときの波紋。丸いボタンなので、押した所ではなく中心から広がる（Material Design と同じ） */
+  .icon-button::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100%;
+    height: 100%;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  .icon-button[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  .icon-button[data-pressed=down]::after { opacity: .3; }
+  .icon-button[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+
+  .small  { width: 34px; height: 34px; font-size: 1rem; }
+  .medium { width: 40px; height: 40px; font-size: 1.1875rem; }
+  .large  { width: 48px; height: 48px; font-size: 1.375rem; }
+  .plain { background: none; }
+  .plain:hover { background: color-mix(in srgb, var(--tone) 4%, transparent); }
+  .outlined { border-color: var(--border); background: none; }
+  .outlined:hover { background: color-mix(in srgb, var(--tone) 4%, transparent); }
+  .filled { background: var(--tone); color: var(--on-tone); box-shadow: var(--shadow-2); }
+  .filled:hover { background: color-mix(in srgb, var(--tone) 80%, black); box-shadow: var(--shadow-4); }
+  .filled:disabled { background: var(--selected); box-shadow: none; }

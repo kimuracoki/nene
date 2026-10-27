@@ -1,145 +1,118 @@
-module Main (main) where
+-- 入口。アプリの骨組み（ヘッダーとページの切り替え）、URL の振り分け、状態の変え方を書く。
+-- 型は Model.nn、各ページは Page/ の下にある。定義の順番は自由で、全体から細部へ並べている
+module Main (main, route, update) where
 
--- 部品は nene-lang-ui（公式の部品集）のもの。一覧は node_modules/nene-lang-ui/README.md
-import Ui.Button (Variant(..))
-import qualified Ui.Icon as Icon
-import Ui.IconButton
-import Ui.Theme (Tone(..))
-
-
-type Model = Int
-
-data Msg = Increment | Decrement | Reset
-
-
-update :: Msg -> Model -> Model
-update Increment n = n + 1
-update Decrement n = n - 1
-update Reset _     = 0
-
-
-view :: Model -> Html Msg
-view n =
-  <main class={css.page}>
-    <Column gap={XL} align={Center}>
-      <Column gap={S} align={Center}>
-        <img class={css.logo} src="/nene.svg" alt="" />
-        <h1 class={css.title}>{{name}}</h1>
-        <p class={css.tagline}>Simple rules. Beautiful structures.</p>
-      </Column>
-
-      <section class={css.counter}>
-        <Row gap={L} align={Center}>
-          <IconButton icon={Icon.remove} label="減らす" variant={Filled} tone={Primary} size={L} onClick={Decrement} />
-          <p class={css.count}>{show n}</p>
-          <IconButton icon={Icon.add} label="増やす" variant={Filled} tone={Primary} size={L} onClick={Increment} />
-        </Row>
-        <Button variant={Plain} tone={Neutral} size={S} onClick={Reset}>リセット</Button>
-      </section>
-
-      <Grid columns={3} gap={M} collapse={M} class={css.steps}>
-        <Step title="書く" file="src/Main.nn">保存すると、すぐに画面へ反映されます。</Step>
-        <Step title="確かめる" file="npm run check">型のエラーを、場所と直し方つきで知らせます。</Step>
-        <Step title="公開する" file="npm run build">dist/ をそのまま静的ホスティングに置けます。</Step>
-      </Grid>
-    </Column>
-  </main>
-
-
--- このファイルの中だけで使う部品
-step :: { title :: String, file :: String } -> [Html msg] -> Html msg
-step props children =
-  <article class={css.step}>
-    <Column gap={S}>
-      <h2 class={css.stepTitle}>{props.title}</h2>
-      <code class={css.file}>{props.file}</code>
-      <p class={css.stepBody}>{children}</p>
-    </Column>
-  </article>
+import Model (Model, Msg(..), Page(..), init)
+import Page.Guide
+import Page.Home
+import Page.NotFound
 
 
 main :: Program Model Msg
-main = App.app { init = 0, update, view }
+main = App.app { init, update, view, effect, onUrlChange = UrlChanged }
 
 
+-- VIEW
+
+view :: Model -> Html Msg
+view model =
+  <div>
+    <header class={css.header}>
+      <Row gap={S} align={Center}>
+        <a href="/" class={css.brand}>
+          <img class={css.brandLogo} src="/nene.svg" alt="" />
+          {{name}}
+        </a>
+        <Spacer />
+        <NavLink href="/" target={Home}>ホーム</NavLink>
+        <NavLink href="/guide" target={Guide}>使い方</NavLink>
+      </Row>
+    </header>
+    <main class={css.page}>{content model.page}</main>
+  </div>
+  where
+    content Home     = <Home count={model.count} />
+    content Guide    = <Guide />
+    content NotFound = <NotFound />
+
+    -- いま表示しているページのリンクに印をつける
+    navLink props children = <a href={props.href} class={css.navLink} aria-current={current}>{children}</a>
+      where
+        current
+          | model.page == props.target = "page"
+          | otherwise                  = "false"
+
+
+-- URL → ページ
+
+route :: Url -> Page
+route { path = [] }        = Home
+route { path = ["guide"] } = Guide
+route _                    = NotFound
+
+
+-- UPDATE
+
+update :: Msg -> Model -> Model
+update (UrlChanged url) model = { model | page = route url }
+update Increment model        = { model | count = model.count + 1 }
+update Decrement model        = { model | count = model.count - 1 }
+update Reset model            = { model | count = 0 }
+update (Navigate _) model     = model
+
+-- URL を変えるような外への働きかけは effect に書く（update は状態を変えるだけ）
+effect :: Msg -> Model -> Cmd Msg
+effect (Navigate path) _ = Nav.pushUrl path
+effect _ _               = Cmd.none
+
+
+-- アプリ全体の色やフォントは、入口のこのファイルに書く
 style
   /* 色は nene-lang-ui と同じ変数で決める。--primary を変えると、ボタンなどの色も変わる */
   :root {
     --primary: light-dark(#7c5cff, #9d85ff);
     --accent: #ff6fa8;
   }
+  /* 文字と色は nene-lang-ui が整える。ここでは背景だけを変えている */
   body {
     min-height: 100vh;
-    font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif;
-    line-height: 1.6;
-    color: var(--text);
     background:
       radial-gradient(60rem 30rem at 50% -10rem, color-mix(in srgb, var(--primary) 18%, transparent), transparent),
       var(--background);
   }
 
+  .header {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: inherit;
+    text-decoration: none;
+  }
+  .brand-logo {
+    width: 28px;
+    height: 28px;
+  }
+  .nav-link {
+    padding: 4px 12px;
+    border-radius: 999px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: background-color .15s, color .15s;
+  }
+  .nav-link:hover { color: var(--text); }
+  .nav-link[aria-current="page"] {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
+
   .page {
     max-width: 960px;
     margin: 0 auto;
-    padding: 72px 16px 48px;
-  }
-  .logo {
-    width: 72px;
-    height: 72px;
-    filter: drop-shadow(0 8px 24px color-mix(in srgb, var(--primary) 40%, transparent));
-  }
-  .title {
-    font-size: clamp(2.25rem, 6vw, 3.5rem);
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    background: linear-gradient(120deg, var(--primary), var(--accent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .tagline { color: var(--muted); }
-
-  .counter {
-    display: grid;
-    justify-items: center;
-    gap: 12px;
-    padding: 28px 40px;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    background: var(--surface);
-    box-shadow: 0 12px 40px rgb(30 20 80 / .08);
-  }
-  .count {
-    min-width: 3ch;
-    font-size: 3rem;
-    font-weight: 800;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .steps { width: 100%; }
-  .step {
-    height: 100%;
-    padding: 20px;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    background: var(--surface);
-    transition: border-color .15s, transform .15s;
-  }
-  .step:hover {
-    border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
-    transform: translateY(-2px);
-  }
-  .step-title { font-size: 1rem; }
-  .file {
-    align-self: flex-start;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--primary) 10%, transparent);
-    color: var(--primary);
-    font-size: .8125rem;
-  }
-  .step-body {
-    color: var(--muted);
-    font-size: .875rem;
+    padding: 48px 16px;
   }

@@ -1,0 +1,78 @@
+{
+  "name": "nene-vscode",
+  "displayName": "Nene",
+  "description": "Nene（UI のための関数型言語）のハイライト・型エラー・補完・定義へ移動・名前の変更・整形",
+  "version": "0.1.0",
+  "publisher": "kimuracoki",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kimuracoki/nene",
+    "directory": "editors/vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters"
+  ],
+  "keywords": [
+    "nene",
+    "haskell",
+    "jsx",
+    "functional"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "languages": [
+      {
+        "id": "nene",
+        "aliases": [
+          "Nene"
+        ],
+        "extensions": [
+          ".nn"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "nene",
+        "scopeName": "source.nene",
+        "path": "./syntaxes/nene.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.css": "css"
+        }
+      }
+    ],
+    "configurationDefaults": {
+      "[nene]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.defaultFormatter": "kimuracoki.nene-vscode"
+      }
+    },
+    "configuration": {
+      "title": "Nene",
+      "properties": {
+        "nene.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "nene コマンドの場所。空なら、プロジェクトの node_modules/.bin/nene を使う"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "nene.restartServer",
+        "title": "Nene: 言語サーバーを再起動する"
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}

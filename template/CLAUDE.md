@@ -4,6 +4,7 @@
 
 ## コマンド
 
+- `npm test` … `test/` の下のテストを実行する。`update` や `route` を変えたら、テストを足して実行する
 - `npm run check` … 型検査。`.nn` を編集すると自動で実行され、エラーがあれば伝えられる（`.claude/hooks/check.mjs`）
 - `npm run fmt` … 整形（`=` の位置などをそろえる）。書き終えたらかける
 - `npm run dev` … 開発サーバー
@@ -29,7 +30,9 @@
 - model の値を CSS に渡すときは `vars={barVars}`、`where barVars = { barWidth = show p ++ "%" }`、CSS では `var(--bar-width)`。
 - **部品は「第 1 引数がレコードで `Html msg` を返す関数」。** `<Card title="…">` で呼べる。外のファイルからタグで呼べるのは、ファイル名と同じ名前の関数だけ（`Ui/Card.nn` の `card`）。省略できる属性は型にデフォルト値を書く: `{ onClick :: msg, disabled :: Bool = False }`。
 - 標準モジュール（`List` `Maybe` `Result` `String` `Dict` `Json` `Http` `Storage` `Time` `Random` `Nav` `Dom` `Env` `Cmd` `Sub` `App` など）は import せず `List.head` のように修飾して使う。
+- 定義の順番は自由（上から実行されるわけではない）。ファイルの中は全体から細部へ（`main` → `view` → `route` → `update` / `effect` → 型 → ファイル内の部品）並べる。`import` は先頭、`style` は末尾、同じ関数の等式は続けて書く。
 - 型クラスと演算子は自分で定義できない。`null` は無く `Maybe` を使う。パターンの漏れはエラー。
+- 式の代わりに `_` と書くと「まだ書いていない所」になり、入る型が警告で分かる（`onInput={_}`）。動くのは `npm run dev` だけで、`check`・`test`・`build` ではエラーになる。作業を終えるときは残さない。
 
 ## 部品（nene-lang-ui）
 
@@ -44,9 +47,24 @@ import Ui.Theme (Tone(..))
 ```
 
 - 色の種類 `tone` はどの部品も `Primary` `Neutral` `Success` `Warning` `Danger`、大きさ `size` は `S` `M` `L`。
-- 部品の見た目は外から `class` で変えられない。色は入口の `style` ブロックで `:root { --primary: …; }` のように CSS 変数を変える。
-- 状態の置き場所: アプリが知る必要のある状態は Model。メニュー・吹き出し・アコーディオンの開け閉めのような見た目だけの状態は Model に入れず、`Menu` `Popover` `Accordion` `Tooltip`（ブラウザが開け閉めを持つ）を使う。部品ごとの状態（useState）は Nene にはない。
+- 部品の見た目は外から `class` で変えられない。色・角の丸み・文字は入口の `style` ブロックで `:root { --primary: …; --radius: …; --font: …; }` のように CSS 変数を変える（一覧は nene-lang-ui の README の「テーマ」）。body の文字・色・背景は nene-lang-ui が整えるので、書かなくてよい。
+- 状態の置き場所: アプリが知る必要のある状態は Model。メニュー・吹き出し・アコーディオンの開け閉めのような見た目だけの状態は Model に入れず、`Menu` `Popover` `Accordion` `Tooltip`（ブラウザが開け閉めを持つ）を使う。候補を出す入力欄は `Autocomplete` で、model には打った文字だけを持つ。部品ごとの状態（useState）は Nene にはない。
 - where の名前がタグとぶつかると、その名前が部品として使われる（`select = …` と書くと `<Select>` が使えない）。
+
+## ファイルの分け方
+
+```
+src/
+  Main.nn        入口。main・骨組みの view・route・update・effect と、アプリ全体の style（:root・body）
+  Model.nn       Model・Msg・Page と init（型だけ。ページから import する）
+  Page/Home.nn   ページ 1 つにファイル 1 つ。`home :: { … } -> Html Msg` の部品で、そのページの style を持つ
+  Ui/…           自分で作る、複数のページで使う部品
+```
+
+- ページを足すときは `src/Page/Xxx.nn` を作り、`Model.nn` の `Page` と、`Main.nn` の `route` と `content` に 1 行ずつ足す。
+- 状態とメッセージはアプリ全体で 1 つ（`Model.nn`）。ページごとの Model・Msg は作らない。ページは model から必要な値を props で受け取り、`Msg` のコンストラクタを直接使う。
+- 型を Main.nn に置かないのは、ページが Main を import すると循環になるため。
+- Msg が増えてきたら、ページごとにまとめて `data Msg = HomeMsg HomeMsg | …` とせず、そのまま並べる。`update` の等式をページごとに区切りのコメントでまとめる。
 
 ## アプリの形
 

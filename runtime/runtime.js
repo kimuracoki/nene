@@ -34,6 +34,13 @@ const $rt = (() => {
   const idiv = (a, b) => (b === 0 ? 0 : Math.trunc(a / b));
   const show = (x) => (typeof x === "boolean" ? (x ? "True" : "False") : String(x));
   const fail = (name) => new Error(`nene: ${name} のどのパターンにも合いませんでした`);
+  // まだ書いていない所（_）。nene dev でだけ通る。関数なら、呼ばれたときに止まる
+  const hole = (where, type, fn) => {
+    const stop = () => {
+      throw new Error(`nene: ${where} の _ はまだ書かれていません（ここには ${type} 型の値が入ります）`);
+    };
+    return fn ? stop : stop();
+  };
   const Just = (x) => ({ $: "Just", a: [x] });
   const Nothing = { $: "Nothing" };
   const defaults = {};
@@ -416,11 +423,142 @@ button { cursor: pointer; }
     return `${open}${v.children.map(toHtml).join("")}</${v.tag}>`;
   };
 
+  // ---- HTML だけでは足りない、部品の動き ----
+  // ページ全体で 1 度だけ登録し、要素の role と aria-* を見て動く。model には触らない（見た目だけの状態）
+
+  let behaviorsInstalled = false;
+  const installBehaviors = () => {
+    if (behaviorsInstalled) return;
+    behaviorsInstalled = true;
+
+    // 押した要素に、押した位置（--press-x・--press-y）と波紋の大きさ（--press-size）を入れ、
+    // data-pressed を down（押している）→ up（離した）と変える。CSS はこれを見て波紋を描く
+    let pressed = null;
+    document.addEventListener("pointerdown", (ev) => {
+      const el = ev.target instanceof Element ? ev.target.closest("button, a[href], summary, option") : null;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = ev.clientX - r.left;
+      const y = ev.clientY - r.top;
+      el.style.setProperty("--press-x", `${x}px`);
+      el.style.setProperty("--press-y", `${y}px`);
+      el.style.setProperty("--press-size", `${2 * Math.hypot(Math.max(x, r.width - x), Math.max(y, r.height - y))}px`);
+      // 前の波紋を消してから、もう一度広げる
+      el.removeAttribute("data-pressed");
+      void el.offsetWidth;
+      el.setAttribute("data-pressed", "down");
+      pressed = el;
+    });
+    const release = () => {
+      pressed?.setAttribute("data-pressed", "up");
+      pressed = null;
+    };
+    document.addEventListener("pointerup", release);
+    document.addEventListener("pointercancel", release);
+
+    // 候補を出す入力欄（role="combobox"）。aria-controls が指す role="listbox" の候補を、
+    // 矢印キーで選び（aria-activedescendant と data-active）、Enter で押し、Esc で閉じる。
+    // 開いているかは aria-expanded に書く。フォーカスはいつも入力欄に残す
+    // 候補か欄の横のボタンなら、その入力欄を返す（入力欄そのものは含めない）
+    const comboboxFor = (el) => {
+      if (isCombobox(el)) return null;
+      const id = el.closest('[role="listbox"]')?.id || el.closest("[aria-controls]")?.getAttribute("aria-controls");
+      return id ? document.querySelector(`[role="combobox"][aria-controls="${id.replace(/["\\]/g, "\\$&")}"]`) : null;
+    };
+    const optionsOf = (input) => [...(document.getElementById(input.getAttribute("aria-controls"))?.querySelectorAll('[role="option"]') ?? [])];
+    const activate = (input, option) => {
+      for (const o of optionsOf(input)) o.toggleAttribute("data-active", o === option);
+      if (option) {
+        input.setAttribute("aria-activedescendant", option.id);
+        option.scrollIntoView?.({ block: "nearest" });
+      } else {
+        input.removeAttribute("aria-activedescendant");
+      }
+    };
+    const expand = (input, open) => {
+      input.setAttribute("aria-expanded", String(open));
+      activate(input, null);
+    };
+    const isCombobox = (el) => el instanceof Element && el.getAttribute("role") === "combobox";
+
+    document.addEventListener("input", (ev) => {
+      if (isCombobox(ev.target)) expand(ev.target, true);
+    });
+    document.addEventListener("focusout", (ev) => {
+      if (isCombobox(ev.target)) expand(ev.target, false);
+    });
+    document.addEventListener("pointerdown", (ev) => {
+      if (isCombobox(ev.target)) expand(ev.target, true);
+    });
+    // 候補や欄の横のボタンを押しても、入力欄からフォーカスを外さない
+    document.addEventListener("mousedown", (ev) => {
+      if (ev.target instanceof Element && comboboxFor(ev.target)) ev.preventDefault();
+    });
+    // 候補を選んだら閉じる。欄の横のボタンは、aria-haspopup があれば開け閉めし、なければ開く
+    document.addEventListener(
+      "click",
+      (ev) => {
+        if (!(ev.target instanceof Element)) return;
+        const input = comboboxFor(ev.target);
+        if (!input) return;
+        input.focus();
+        if (ev.target.closest('[role="option"]')) expand(input, false);
+        else if (ev.target.closest("[aria-haspopup]")) expand(input, input.getAttribute("aria-expanded") !== "true");
+        else expand(input, true);
+      },
+      true,
+    );
+
+    // メニュー（role="menu"）は、開いたら最初の項目にフォーカスし、矢印キーで項目を移る
+    const itemsOf = (menu) => [...menu.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+    document.addEventListener(
+      "toggle",
+      (ev) => {
+        if (ev.newState === "open" && ev.target instanceof Element && ev.target.getAttribute("role") === "menu") itemsOf(ev.target)[0]?.focus();
+      },
+      true,
+    );
+
+    document.addEventListener("keydown", (ev) => {
+      const move = { ArrowDown: 1, ArrowUp: -1 }[ev.key];
+      const target = ev.target;
+      if (!(target instanceof Element)) return;
+      if (isCombobox(target)) {
+        const options = optionsOf(target);
+        const now = options.findIndex((o) => o.hasAttribute("data-active"));
+        const open = target.getAttribute("aria-expanded") === "true";
+        if (move) {
+          ev.preventDefault();
+          if (!open) expand(target, true);
+          if (options.length === 0) return;
+          const next = now < 0 ? (move > 0 ? 0 : options.length - 1) : (now + move + options.length) % options.length;
+          activate(target, options[next]);
+        } else if (ev.key === "Enter" && open && now >= 0) {
+          ev.preventDefault();
+          options[now].click();
+        } else if (ev.key === "Escape" && open) {
+          ev.preventDefault();
+          expand(target, false);
+        }
+        return;
+      }
+      const menu = target.closest('[role="menu"]');
+      if (menu && (move || ev.key === "Home" || ev.key === "End")) {
+        ev.preventDefault();
+        const items = itemsOf(menu);
+        const now = items.indexOf(target.closest('[role="menuitem"]'));
+        const next = ev.key === "Home" ? 0 : ev.key === "End" ? items.length - 1 : (now + move + items.length) % items.length;
+        items[next]?.focus();
+      }
+    });
+  };
+
   // ---- アプリの実行 ----
 
   const run = (config, root) => {
     // 静的生成で埋め込んだ CSS は、ランタイムが同じものを入れたので外す（描き直すのと同じ流れで、見た目は変わらない）
     for (const el of document.querySelectorAll("style[data-nene-prerender]")) el.remove();
+    installBehaviors();
 
     let model = config.init;
     let pending = false;
@@ -500,7 +638,7 @@ button { cursor: pointer; }
   };
 
   return {
-    lazy, eq, append, compose, idiv, show, fail, Just, Nothing, Ok, Err, defaults,
+    lazy, eq, append, compose, idiv, show, fail, hole, Just, Nothing, Ok, Err, defaults,
     h, frag, layout, spacer, run, prerender, sub, navigate, css, scope, configure, envValue,
     // テスト用
     norm,

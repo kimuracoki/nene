@@ -4,7 +4,7 @@
 
 Nene（ネネ）は、Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語。少ない規則で書き、タグを見れば画面の形が分かる。
 
-> **ステータス: v0.1。** 言語仕様、コンパイラ、ランタイム、`nene` コマンド、Vite プラグイン、公式の部品集 [nene-lang-ui](ui/README.md)、nvim 用のハイライトと言語サーバーがある。
+> **ステータス: v0.1。** 言語仕様、コンパイラ、ランタイム、`nene` コマンド、Vite プラグイン、公式の部品集 [nene-lang-ui](ui/README.md)、テストの実行（`nene test`）、VS Code と nvim のための言語サーバーがある。
 
 ```haskell
 view :: Model -> Html Msg
@@ -46,7 +46,7 @@ style
 | 層 | 中身 | パッケージ |
 | --- | --- | --- |
 | 言語 | コンパイラ、ランタイム、`nene` コマンド、標準ライブラリ（ルーティング・HTTP・JSON など） | `nene-lang` |
-| 部品集 | ボタン・入力欄・ダイアログ・メニューなど 20 の部品 | [`nene-lang-ui`](ui/README.md) |
+| 部品集 | Material Design に合わせたボタン・入力欄・表・ダイアログ・メニューなど 36 の部品 | [`nene-lang-ui`](ui/README.md) |
 
 標準ライブラリは差し替えられない（ルーティングも HTTP も一通りだけ）。部品集は別のパッケージで、使わなくてもよい。出力には、アプリが使っている標準モジュールとランタイムの部分だけが入る。
 
@@ -55,8 +55,11 @@ style
 | | 内容 |
 | --- | --- |
 | [docs/guide.md](docs/guide.md) | **入門。** 最初に読むもの。画面を作りながら書き方を一通り見る |
+| [ui/README.md](ui/README.md) | 部品集 nene-lang-ui。全部品の使い方の例と、属性の型と既定値、テーマの変え方 |
 | [docs/spec.md](docs/spec.md) | 言語仕様。すべての規則を正確に書いた参照用 |
 | [docs/design.md](docs/design.md) | 設計の考え方。なぜこういう言語なのか、何を入れなかったのか |
+
+サンプルと部品の見本は、ブラウザでそのまま動かせる（下の「[サンプル](#サンプル)」）。
 
 ## 動機
 
@@ -100,9 +103,10 @@ my-app/
 | `npm run build`（`nene build`） | `dist/` に出力する。そのまま静的ホスティングに置ける。`--base /repo/` でサブディレクトリにも置ける |
 | `npm run preview`（`nene preview`） | `dist/` を手元で動かして確かめる |
 | `npm run check`（`nene check`） | 型検査だけ。エラーは該当する行つきで出る |
+| `npm run test`（`nene test`） | `test/` の下のテストを実行する |
 | `npm run fmt`（`nene fmt`） | 整形する。`--check` は直さずに確かめるだけ（CI 向け） |
 
-`dev`・`build`・`preview` は内部で Vite を使う。複数ページなど特別なことをしたいときだけ、普通の `vite.config.ts` を置けば読み込まれる（例: `examples/vite.config.ts`）。
+`dev`・`build`・`preview` は内部で Vite を使う。開発サーバーはソースマップつきで、ブラウザの開発者ツールでは `.nn` の行が表示され、そこで止められる。複数ページなど特別なことをしたいときだけ、普通の `vite.config.ts` を置けば読み込まれる（例: `examples/vite.config.ts`）。
 
 ### npm に公開する前に、手元で試す
 
@@ -137,6 +141,15 @@ npm run dev
 import nene from "nene-lang/vite";
 
 export default { plugins: [nene()] };
+```
+
+## VS Code
+
+拡張 [Nene](editors/vscode/README.md) を入れる。言語サーバーは、プロジェクトの `node_modules` にある `nene` を自動で使う。ハイライト・型エラー・ホバー・補完・定義へ移動・参照・名前の変更・アウトライン・整形・クイックフィックスが使える。
+
+```sh
+cd editors/vscode && npm install && npx @vscode/vsce package   # nene-vscode.vsix ができる
+code --install-extension nene-vscode.vsix
 ```
 
 ## nvim
@@ -195,13 +208,15 @@ npm pack                  # 配布するパッケージを手元で作る
 
 ## サンプル
 
-| ファイル | 内容 |
-| --- | --- |
-| [examples/Counter.nn](examples/Counter.nn) | 最小のカウンター |
-| [examples/Todo.nn](examples/Todo.nn) | elm-sample のタスク管理画面に相当するもの |
-| [examples/Gallery.nn](examples/Gallery.nn) | アルバムごとに写真が横に続くギャラリー。開いた写真は URL に入り、戻るボタンや Esc で閉じる |
-| [examples/Stopwatch.nn](examples/Stopwatch.nn) | タイマー・キーボード・ブラウザへの保存・ダークテーマを使う例 |
-| [examples/Showcase.nn](examples/Showcase.nn) | nene-lang-ui の部品を一通り並べた見本 |
+| ファイル | 動かす | 内容 |
+| --- | --- | --- |
+| [examples/Counter.nn](examples/Counter.nn) | [開く](https://kimuracoki.github.io/nene/counter.html) | 最小のカウンター |
+| [examples/Todo.nn](examples/Todo.nn) | [開く](https://kimuracoki.github.io/nene/) | elm-sample のタスク管理画面に相当するもの |
+| [examples/Gallery.nn](examples/Gallery.nn) | [開く](https://kimuracoki.github.io/nene/gallery.html) | アルバムごとに写真が横に続くギャラリー。開いた写真は URL に入り、戻るボタンや Esc で閉じる |
+| [examples/Stopwatch.nn](examples/Stopwatch.nn) | [開く](https://kimuracoki.github.io/nene/stopwatch.html) | タイマー・キーボード・ブラウザへの保存・ダークテーマを使う例 |
+| [examples/Showcase.nn](examples/Showcase.nn) | [開く](https://kimuracoki.github.io/nene/showcase.html) | nene-lang-ui の部品を一通り並べた見本 |
+
+`main` に push すると、`.github/workflows/pages.yml` がこれらを GitHub Pages に出す。
 
 ## 構成
 
@@ -227,10 +242,11 @@ npm pack                  # 配布するパッケージを手元で作る
 | `src/report.ts` | コンパイルエラーを、該当する行と印つきで見せる |
 | `template/` | `nene new` で作るプロジェクトのひな形 |
 | `bin/nene.js` | コマンドの入口。手元のリポジトリでは `src/` を、npm から入れたときは `build/` を使う |
+| `src/testing.ts` | `nene test`。テストのファイルを Node の中で動かし、値を比べる |
+| `editors/vscode/` | VS Code の拡張（ハイライトの文法と、言語サーバーにつなぐ部分） |
 | `editors/nvim/` | nvim 用のファイル種別判定・ハイライト・設定 |
 
 ## まだないもの
 
 - リクエストごとにサーバーで描く SSR（ビルド時の静的生成はある）
-- VS Code の拡張
 - Tree-sitter の文法（色分け・折りたたみ・構造に沿った選択は、言語サーバーで代わりにできる）

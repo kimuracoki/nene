@@ -43,9 +43,19 @@ test("言語サーバー: エラーの表示・型のホバー・定義への移
     assert.equal(errors[0].range.start.line, line);
     assert.match(errors[0].message, /String/);
 
+    // まだ書いていない所（_）は、エラーではなく警告で、入る型を知らせる
+    diag = diagnostics();
+    const holed = text.replace("<Button onClick={Increment}>", "<Button onClick={_}>");
+    lsp.send({ method: "textDocument/didChange", params: { textDocument: { uri, version: 3 }, contentChanges: [{ text: holed }] } });
+    const warnings = (await diag).params.diagnostics;
+    assert.equal(warnings.length, 1);
+    assert.equal(warnings[0].severity, 2);
+    assert.deepEqual(warnings[0].range.start, { line: buttonLine, character: lines[buttonLine].indexOf("Increment") });
+    assert.match(warnings[0].message, /ここには Msg 型の値が入ります/);
+
     // 正しい内容に戻して、補完と色分けを確かめる
     diag = diagnostics();
-    lsp.send({ method: "textDocument/didChange", params: { textDocument: { uri, version: 3 }, contentChanges: [{ text }] } });
+    lsp.send({ method: "textDocument/didChange", params: { textDocument: { uri, version: 4 }, contentChanges: [{ text }] } });
     assert.deepEqual((await diag).params.diagnostics, []);
 
     const complete = async (lineText: string, character?: number) => {

@@ -1,44 +1,68 @@
 -- 1 行の入力欄。ラベル・説明・エラーを添えられる
+-- ラベルは欄の中にあり、フォーカスするか値が入ると枠の上に縮んで移る（枠はラベルの所だけ切れる）
 --
 --   <TextField label="メール" kind={Email} value={model.email} onInput={EmailChanged} error={model.emailError} />
+--   <TextField label="本文" rows={4} value={model.body} onInput={BodyChanged} />    -- 複数行
+--   <TextField label="日付" kind={Date} value={model.day} onInput={DayChanged} />    -- 値は "2026-10-28" の形
 module Ui.TextField (TextFieldProps, InputKind(..), textField) where
 
 
-data InputKind = PlainText | Email | Password | Number | Search | Tel
+data InputKind = PlainText | Email | Password | Number | Search | Tel | Date | Time
 
 type TextFieldProps msg =
   { value       :: String
   , onInput     :: String -> msg
   , label       :: String       = ""
-  , placeholder :: String       = ""
+  , placeholder :: String       = ""          -- ラベルがあるときは、フォーカスしている間だけ出る
   , helper      :: String       = ""          -- 欄の下に出す説明
   , error       :: Maybe String = Nothing     -- Just なら赤くして、説明の代わりに出す
   , kind        :: InputKind    = PlainText
   , disabled    :: Bool         = False
+  , rows        :: Int          = 1           -- 2 以上なら、その行数の複数行の入力欄になる
   }
 
 
 textField :: TextFieldProps msg -> Html msg
 textField props =
   <label class={css.field}>
-    <Column gap={XS}>
-      <Caption text={props.label} />
-      <input class={box} type={inputType props.kind} value={props.value} placeholder={props.placeholder} disabled={props.disabled} aria-invalid={invalid} onInput={props.onInput} />
-      <Note helper={props.helper} error={props.error} />
-    </Column>
+    <div class={box}>
+      <Control lines={props.rows} />
+      <Floating text={props.label} />
+      <fieldset class={css.outline} aria-hidden="true">
+        <legend class={css.notch}><Gap text={props.label} /></legend>
+      </fieldset>
+    </div>
+    <Note helper={props.helper} error={props.error} />
   </label>
   where
-    box
-      | props.error /= Nothing = classes [css.box, css.invalid]
-      | otherwise              = css.box
+    control { lines = 1 } = <input class={css.input} type={inputType props.kind} value={props.value} placeholder={hint} disabled={props.disabled} aria-invalid={ariaInvalid} onInput={props.onInput} />
+    control { lines }     = <textarea class={multiline} rows={lines} value={props.value} placeholder={hint} disabled={props.disabled} aria-invalid={ariaInvalid} onInput={props.onInput} />
+    multiline = classes [css.input, css.multiline]
+    box = classes [css.box, invalid, labelled]
     invalid
+      | props.error /= Nothing = css.invalid
+      | otherwise              = classes []
+    labelled
+      | props.label /= "" = css.labelled
+      | otherwise         = classes []
+    ariaInvalid
       | props.error /= Nothing = "true"
       | otherwise              = "false"
+    -- 空でないプレースホルダーがあると、:placeholder-shown で「値が入っているか」を CSS から見分けられる
+    hint
+      | props.placeholder == "" = " "
+      | otherwise               = props.placeholder
 
 
-caption :: { text :: String } -> Html msg
-caption { text = "" } = <></>
-caption { text }      = <span class={css.caption}>{text}</span>
+-- 欄の中のラベル。input のあとに置き、input の状態を CSS の ~ で受け取る
+floating :: { text :: String } -> Html msg
+floating { text = "" } = <></>
+floating { text }      = <span class={css.label}>{text}</span>
+
+-- 枠の切れ目。縮んだラベルと同じ幅になるよう、同じ文字を見えないように置く
+gap :: { text :: String } -> Html msg
+gap { text = "" } = <></>
+gap { text }      = <span>{text}</span>
 
 note :: { helper :: String, error :: Maybe String } -> Html msg
 note { error = Just message } = <span class={css.error}>{message}</span>
@@ -53,28 +77,103 @@ inputType Password  = "password"
 inputType Number    = "number"
 inputType Search    = "search"
 inputType Tel       = "tel"
+inputType Date      = "date"
+inputType Time      = "time"
 
 
 style
-  .field { display: block; flex: 1; }
-  .caption { font-size: .8125rem; font-weight: 600; color: var(--text); }
+  .field { display: block; flex: 1; min-width: 0; }
   .box {
-    width: 100%;
-    padding: 9px 12px;
-    border: 1px solid var(--border);
+    position: relative;
     border-radius: var(--radius);
-    background: var(--surface);
-    transition: border-color .15s, box-shadow .15s;
   }
-  .box:hover:not(:disabled) { border-color: color-mix(in srgb, var(--text) 30%, var(--border)); }
-  .box:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+  .input {
+    display: block;
+    box-sizing: content-box;
+    width: calc(100% - 28px);
+    height: 1.4375em;
+    padding: 16.5px 14px;
+    border: 0;
+    margin: 0;
+    font: inherit;
+    color: var(--text);
+    background: none;
   }
-  .box:disabled { opacity: .55; cursor: not-allowed; }
-  .invalid, .invalid:focus { border-color: var(--danger); }
-  .invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }
-  .helper, .error { font-size: .8125rem; }
+  .multiline { height: auto; padding: 16.5px 14px; line-height: 1.4375em; resize: vertical; }
+  .input:focus { outline: none; }
+  .input::placeholder { color: var(--muted); opacity: 1; transition: opacity .2s; }
+  .labelled .input:not(:focus)::placeholder { opacity: 0; }
+  .input:disabled { color: var(--muted); cursor: not-allowed; }
+  /* 日付と時刻の欄は、いつも書式（年/月/日 など）が出ているので、ラベルははじめから枠の上に縮む */
+  .input::-webkit-calendar-picker-indicator { opacity: .6; cursor: pointer; }
+
+  .label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: calc(100% - 28px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4375em;
+    color: var(--muted);
+    pointer-events: none;
+    transform: translate(14px, 16.5px) scale(1);
+    transform-origin: top left;
+    transition: transform .2s cubic-bezier(0, 0, .2, 1), color .2s, max-width .2s;
+  }
+  .input:focus ~ .label,
+  .input:not(:placeholder-shown) ~ .label {
+    max-width: calc(133% - 32px);
+    transform: translate(14px, -9px) scale(.75);
+  }
+  .input:focus ~ .label { color: var(--primary); }
+
+  .outline {
+    position: absolute;
+    inset: -5px 0 0;
+    min-width: 0;
+    padding: 0 8px;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: inherit;
+    overflow: hidden;
+    text-align: left;
+    pointer-events: none;
+    transition: border-color .15s;
+  }
+  .notch {
+    display: block;
+    width: auto;
+    max-width: .01px;
+    height: 11px;
+    padding: 0;
+    overflow: hidden;
+    font-size: .75em;
+    white-space: nowrap;
+    visibility: hidden;
+    transition: max-width 50ms cubic-bezier(0, 0, .2, 1);
+  }
+  .notch > span { display: inline-block; padding: 0 5px; }
+  .input:focus ~ .outline .notch,
+  .input:not(:placeholder-shown) ~ .outline .notch {
+    max-width: 100%;
+    transition: max-width 100ms cubic-bezier(0, 0, .2, 1) 50ms;
+  }
+  .box:hover .input:not(:disabled) ~ .outline { border-color: var(--text); }
+  .input:focus ~ .outline,
+  .box:hover .input:focus ~ .outline { border: 2px solid var(--primary); padding: 0 7px; }
+  .input:disabled ~ .outline { border-color: color-mix(in srgb, var(--border) 60%, transparent); }
+
+  /* ホバーやフォーカスの色より強くするため、.box.invalid と重ねて書く */
+  .invalid .input ~ .label { color: var(--danger); }
+  .box.invalid .input ~ .outline { border-color: var(--danger); }
+
+  .helper, .error {
+    display: block;
+    margin: 3px 14px 0;
+    font-size: .75rem;
+    line-height: 1.66;
+  }
   .helper { color: var(--muted); }
   .error { color: var(--danger); }

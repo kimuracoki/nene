@@ -1,0 +1,90 @@
+-- 画面に浮かぶ丸いボタン（いちばん大事な操作に 1 つだけ使う）。extended なら label も出す
+--
+--   <Fab icon={Icon.add} label="新しく作る" onClick={Create} />
+--   <Fab icon={Icon.edit} label="書く" extended onClick={Compose} />
+--
+-- 置き場所（右下に固定するなど）は、使う側の style で決める
+module Ui.Fab (FabProps, fab) where
+
+import qualified Ui.Icon as Icon
+import Ui.Theme (Tone(..), toneVars)
+
+
+type FabProps msg =
+  { icon     :: Icon.Icon
+  , label    :: String
+  , onClick  :: msg
+  , extended :: Bool = False
+  , tone     :: Tone = Primary
+  , disabled :: Bool = False
+  }
+
+
+fab :: FabProps msg -> Html msg
+fab props = <Body wide={props.extended} />
+  where
+    colors = toneVars props.tone
+    wideLook = classes [css.fab, css.extended]
+    body { wide = True } =
+      <button class={wideLook} vars={colors} type="button" disabled={props.disabled} onClick={props.onClick}>
+        <Icon name={props.icon} />
+        <span>{props.label}</span>
+      </button>
+    body { wide = False } =
+      <button class={css.fab} vars={colors} type="button" title={props.label} aria-label={props.label} disabled={props.disabled} onClick={props.onClick}>
+        <Icon name={props.icon} />
+      </button>
+
+
+style
+  .fab {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 56px;
+    height: 56px;
+    overflow: hidden;
+    border: none;
+    border-radius: 50%;
+    background: var(--tone);
+    color: var(--on-tone);
+    box-shadow: var(--shadow-6);
+    font-size: 1.375rem;
+    transition: background-color .25s var(--ease), box-shadow .25s var(--ease);
+  }
+  .fab:hover { background: color-mix(in srgb, var(--tone) 80%, black); }
+  .fab:active { box-shadow: var(--shadow-12); }
+  .fab:focus-visible { outline: none; box-shadow: var(--shadow-6), 0 0 0 4px color-mix(in srgb, var(--tone) 30%, transparent); }
+  .fab:disabled { background: var(--selected); color: var(--disabled); box-shadow: none; cursor: default; }
+  /* 押したときの波紋。押した所（ランタイムが --press-x と --press-y に入れる）から広がり、離すと消える */
+  .fab::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  .fab[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  .fab[data-pressed=down]::after { opacity: .3; }
+  .fab[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+  .extended {
+    width: auto;
+    height: 48px;
+    padding: 0 20px 0 16px;
+    border-radius: 24px;
+    font-size: .875rem;
+    font-weight: 500;
+    letter-spacing: .02857em;
+    text-transform: uppercase;
+  }
+  .extended > :first-child { font-size: 1.375rem; }

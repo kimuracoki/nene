@@ -1,0 +1,74 @@
+-- つながったボタンから 1 つを選ぶ（表示の切り替えなど）。options は（値, 表示する文字）の組
+--
+--   <ToggleGroup value={model.view} options={views} onChange={ViewChanged} />
+--     where
+--       views = [("list", "リスト"), ("grid", "グリッド")]
+module Ui.ToggleGroup (ToggleGroupProps, toggleGroup) where
+
+
+type ToggleGroupProps msg =
+  { value    :: String
+  , options  :: [(String, String)]
+  , onChange :: String -> msg
+  , disabled :: Bool = False
+  }
+
+
+toggleGroup :: ToggleGroupProps msg -> Html msg
+toggleGroup props = <div class={css.group} role="group">{map choice props.options}</div>
+  where
+    choice (value, text) = <button class={look} type="button" aria-pressed={pressed} disabled={props.disabled} onClick={choose}>{text}</button>
+      where
+        choose = props.onChange value
+        chosen = value == props.value
+        look
+          | chosen    = classes [css.button, css.selected]
+          | otherwise = css.button
+        pressed
+          | chosen    = "true"
+          | otherwise = "false"
+
+
+style
+  .group { display: inline-flex; border-radius: var(--radius); }
+  .button {
+    position: relative;
+    padding: 11px;
+    overflow: hidden;
+    border: 1px solid var(--divider);
+    border-radius: 0;
+    background: none;
+    color: var(--muted);
+    font-size: .875rem;
+    font-weight: 500;
+    line-height: 1.143;
+    letter-spacing: .02857em;
+    text-transform: uppercase;
+    transition: background-color .15s var(--ease), color .15s var(--ease);
+  }
+  .button + .button { margin-left: -1px; }
+  .button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  .button:hover { background: var(--hover); }
+  .button:focus-visible { outline: none; background: var(--selected); }
+  /* 押したときの波紋。押した所（ランタイムが --press-x と --press-y に入れる）から広がり、離すと消える */
+  .button::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  .button[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  .button[data-pressed=down]::after { opacity: .3; }
+  .button[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+  .selected { background: color-mix(in srgb, var(--primary) 8%, transparent); color: var(--primary); }
+  .selected:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+  .button:disabled { color: var(--disabled); cursor: default; pointer-events: none; }

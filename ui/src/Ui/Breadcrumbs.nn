@@ -1,0 +1,30 @@
+-- いまのページまでの道すじ。links は（行き先, 表示する文字）の組で、最後に current を出す
+--
+--   <Breadcrumbs links={[("/", "ホーム"), ("/settings", "設定")]} current="プロフィール" />
+module Ui.Breadcrumbs (BreadcrumbsProps, breadcrumbs) where
+
+
+type BreadcrumbsProps =
+  { links   :: [(String, String)]
+  , current :: String
+  }
+
+
+breadcrumbs :: BreadcrumbsProps -> Html msg
+breadcrumbs props =
+  <nav aria-label="現在地">
+    <ol class={css.list}>
+      {map crumb props.links}
+      <li class={css.current} aria-current="page">{props.current}</li>
+    </ol>
+  </nav>
+  where
+    crumb (href, text) = <li class={css.crumb}><a class={css.link} href={href}>{text}</a></li>
+
+
+style
+  .list { display: flex; flex-wrap: wrap; align-items: center; padding: 0; list-style: none; color: var(--muted); }
+  .crumb::after { content: "/"; margin: 0 8px; }
+  .link { color: inherit; text-decoration: none; }
+  .link:hover, .link:focus-visible { text-decoration: underline; outline: none; }
+  .current { color: var(--text); }

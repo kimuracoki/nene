@@ -39,7 +39,8 @@ import qualified Ui.Dialog as Modal
 - `import M` は M が export したものをすべて取り込む。`import M (a, B(..))` は指定したものだけを取り込む。
 - `import qualified M as N` は `N.x` の形でだけ使えるようにする。
 - `import` したモジュールは、プロジェクトのフォルダと、Nene のパッケージから探す。Nene のパッケージは、`package.json` に `"nene": { "source": "src" }` と書いた npm パッケージで、`source` のフォルダにモジュールを置く（`nene-lang-ui` の `src/Ui/Button.nn` は `Ui.Button`）。プロジェクトの `dependencies` と `devDependencies`、そこからたどれるパッケージが対象。同じ名前のモジュールが 2 か所にあればコンパイルエラー。
-- 標準モジュール（14 章）のうち `Prelude` はつねに取り込まれている。`App` `Cmd` `Sub` `List` `Maybe` `String` `Time` `Window` `Keyboard` `Nav` `Storage` は import なしで `App.app` のように修飾名で使う。
+- プロジェクトの `test/` の下のファイルは、`src/` のモジュールも import できる（15 章）。
+- 標準モジュール（14 章）のうち `Prelude` はつねに取り込まれている。ほかの標準モジュール（`App` `List` `Maybe` `String` `Http` など）は import なしで `App.app` のように修飾名で使う。
 
 ## 2. 字句
 
@@ -140,7 +141,7 @@ update :: Msg -> Model -> Model
 
 ### 3.6 組み込みの型クラス
 
-ユーザーは型クラスを定義できない。次の 5 つだけがあり、型注釈では Haskell と同じく `Num a =>` と書く。
+ユーザーは型クラスを定義できない。次の 6 つだけがあり、型注釈では Haskell と同じく `Num a =>` と書く。
 
 | クラス | インスタンス | 使うところ |
 | --- | --- | --- |
@@ -212,8 +213,21 @@ summary todos = show doneCount ++ " / " ++ show total
 | リスト・タプル | `[1, 2, 3]` `(a, b)` |
 | レコード | 3.3 |
 | JSX | 5 章 |
+| まだ書いていない所 | `_`（4.6） |
 
 `(- 1)` は負の数 `-1`。1 を引く関数は `(subtract 1)` と書く。
+
+### 4.6 まだ書いていない所（`_`）
+
+式の代わりに `_` を書くと、「まだ書いていない所」になる。どんな型の値の代わりにもなり、そこに入る型が知らされる。入力欄を見た目だけ先に置くときなどに使う。
+
+```haskell
+<TextField label="メール" value="" onInput={_} />   -- ここには String -> Msg 型の値が入ります
+```
+
+- `_` を残したまま動かせるのは、開発サーバー（`nene dev`）だけ。エディタと開発サーバーでは警告になり、ブラウザのコンソールにも一覧が出る。
+- `nene build`・`nene check`・`nene test` ではコンパイルエラーになる。そのため、公開するアプリには残らない（原則 4 はそのまま成り立つ）。
+- 開発サーバーで `_` を通ると、場所と型を添えて止まる。関数の型の `_` は、呼ばれたときに止まる（`onInput={_}` は、打つまでは画面を壊さない）。
 
 ## 5. JSX
 
@@ -307,6 +321,7 @@ view model =
 | リテラル | `{3}` `{"削除"}` |
 | フィールドの取り出し | `{todo.title}` `{model.form.email}` |
 | 1 段の関数適用（引数は上の 3 つ） | `{ToggleTodo todo.id}` `{map todoItem todos}` `{show n}` |
+| まだ書いていない所（4.6） | `{_}` `{ToggleTodo _}` |
 
 演算子・括弧の入れ子・リストやレコードの式は書けない。`where` に名前をつけて書く。
 
@@ -450,6 +465,10 @@ URL を変えるときは `Nav.pushUrl` を `effect` から返す。
 - `popover` を付けた要素は、`popovertarget` にその id を書いたボタンで開け閉めでき、外を押すか Esc で閉じる。
 - `open`（`<details>`・`<dialog>`）と `popover` は、ユーザーが開け閉めした状態を、Model から渡す値が変わらない限り保つ。`value` や `checked` は、描くたびに Model の値に合わせる。
 - 見た目だけの状態は、アプリから読めない。読む必要が出てきたら Model に移す。
+- HTML だけでは足りない次の動きは、ランタイムがページ全体で受け持つ。どれも要素の属性を見て動き、Model には触らない。
+  - ボタン・リンク・`summary`・`option` を押すと、その要素に押した位置（`--press-x` `--press-y`）と、要素を覆う円の直径（`--press-size`）を CSS 変数で入れ、`data-pressed` を `down`（押している）から `up`（離した）に変える。波紋を描くのに使う。
+  - `role="combobox"` の入力欄は、`aria-controls` が指す `role="listbox"` の中の `role="option"` を、矢印キーで選び（入力欄の `aria-activedescendant` と、候補の `data-active`）、Enter で押す。一覧を開いているかを入力欄の `aria-expanded` に書く（打つ・押す・矢印キーで開き、候補を選ぶ・Esc・フォーカスが外れると閉じる）。候補と、同じ `aria-controls` を持つボタンを押しても、フォーカスは入力欄に残る。そのボタンに `aria-haspopup` があれば一覧を開け閉めし、なければ開く。
+  - `role="menu"` の popover は、開くと最初の `role="menuitem"` にフォーカスし、矢印キーと Home・End で項目を移る。
 
 ### 7.6 静的生成
 
@@ -556,7 +575,7 @@ style
 
 例外は、ページ全体を表す `:root`・`html`・`body` だけで、これらはそのままページ全体に効く。アプリ全体の色やフォントは、入口のファイルの `style` ブロックにこれらを使って書く。
 
-仕組み: そのファイルで書いたタグ（HTML 要素とレイアウトタグ）には、印のクラス（`nene-Card` など）が自動で付く。セレクタは、実際に当たる要素がその印を持つように書き換えられる（`h2` は `h2.nene-Card`、`.title::before` は `.Card__title.nene-Card::before`）。`@media` などの中も同じように書き換え、`@keyframes` と `@font-face` の中は書き換えない。
+仕組み: そのファイルで書いたタグ（HTML 要素とレイアウトタグ）には、印のクラス（`nene-Card` など）が自動で付く。セレクタは、実際に当たる要素がその印を持つように書き換えられる（`h2` は `h2.nene-Card`、`.title::before` は `.Card__title.nene-Card::before`）。`@media` `@supports` `@container` `@layer` `@starting-style` `@scope` の中も同じように書き換え、`@keyframes` と `@font-face` の中は書き換えない。
 
 ```css
 style
@@ -696,7 +715,7 @@ rhs       ::= "=" expr | ("|" expr "=" expr)+
 foreign   ::= "foreign" "import" var "::" typ "=" String
 expr      ::= infix expression over app
 app       ::= atom+
-atom      ::= var | Con | literal | "(" ... ")" | "[" ... "]" | record | update | jsx | atom "." var
+atom      ::= var | Con | literal | "_" | "(" ... ")" | "[" ... "]" | record | update | jsx | atom "." var
 record    ::= "{" (var ("=" expr)? ("," var ("=" expr)?)*)? "}"
 update    ::= "{" var ("." var)* "|" var "=" expr ("," var "=" expr)* "}"
 jsx       ::= "<" Name attr* ("/>" | ">" child* "</" Name ">") | "<>" child* "</>"
@@ -736,9 +755,36 @@ jsx       ::= "<" Name attr* ("/>" | ">" child* "</" Name ">") | "<>" child* "</
 | `Keyboard` | `onKeyDown :: (String -> msg) -> Sub msg`（キーの名前は `"Enter"` `"Escape"` `" "` など） |
 | `Nav` | `pushUrl :: String -> Cmd msg`、`replaceUrl`、`back` |
 | `Storage` | `get :: String -> (Maybe String -> msg) -> Cmd msg`、`set :: String -> String -> Cmd msg`、`remove` |
+| `Test` | `equal :: String -> a -> a -> Test`、`group :: String -> [Test] -> Test`（15 章） |
 
 `Prelude` `Layout` と上のモジュール名は予約されていて、ユーザーのモジュール名には使えない。
 
 標準ライブラリは Nene 自身で書かれている（`src/lib/*.nn`）。出力には、使っているモジュールだけが入る。
 
 `Class`・`Size`・`Align`・`Direction`・`Maybe`・`Result`・`Url` の型とコンストラクタも `Prelude` に含まれる。
+
+## 15. テスト
+
+テストはプロジェクトの `test/` の下に置き、`tests :: [Test]` を export する。`nene test` が型検査をしてから実行する。
+
+```haskell
+module MainTest (tests) where
+
+import Main (route, update)
+import Model (Msg(..), Page(..), init)
+
+tests :: [Test]
+tests =
+  [ Test.equal "/guide は使い方" (route { path = ["guide"], query = [], hash = "" }) Guide
+  , Test.group "カウンター"
+      [ Test.equal "増やす" (update Increment init).count 1
+      ]
+  ]
+```
+
+- `Test.equal 名前 実際の値 期待する値` は、2 つの値が等しければ通る（`==` と同じ比べ方）。2 つの値は同じ型でなければならない。
+- `Test.group 見出し テスト` でまとめる。
+- テストするものは、`update`・`route`・`view` の補助関数のような純粋な関数。`effect` が返す `Cmd` や、`Html` の中身は比べられない。
+- `test/` の下のファイルは `src/` のモジュールを import できる。テストで使う名前は、そのモジュールで export しておく。
+- `nene check` は `test/` の下のファイルも型検査する。
+

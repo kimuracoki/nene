@@ -1,0 +1,62 @@
+-- 読み込み中に、中身の代わりに置く灰色の形
+--
+--   <Skeleton />                                  -- 1 行の文字
+--   <Skeleton shape={Block} height="140px" />    -- 画像やカード
+--   <Skeleton shape={Circle} width="40px" />     -- アバター
+--
+-- width と height は CSS の長さ。省略すると、形ごとの決まった大きさになる
+module Ui.Skeleton (SkeletonProps, Shape(..), skeleton) where
+
+
+data Shape = Line | Block | Circle
+
+type SkeletonProps =
+  { shape  :: Shape  = Line
+  , width  :: String = ""
+  , height :: String = ""
+  }
+
+
+skeleton :: SkeletonProps -> Html msg
+skeleton props = <span class={look} vars={size} aria-hidden="true" />
+  where
+    look = classes [css.skeleton, shapeClass props.shape]
+    size = { skeletonWidth = orElse (defaultWidth props.shape) props.width, skeletonHeight = orElse (defaultHeight props.shape) props.height }
+
+
+orElse :: String -> String -> String
+orElse fallback ""   = fallback
+orElse _        text = text
+
+defaultWidth :: Shape -> String
+defaultWidth Circle = "40px"
+defaultWidth _      = "100%"
+
+defaultHeight :: Shape -> String
+defaultHeight Line   = "1.2em"
+defaultHeight Block  = "120px"
+defaultHeight Circle = "40px"
+
+shapeClass :: Shape -> Class
+shapeClass Line   = css.line
+shapeClass Block  = css.block
+shapeClass Circle = css.circle
+
+
+style
+  .skeleton {
+    display: block;
+    flex: none;
+    width: var(--skeleton-width);
+    height: var(--skeleton-height);
+    background: light-dark(rgb(0 0 0 / .11), rgb(255 255 255 / .13));
+    animation: pulse 2s ease-in-out .5s infinite;
+  }
+  /* 文字の行は、上下を少し空けて行の高さに合わせる */
+  .line { border-radius: var(--radius) / 6.7px; transform: scale(1, .6); transform-origin: 0 60%; }
+  .block { border-radius: var(--radius); }
+  .circle { border-radius: 50%; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .4; }
+  }

@@ -181,3 +181,23 @@ test("引数のヒント: 関数の型と、いま書いている引数", async 
     assert.equal(res.result.activeParameter, 1);
   });
 });
+
+test("補完: import していない部品も出し、選ぶと import を足す", async () => {
+  await withServer(async (lsp, file) => {
+    const main = file("src/Main.nn");
+    const uri = main.uri.replace("Main.nn", "Other.nn");
+    const text = "module Other (v) where\n\nimport Text\n\nv :: Html msg\nv = <p>x</p>\n";
+    lsp.send({ method: "textDocument/didOpen", params: { textDocument: { uri, languageId: "nene", version: 1, text } } });
+    await new Promise((r) => setTimeout(r, 300));
+    const res = await lsp.request("textDocument/completion", { textDocument: { uri }, position: { line: 5, character: 5 } });
+    const card = res.result.find((c: { label: string }) => c.label === "Card");
+    assert.ok(card, "Card が候補にある");
+    assert.equal(card.labelDetails.description, "Card");
+    assert.equal(card.textEdit.newText, "Card title={$1} />$0");
+    assert.deepEqual(card.additionalTextEdits, [{ range: { start: { line: 3, character: 0 }, end: { line: 3, character: 0 } }, newText: "import Card\n" }]);
+    // 部品でないモジュール（Text）や、HTML 要素より前に並ぶ
+    assert.ok(!res.result.some((c: { label: string }) => c.label === "Text"));
+    const p = res.result.find((c: { label: string }) => c.label === "p");
+    assert.ok(card.sortText < p.sortText);
+  });
+});

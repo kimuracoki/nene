@@ -8,11 +8,12 @@ import {
   RESERVED_MODULES,
   STD_QUALIFIED,
   type CompletionInfo,
+  type Hole,
   type HoverInfo,
   type ModuleIface,
   type SemToken,
 } from "./checker.ts";
-import { generateModule } from "./codegen.ts";
+import { generateModule, MARKS } from "./codegen.ts";
 import { findPackages } from "./packages.ts";
 import { parseModule } from "./parser.ts";
 import { CompileError, type Module } from "./syntax.ts";
@@ -35,6 +36,7 @@ export interface CompiledModule {
   hovers: HoverInfo[];
   tokens: SemToken[];
   completion: CompletionInfo;
+  holes: Hole[];
 }
 
 export interface CompileOptions {
@@ -42,6 +44,8 @@ export interface CompileOptions {
   overrides?: Map<string, string>;
   // main を要求するか（ビルドでは true、エディタでの検査では false）
   requireMain?: boolean;
+  // まだ書いていない所（_）を許すか（開発サーバーとエディタでは true）。許すと、結果の holes に入る
+  holes?: boolean;
 }
 
 let libCache: { stamp: number; modules: CompiledModule[] } | null = null;
@@ -77,6 +81,15 @@ export function listModules(root: string): string[] {
   return [...new Set(names)].sort();
 }
 
+// プロジェクトとパッケージにあるモジュールと、そのファイル（エディタの部品の補完用）
+export function listModuleFiles(root: string): { name: string; file: string }[] {
+  const out = new Map<string, string>();
+  for (const r of [root, ...findPackages(root).map((p) => p.root)]) {
+    for (const name of modulesIn(r)) if (!out.has(name)) out.set(name, join(r, ...name.split(".")) + ".nn");
+  }
+  return [...out].map(([name, file]) => ({ name, file })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // プロジェクトの .nn ファイル（パッケージのものは含めない）
 export function projectFiles(root: string): string[] {
   return modulesIn(root).map((name) => join(root, ...name.split(".")) + ".nn");
@@ -94,6 +107,12 @@ function modulesIn(root: string): string[] {
   };
   walk(root, []);
   return out.sort();
+}
+
+// テストのフォルダ（プロジェクトの test/）なら、隣の src/ を返す
+export function testedRoot(root: string): string | null {
+  const src = join(dirname(root), "src");
+  return basename(root) === "test" && existsSync(src) ? src : null;
 }
 
 export interface ProgramResult {
@@ -128,11 +147,13 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
   const root = entryFile.slice(0, entryFile.length - expectedPath.length) || ".";
   const packages = findPackages(root);
   const exists = (file: string) => opts.overrides?.has(file) || existsSync(file);
+  // test/ の下のファイルは、テストする src/ のモジュールも import できる
+  const tested = testedRoot(root);
 
   // import したモジュールのファイルを、読み込む側のフォルダとパッケージから探す。2 か所にあればエラー
   const locate = (imp: Module["imports"][number], fromRoot: string, file: string): { file: string; root: string } => {
     const path = join(...imp.module.split(".")) + ".nn";
-    const roots = [...new Set([fromRoot, ...packages.map((p) => p.root)])];
+    const roots = [...new Set([fromRoot, ...(fromRoot === root && tested ? [tested] : []), ...packages.map((p) => p.root)])];
     const hits = roots.filter((r) => exists(join(r, path)));
     const place = (r: string) => packages.find((p) => p.root === r)?.name ?? relative(root, join(r, path));
     if (hits.length === 0) {
@@ -176,7 +197,7 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
       throw new CompileError(`${name} は標準モジュールの名前なので使えません`, mod.pos, file);
     }
     const isEntry = name === entryName && (opts.requireMain ?? true);
-    const checked = checkModule(mod, file, { deps, builtin: false, entry: isEntry });
+    const checked = checkModule(mod, file, { deps, builtin: false, entry: isEntry, holes: opts.holes });
     deps.set(name, checked.iface);
     modules.push({ name, file, js: generateModule(mod, checked), ...checked });
   }
@@ -190,25 +211,116 @@ export interface BundleOptions {
   env?: string;
   // true なら画面を描かず、最後の式として { rt, program } を返す（静的生成で Node から動かす）
   prerender?: boolean;
+  // true なら画面を描かず、最後の式として { rt, tests } を返す（nene test で Node から動かす）
+  test?: boolean;
 }
 
 // ブラウザでそのまま動く 1 つの JavaScript にまとめる。標準ライブラリとランタイムは、使っている部分だけを入れる
 export function bundle(result: ProgramResult, options: BundleOptions = {}): string {
+  return bundleParts(result, options)
+    .map((p) => p.code)
+    .join("\n\n")
+    .replace(MARKS, "") + "\n";
+}
+
+// bundle と同じものに、.nn の行と列に対応づけるソースマップをつける（開発サーバーで使う）
+export function bundleWithMap(result: ProgramResult, options: BundleOptions = {}): { code: string; map: SourceMap } {
+  return link(bundleParts(result, options));
+}
+
+function bundleParts(result: ProgramResult, options: BundleOptions): Part[] {
   const mount = JSON.stringify(options.mount ?? "app");
   const user = result.modules.map((m) => m.js);
-  const lib = usedLibraries(user).map((m) => m.js);
-  const parts = RUNTIME_PARTS.filter((p) => [...lib, ...user].some((js) => p.provides.some((name) => js.includes(`$rt.${name}`))));
+  const used = usedLibraries(user);
+  const lib = used.map((m) => m.js);
+  const runtime = RUNTIME_PARTS.filter((p) => [...lib, ...user].some((js) => p.provides.some((name) => js.includes(`$rt.${name}`))));
+  const code = (c: string): Part => ({ code: c, file: null });
+  const holes = result.modules.flatMap((m) => m.holes.map((h) => `${m.name} ${h.pos.line}:${h.pos.col}（${h.type}）`));
   return [
-    "// nene が生成したコード",
-    readFileSync(RUNTIME_CORE, "utf8"),
-    ...parts.map((p) => readFileSync(p.file, "utf8")),
-    `$rt.configure({ base: ${options.base ?? '"/"'}, env: ${options.env ?? "{}"} });`,
-    ...lib,
-    ...user,
-    options.prerender
+    code("// nene が生成したコード"),
+    ...(holes.length > 0 ? [code(`console.warn(${JSON.stringify(`nene: まだ書いていない所（_）があります: ${holes.join("、")}`)});`)] : []),
+    code(readFileSync(RUNTIME_CORE, "utf8")),
+    ...runtime.map((p) => code(readFileSync(p.file, "utf8"))),
+    code(`$rt.configure({ base: ${options.base ?? '"/"'}, env: ${options.env ?? "{}"} });`),
+    ...used.map((m) => ({ code: m.js, file: m.file })),
+    ...result.modules.map((m) => ({ code: m.js, file: m.file })),
+    code(options.test
+      ? `({ rt: $rt, tests: ${result.entry.iface.js}.tests() });`
+      : options.prerender
       ? `({ rt: $rt, program: ${result.entry.iface.js}.main() });`
-      : `$rt.run(${result.entry.iface.js}.main(), document.getElementById(${mount}) ?? document.body);`,
-  ].join("\n\n") + "\n";
+      : `$rt.run(${result.entry.iface.js}.main(), document.getElementById(${mount}) ?? document.body);`),
+  ];
+}
+
+// ---- ソースマップ ----
+
+interface Part {
+  code: string;
+  file: string | null; // 印の位置が指す .nn（ランタイムなどは null）
+}
+
+export interface SourceMap {
+  version: 3;
+  file: string;
+  sourceRoot: string;
+  sources: string[];
+  sourcesContent: string[];
+  names: string[];
+  mappings: string;
+}
+
+// 部分をつなぎ、印を取り除きながら、印のあった場所を元の .nn の位置に対応づける
+function link(parts: Part[]): { code: string; map: SourceMap } {
+  const sources: string[] = [];
+  const lines: string[] = [];
+  const mappings: string[] = [];
+  // VLQ の値は、ひとつ前の区切りからの差で書く（生成側の列だけは行ごとに 0 から）
+  let prevSource = 0;
+  let prevLine = 0;
+  let prevCol = 0;
+  parts.forEach((part, i) => {
+    if (i > 0) {
+      lines.push("");
+      mappings.push("");
+    }
+    const source = part.file === null ? -1 : sources.indexOf(part.file) >= 0 ? sources.indexOf(part.file) : sources.push(part.file) - 1;
+    for (const raw of part.code.split("\n")) {
+      let out = "";
+      let last = 0;
+      let prevGen = 0;
+      const segments: string[] = [];
+      for (const m of raw.matchAll(MARKS)) {
+        out += raw.slice(last, m.index);
+        last = m.index! + m[0].length;
+        if (source < 0) continue;
+        const line = Number(m[1]) - 1;
+        const col = Number(m[2]) - 1;
+        segments.push(vlq(out.length - prevGen) + vlq(source - prevSource) + vlq(line - prevLine) + vlq(col - prevCol));
+        prevGen = out.length;
+        prevSource = source;
+        prevLine = line;
+        prevCol = col;
+      }
+      lines.push(out + raw.slice(last));
+      mappings.push(segments.join(","));
+    }
+  });
+  const sourcesContent = sources.map((f) => readFileSync(f, "utf8"));
+  return { code: lines.join("\n") + "\n", map: { version: 3, file: "", sourceRoot: "", sources, sourcesContent, names: [], mappings: mappings.join(";") } };
+}
+
+const BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function vlq(n: number): string {
+  let v = n < 0 ? (-n << 1) | 1 : n << 1;
+  let out = "";
+  do {
+    let digit = v & 31;
+    v >>>= 5;
+    if (v > 0) digit |= 32;
+    out += BASE64[digit];
+  } while (v > 0);
+  return out;
 }
 
 // コードが $M_名前 で参照している標準モジュールを、たどれるだけたどって集める（読み込む順は LIB_ORDER のまま）

@@ -1,0 +1,97 @@
+-- ページ送り。page は 1 から数える。ページが多いときは、間を「…」で省く
+--
+--   <Pagination count={model.pageCount} page={model.page} onChange={PageChanged} />
+module Ui.Pagination (PaginationProps, pagination) where
+
+import qualified Ui.Icon as Icon
+
+
+type PaginationProps msg =
+  { count    :: Int
+  , page     :: Int
+  , onChange :: Int -> msg
+  }
+
+
+-- 並べるもの: ページの番号か、省いた所
+data Slot = PageNo Int | Gap
+
+
+pagination :: PaginationProps msg -> Html msg
+pagination props =
+  <nav aria-label="ページ送り">
+    <ul class={css.list}>
+      <li><button class={css.item} type="button" aria-label="前のページ" disabled={atFirst} onClick={previous}><Icon name={Icon.chevronLeft} /></button></li>
+      {map item shown}
+      <li><button class={css.item} type="button" aria-label="次のページ" disabled={atLast} onClick={next}><Icon name={Icon.chevronRight} /></button></li>
+    </ul>
+  </nav>
+  where
+    shown    = slots props.count props.page
+    atFirst  = props.page <= 1
+    atLast   = props.page >= props.count
+    previous = props.onChange (props.page - 1)
+    next     = props.onChange (props.page + 1)
+    item Gap        = <li><span class={css.gap}>…</span></li>
+    item (PageNo n) = <li><button class={look} type="button" aria-current={current} onClick={go}>{show n}</button></li>
+      where
+        go = props.onChange n
+        look
+          | n == props.page = classes [css.item, css.selected]
+          | otherwise       = css.item
+        current
+          | n == props.page = "page"
+          | otherwise       = "false"
+
+
+-- 最初と最後、いまのページとその両隣を出し、ほかは省く（並ぶ数はいつも 7 つまで）
+slots :: Int -> Int -> [Slot]
+slots count page
+  | count <= 7        = map PageNo (range 1 count)
+  | page <= 4         = map PageNo (range 1 5) ++ [Gap, PageNo count]
+  | page >= count - 3 = [PageNo 1, Gap] ++ map PageNo (range (count - 4) count)
+  | otherwise         = [PageNo 1, Gap, PageNo (page - 1), PageNo page, PageNo (page + 1), Gap, PageNo count]
+
+
+style
+  .list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0; list-style: none; }
+  .item, .gap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 6px;
+    border-radius: 16px;
+    color: var(--text);
+    font-size: .875rem;
+  }
+  .item {
+    position: relative;
+    overflow: hidden;
+    border: none;
+    background: none;
+    transition: background-color .25s var(--ease), color .25s var(--ease);
+  }
+  .item:hover { background: var(--hover); }
+  .item:focus-visible { outline: none; background: var(--selected); }
+  .item:disabled { color: var(--disabled); cursor: default; background: none; }
+  .selected, .selected:hover { background: var(--primary); color: var(--on-tone); }
+  /* 押したときの波紋。押した所から広がり、離すと消える */
+  .item::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  .item[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  .item[data-pressed=down]::after { opacity: .3; }
+  .item[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }

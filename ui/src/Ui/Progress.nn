@@ -25,7 +25,8 @@ progress props = <Bar value={props.value} />
         filled  = { progress = percent ++ "%" }
     bar { value = Nothing } =
       <div class={css.track} vars={colors} role="progressbar">
-        <div class={css.moving} />
+        <div class={css.first} />
+        <div class={css.second} />
       </div>
 
 
@@ -36,27 +37,31 @@ clamp v = max 0.0 (min 1.0 v)
 style
   .track {
     position: relative;
-    height: 6px;
+    height: 4px;
     overflow: hidden;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--tone) 15%, transparent);
+    background: color-mix(in srgb, var(--tone) 30%, var(--surface));
   }
   .fill {
     width: var(--progress);
     height: 100%;
-    border-radius: inherit;
     background: var(--tone);
-    transition: width .3s;
+    transition: width .4s linear;
   }
-  .moving {
+  /* 終わりの見えない処理。2 本のバーが、速さを変えながら流れる */
+  .first, .second {
     position: absolute;
-    width: 40%;
-    height: 100%;
-    border-radius: inherit;
+    top: 0;
+    bottom: 0;
+    left: 0;
     background: var(--tone);
-    animation: slide 1.2s ease-in-out infinite;
   }
-  @keyframes slide {
-    from { left: -40%; }
-    to { left: 100%; }
+  .first { animation: first 2.1s cubic-bezier(.65, .815, .735, .395) infinite; }
+  .second { animation: second 2.1s cubic-bezier(.165, .84, .44, 1) 1.15s infinite; }
+  @keyframes first {
+    0% { left: -35%; right: 100%; }
+    60%, 100% { left: 100%; right: -90%; }
+  }
+  @keyframes second {
+    0% { left: -200%; right: 100%; }
+    60%, 100% { left: 107%; right: -8%; }
   }

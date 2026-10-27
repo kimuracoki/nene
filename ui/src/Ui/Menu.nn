@@ -50,14 +50,18 @@ menu props =
 
     -- 項目を押すと、メッセージが届き、メニューが閉じる
     entry item =
-      <button class={css.item} vars={colors} type="button" role="menuitem" popovertarget={props.id} popovertargetaction="hide" onClick={item.onClick}>
-        <Row gap={S} align={Center}>
+      <button class={look} vars={colors} type="button" role="menuitem" popovertarget={props.id} popovertargetaction="hide" onClick={item.onClick}>
+        <Row gap={M} align={Center}>
           <Mark icon={item.icon} />
           <span>{item.label}</span>
         </Row>
       </button>
       where
         colors = toneVars item.tone
+        -- Neutral の項目は、ふつうの文字の色にする
+        look
+          | item.tone == Neutral = classes [css.item, css.neutral]
+          | otherwise            = css.item
 
 
 mark :: { icon :: Maybe Icon.Icon } -> Html msg
@@ -74,27 +78,58 @@ variantClass Plain    = css.plain
 style
   .menu { display: inline-block; anchor-name: var(--anchor); }
   .trigger {
-    padding: 8px 12px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-width: 64px;
+    padding: 5px 15px;
+    overflow: hidden;
     border: 1px solid transparent;
     border-radius: var(--radius);
-    font-weight: 600;
-    line-height: 1.2;
+    font-size: .875rem;
+    font-weight: 500;
+    line-height: 1.75;
+    letter-spacing: .02857em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background-color .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease);
   }
-  .filled { background: var(--primary); color: var(--on-tone); }
-  .outlined { border-color: var(--border); background: var(--surface); }
-  .plain { background: none; }
-  .outlined:hover, .plain:hover { background: color-mix(in srgb, var(--text) 6%, var(--surface)); }
-  .trigger:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); }
+  .trigger:focus-visible { outline: none; }
+  /* 押したときの波紋。押した所（ランタイムが --press-x と --press-y に入れる）から広がり、離すと消える */
+  .trigger::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  .trigger[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  .trigger[data-pressed=down]::after { opacity: .3; }
+  .trigger[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+  .filled { background: var(--primary); color: var(--on-tone); box-shadow: var(--shadow-2); }
+  .filled:hover { background: color-mix(in srgb, var(--primary) 80%, black); box-shadow: var(--shadow-4); }
+  .outlined { border-color: color-mix(in srgb, var(--primary) 50%, transparent); background: none; color: var(--primary); }
+  .outlined:hover { border-color: var(--primary); }
+  .plain { padding: 5px 7px; background: none; color: var(--primary); }
+  .outlined:hover, .plain:hover { background: color-mix(in srgb, var(--primary) 4%, transparent); }
+  .outlined:focus-visible, .plain:focus-visible { background: color-mix(in srgb, var(--primary) 12%, transparent); }
 
   .list {
-    min-width: 180px;
+    min-width: 160px;
     margin: 0;
-    padding: 4px;
-    border: 1px solid var(--border);
+    padding: 8px 0;
+    border: none;
     border-radius: var(--radius);
     background: var(--surface);
     color: var(--text);
-    box-shadow: 0 12px 32px rgb(0 0 0 / .14);
+    box-shadow: var(--shadow-8);
   }
   /* ボタンのすぐ下に出す。この機能のないブラウザでは、画面の中央に出る */
   @supports (anchor-name: --a) {
@@ -109,14 +144,16 @@ style
   }
   .item {
     width: 100%;
-    padding: 8px 10px;
+    min-height: 36px;
+    padding: 6px 16px;
     border: none;
-    border-radius: calc(var(--radius) - 4px);
     background: none;
     color: var(--tone);
+    font-size: 1rem;
+    line-height: 1.5;
     text-align: left;
+    transition: background-color .15s var(--ease);
   }
-  .item:hover, .item:focus-visible {
-    outline: none;
-    background: color-mix(in srgb, var(--tone) 10%, transparent);
-  }
+  .neutral { color: var(--text); }
+  .item:hover { background: var(--hover); }
+  .item:focus-visible { outline: none; background: var(--selected); }

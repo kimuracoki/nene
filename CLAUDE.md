@@ -1,6 +1,6 @@
 # Nene
 
-UI 向けの関数型言語 Nene（Haskell 風の文法 + JSX、拡張子 `.nn`）の処理系。コンパイラ・ランタイム・`nene` コマンド・Vite プラグイン・言語サーバー・nvim の設定がこのリポジトリにある。
+UI 向けの関数型言語 Nene（Haskell 風の文法 + JSX、拡張子 `.nn`）の処理系。コンパイラ・ランタイム・`nene` コマンド・Vite プラグイン・言語サーバー・VS Code 拡張・nvim の設定がこのリポジトリにある。
 
 ## コマンド
 
@@ -8,6 +8,7 @@ UI 向けの関数型言語 Nene（Haskell 風の文法 + JSX、拡張子 `.nn`�
 - `npm run typecheck` … `tsc`。`.ts` を編集すると自動で実行される（`.claude/hooks/typecheck.mjs`）
 - `npm run dev` … `examples/` を開発サーバーで開く
 - `node src/cli.ts <command>` … 手元の `nene` コマンド
+- `npm run release` … 版を 1 つ上げてコミット・push し、nene-lang・nene-lang-ui・create-nene-lang を公開する（版を指定するときは先に `npm run bump -- <版>`）。3 つはいつも同じ版で一緒に出す（create-nene-lang の版が変わらないと、`npm create` が古いテンプレートを使い続けるため）。公開はユーザーが行う
 
 ## 読む順番
 
@@ -30,5 +31,8 @@ UI 向けの関数型言語 Nene（Haskell 風の文法 + JSX、拡張子 `.nn`�
 - 型クラスは辞書を渡さない。`Json` だけは例外で、使う場所で決まった型の記述を `codegen` が引数として先に渡す（`jsonDescriptor`）。
 - ランタイム（`runtime/runtime.js`）は 1 ファイル。仮想 DOM、レイアウトタグ、`style` ブロックの CSS、URL、HTTP、JSON の変換、The Elm Architecture の実行を持つ。
 - `template/` は `nene new` で写されるひな形。`template/CLAUDE.md` は、Nene でアプリを書く人の Claude Code 向け。
-- `ui/` は公式の部品集 `nene-lang-ui`（別の npm パッケージ、Nene で書かれている）。部品を変えたら `ui/README.md` の表と `examples/Showcase.nn` も直す。`nene-lang` と同じ版で出す。
+- `ui/` は公式の部品集 `nene-lang-ui`（別の npm パッケージ、Nene で書かれている）。部品を変えたら `ui/README.md` の表と `examples/Showcase.nn` も直し、`node scripts/ui-readme.ts` で README の「部品ごとの使い方」を作り直す（古いと `test/ui.test.ts` が落ちる）。`nene-lang` と同じ版で出す。
 - import するモジュールは、プロジェクトと `node_modules` の Nene パッケージ（`package.json` の `"nene": { "source": … }`）から探す（`packages.ts`）。
+- `codegen.ts` は式の前に元の位置の印（`\u0001行:列\u0001`）を埋め込む。`bundle` は印を取り除き、`bundleWithMap`（開発サーバー）は印からソースマップを作る。生成した JS を文字列として調べるときは印に注意する。
+- `nene test`（`testing.ts`）は `test/` の下のファイルを `compileProgram` し、`bundle(…, { test: true })` を Node の `vm` で動かして `tests` の値を比べる。`test/` の下のモジュールは隣の `src/` も import できる（`testedRoot`）。
+- `editors/vscode/` は VS Code 拡張。ハイライトは TextMate の文法（`syntaxes/nene.tmLanguage.json`）、それ以外は `nene lsp` に任せる。言語サーバーの機能を足しても、拡張の側は直さなくてよい。

@@ -1,0 +1,61 @@
+module Page.Guide (guide) where
+
+
+guide :: {} -> Html msg
+guide _ =
+  <Column gap={L}>
+    <h1 class={css.heading}>使い方</h1>
+    <Grid columns={2} gap={M} collapse={M}>
+      <Step title="書く" file="src/">保存すると、すぐに画面へ反映されます。</Step>
+      <Step title="ページを足す" file="src/Page/">ページのファイルを作り、Model.nn の Page と Main.nn の route・content に 1 行ずつ足します。</Step>
+      <Step title="確かめる" file="npm run check">型のエラーを、場所と直し方つきで知らせます。</Step>
+      <Step title="公開する" file="npm run build">リンクをたどったページが HTML になり、dist/ をそのまま置けます。</Step>
+    </Grid>
+  </Column>
+
+
+-- このファイルの中だけで使う部品
+
+step :: { title :: String, file :: String } -> [Html msg] -> Html msg
+step props children =
+  <article class={css.step}>
+    <Column gap={S}>
+      <h2 class={css.stepTitle}>{props.title}</h2>
+      <code class={css.file}>{props.file}</code>
+      <p class={css.stepBody}>{children}</p>
+    </Column>
+  </article>
+
+
+style
+  .heading {
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .step {
+    height: 100%;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    transition: border-color .15s, transform .15s;
+  }
+  .step:hover {
+    border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+    transform: translateY(-2px);
+  }
+  .step-title { font-size: 1rem; }
+  .file {
+    align-self: flex-start;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    color: var(--primary);
+    font-size: .8125rem;
+  }
+  .step-body {
+    color: var(--muted);
+    font-size: .875rem;
+  }

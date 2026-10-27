@@ -6,6 +6,7 @@
 npm install
 npm run dev       # 開発サーバー（保存すると自動で再読み込み）
 npm run check     # 型検査だけ
+npm test          # test/ の下のテストを実行
 npm run fmt       # 整形
 npm run build     # dist/ に公開用のファイルを出力
 npm run preview   # dist/ を手元で動かして確かめる
@@ -15,7 +16,10 @@ npm run preview   # dist/ を手元で動かして確かめる
 
 | | |
 | --- | --- |
-| `src/Main.nn` | 入口。ほかのモジュールは `src/Ui/Button.nn` なら `import Ui.Button` で使える |
+| `src/Main.nn` | 入口。骨組みの画面、URL の振り分け、状態の変え方 |
+| `src/Model.nn` | 状態（Model）とメッセージ（Msg）の型 |
+| `src/Page/` | ページ 1 つにファイル 1 つ。`src/Page/Home.nn` は `import Page.Home` で使える |
+| `test/` | テスト。`tests :: [Test]` を export したファイルを `npm test` が実行する |
 | `public/` | 画像など。`public/logo.png` は `<img src="/logo.png" />` で使える |
 | `index.html` | ページの枠。ふつうは触らない |
 | `.env` | 設定の値。`NENE_API_URL=...` と書くと `Env.get "API_URL"` で読める |

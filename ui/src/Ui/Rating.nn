@@ -1,0 +1,63 @@
+-- 星の数で表す評価。onChange を渡すと押して選べる。渡さなければ表示だけ
+--
+--   <Rating value={model.stars} onChange={Just Rated} />
+--   <Rating value={review.stars} />
+module Ui.Rating (RatingProps, rating) where
+
+import qualified Ui.Icon as Icon
+
+
+type RatingProps msg =
+  { value    :: Int
+  , onChange :: Maybe (Int -> msg) = Nothing
+  , max      :: Int                = 5
+  , label    :: String             = "評価"     -- 読み上げに使う
+  }
+
+
+rating :: RatingProps msg -> Html msg
+rating props = <Body change={props.onChange} />
+  where
+    -- 押せる星は、マウスを載せた星までを光らせる。CSS の ~ で後ろの星を選ぶため、逆の順に並べて右から左へ表示する
+    body { change = Just choose } =
+      <span class={pickable} role="radiogroup" aria-label={summary}>
+        {stars}
+      </span>
+      where
+        stars = map (star choose) order
+    body { change = Nothing } =
+      <span class={css.rating} role="img" aria-label={summary}>
+        {map mark order}
+      </span>
+
+    star choose n = <button class={look n} type="button" role="radio" aria-checked={checked n} aria-label={show n} onClick={choose n}><Icon name={Icon.starFilled} /></button>
+    mark n = <span class={look n}><Icon name={Icon.starFilled} /></span>
+
+    order = reverse (range 1 props.max)
+    pickable = classes [css.rating, css.interactive]
+    summary = props.label ++ " " ++ show props.value ++ " / " ++ show props.max
+    look n
+      | n <= props.value = classes [css.star, css.on]
+      | otherwise        = css.star
+    checked n
+      | n == props.value = "true"
+      | otherwise        = "false"
+
+
+style
+  .rating { display: inline-flex; flex-direction: row-reverse; justify-self: start; align-self: start; width: max-content; font-size: 1.5rem; }
+  .star {
+    display: inline-flex;
+    padding: 0;
+    border: none;
+    background: none;
+    color: light-dark(rgb(0 0 0 / .26), rgb(255 255 255 / .3));
+    transition: transform .15s var(--ease), color .15s var(--ease);
+  }
+  .on { color: #faaf00; }
+  .interactive .star { cursor: pointer; }
+  .interactive:hover .star { color: light-dark(rgb(0 0 0 / .26), rgb(255 255 255 / .3)); }
+  .interactive .star:hover,
+  .interactive .star:hover ~ .star { color: #faaf00; }
+  .interactive .star:hover { transform: scale(1.2); }
+  .star:focus-visible { outline: none; transform: scale(1.2); }

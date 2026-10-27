@@ -15,7 +15,7 @@ type SwitchProps msg =
 switch :: SwitchProps msg -> Html msg
 switch props =
   <label class={css.option}>
-    <Row gap={S} align={Center}>
+    <Row align={Center}>
       <input class={css.track} type="checkbox" role="switch" checked={props.checked} disabled={props.disabled} onCheck={props.onCheck} />
       <span>{props.label}</span>
     </Row>
@@ -23,32 +23,47 @@ switch props =
 
 
 style
-  .option { cursor: pointer; user-select: none; }
+  .option { display: inline-block; margin-left: -12px; cursor: pointer; user-select: none; }
+  /* 細いトラック（::before）の上を、影の付いた丸いつまみ（::after）が動く */
   .track {
     appearance: none;
     position: relative;
     flex: none;
-    width: 40px;
-    height: 22px;
+    width: 58px;
+    height: 38px;
     margin: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--neutral) 40%, transparent);
     cursor: pointer;
-    transition: background-color .2s;
+  }
+  .track::before {
+    content: "";
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 34px;
+    height: 14px;
+    border-radius: 7px;
+    background: light-dark(rgb(0 0 0 / .38), rgb(255 255 255 / .3));
+    transition: background-color .15s var(--ease);
   }
   .track::after {
     content: "";
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 16px;
-    height: 16px;
+    top: 9px;
+    left: 9px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
-    background: white;
-    box-shadow: 0 1px 2px rgb(0 0 0 / .25);
-    transition: transform .2s;
+    background: light-dark(#ffffff, #e0e0e0);
+    box-shadow: var(--shadow-1), 0 0 0 9px transparent;
+    transition: transform .15s var(--ease), background-color .15s var(--ease), box-shadow .15s var(--ease);
   }
-  .track:checked { background: var(--primary); }
-  .track:checked::after { transform: translateX(18px); }
-  .track:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); }
-  .track:disabled { opacity: .5; cursor: not-allowed; }
+  .track:checked::before { background: color-mix(in srgb, var(--primary) 50%, transparent); }
+  .track:checked::after { transform: translateX(20px); background: var(--primary); }
+  .track:hover::after { box-shadow: var(--shadow-1), 0 0 0 9px var(--hover); }
+  .track:checked:hover::after { box-shadow: var(--shadow-1), 0 0 0 9px color-mix(in srgb, var(--primary) 4%, transparent); }
+  .track:focus-visible { outline: none; }
+  .track:focus-visible::after, .track:active::after { box-shadow: var(--shadow-1), 0 0 0 9px color-mix(in srgb, var(--primary) 12%, transparent); }
+  .track:disabled { cursor: default; }
+  .track:disabled::before { opacity: .4; }
+  .track:disabled::after { background: light-dark(#f5f5f5, #616161); box-shadow: var(--shadow-1); }
+  .track:disabled + span { color: var(--disabled); cursor: default; }

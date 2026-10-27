@@ -7,7 +7,7 @@ module Ui.Card (CardProps, card) where
 
 type CardProps =
   { title   :: String = ""
-  , padding :: Size   = L
+  , padding :: Size   = M
   }
 
 
@@ -20,13 +20,18 @@ card props children =
     </Column>
   </section>
   where
-    space = { cardPadding = spacing props.padding }
+    space = { cardPadding = spacing props.padding, titlePadding = titleSpacing props.padding }
 
 
 heading :: { text :: String } -> Html msg
 heading { text = "" } = <></>
 heading { text }      = <h2 class={css.title}>{text}</h2>
 
+
+-- 中身を端まで広げたカードでも、見出しは端から離す
+titleSpacing :: Size -> String
+titleSpacing None = "16px 16px 0"
+titleSpacing _    = "0"
 
 spacing :: Size -> String
 spacing None = "0"
@@ -40,9 +45,9 @@ spacing XL   = "var(--space-xl)"
 style
   .card {
     padding: var(--card-padding);
-    border: 1px solid var(--border);
-    border-radius: calc(var(--radius) + 4px);
+    border-radius: var(--radius);
     background: var(--surface);
-    box-shadow: var(--shadow);
+    color: var(--text);
+    box-shadow: var(--shadow-1);
   }
-  .title { font-size: 1.0625rem; font-weight: 700; }
+  .title { padding: var(--title-padding); font-size: 1.25rem; font-weight: 500; line-height: 1.6; letter-spacing: .0075em; }

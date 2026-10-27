@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { render } from "../scripts/ui-readme.ts";
 import { runExample } from "./helpers.ts";
 
 // nene-lang-ui の部品は examples/Showcase.nn で一通り使っている
@@ -53,7 +56,8 @@ test("Badge・Avatar・Progress: 数・頭文字・割合を表示する", async
   assert.match(app.text(), /\bAL\b/);
   const bar = app.document.querySelector("[aria-valuenow]")!;
   assert.equal(bar.getAttribute("aria-valuenow"), "30");
-  await app.click("button", 1); // 進める
+  buttonNamed(app.document, "進める").click();
+  await app.frame();
   assert.equal(app.document.querySelector("[aria-valuenow]")!.getAttribute("aria-valuenow"), "40");
 });
 
@@ -81,10 +85,167 @@ test("Menu・Popover: ボタンと開く枠が popovertarget でつながり、�
 test("Accordion: ユーザーが開け閉めした状態は、model が変わっても保たれる", async () => {
   const app = await showcase();
   const details = () => [...app.document.querySelectorAll("details")] as HTMLDetailsElement[];
-  assert.deepEqual(details().map((d) => d.open), [true, false]); // open を渡したものだけ開いている
+  assert.deepEqual(details().map((d) => d.open), [true, false, false]); // open を渡したものだけ開いている
   details()[0].open = false;
   details()[1].open = true;
   await app.click("[role=tab]", 1); // model を変えて描き直す
-  assert.deepEqual(details().map((d) => d.open), [false, true]);
-  assert.deepEqual(details().map((d) => d.getAttribute("name")), ["faq", "faq"]);
+  assert.deepEqual(details().map((d) => d.open), [false, true, false]);
+  assert.deepEqual(details().map((d) => d.getAttribute("name")), ["faq", "faq", "faq"]);
+});
+
+test("TextField: rows が 2 以上なら複数行の入力欄になる", async () => {
+  const app = await showcase();
+  await app.input("textarea", "はじめまして");
+  const area = app.document.querySelector("textarea") as HTMLTextAreaElement;
+  assert.equal(area.rows, 3);
+  assert.equal(area.value, "はじめまして");
+});
+
+test("RadioGroup・Slider・Rating・ToggleGroup: 選んだ値が model に入る", async () => {
+  const app = await showcase();
+  const radio = () => app.document.querySelector("input[type=radio][value=phone]") as HTMLInputElement;
+  radio().click();
+  await app.frame();
+  assert.equal(radio().checked, true);
+  assert.equal(radio().name, "contact");
+
+  await app.input("input[type=range]", "75");
+  const range = app.document.querySelector("input[type=range]") as HTMLInputElement;
+  assert.equal(range.value, "75");
+  assert.match(range.parentElement!.getAttribute("style") ?? "", /--ratio: 0\.75/);
+  assert.equal(app.document.querySelector("output")!.textContent, "75");
+
+  const star = (n: number) => app.document.querySelector(`[role=radio][aria-label="${n}"]`) as HTMLButtonElement;
+  star(5).click();
+  await app.frame();
+  assert.equal(star(5).getAttribute("aria-checked"), "true");
+  assert.equal(star(3).getAttribute("aria-checked"), "false");
+
+  buttonNamed(app.document, "グリッド").click();
+  await app.frame();
+  assert.equal(buttonNamed(app.document, "グリッド").getAttribute("aria-pressed"), "true");
+  assert.equal(buttonNamed(app.document, "リスト").getAttribute("aria-pressed"), "false");
+});
+
+test("Pagination: 多いページは「…」で省き、押したページが今のページになる", async () => {
+  const app = await showcase();
+  const pages = () => [...app.document.querySelectorAll("nav[aria-label=ページ送り] li")].map((li) => li.textContent);
+  assert.deepEqual(pages(), ["", "1", "2", "3", "4", "5", "…", "10", ""]);
+  assert.equal((app.document.querySelector("[aria-label=前のページ]") as HTMLButtonElement).disabled, true);
+  buttonNamed(app.document, "5").click();
+  await app.frame();
+  assert.deepEqual(pages(), ["", "1", "…", "4", "5", "6", "…", "10", ""]);
+  assert.equal(buttonNamed(app.document, "5").getAttribute("aria-current"), "page");
+});
+
+test("Snackbar・Drawer: model で出し入れし、閉じるとメッセージが届く", async () => {
+  const app = await showcase();
+  assert.equal(app.document.querySelector("[aria-live=polite]"), null);
+  buttonNamed(app.document, "保存").click();
+  await app.frame();
+  assert.match(app.document.querySelector("[aria-live=polite]")!.textContent!, /保存しました/);
+  await app.click("[aria-live=polite] [aria-label=閉じる]");
+  assert.equal(app.document.querySelector("[aria-live=polite]"), null);
+
+  assert.equal(app.document.querySelector("aside[role=dialog]"), null);
+  await app.click("[aria-label=メニュー]");
+  assert.ok(app.document.querySelector("aside[role=dialog]"));
+  (app.document.querySelector(".Ui-Drawer__backdrop") as HTMLElement).click();
+  await app.frame();
+  assert.equal(app.document.querySelector("aside[role=dialog]"), null);
+});
+
+test("Stepper・Table・ListItem: 手順の進み具合、表のセル、選んでいる行を表す", async () => {
+  const app = await showcase();
+  const steps = () => [...app.document.querySelectorAll("ol > li")].filter((li) => li.closest("nav") === null);
+  assert.equal(steps()[1].getAttribute("aria-current"), "step");
+  buttonNamed(app.document, "次の手順").click();
+  await app.frame();
+  assert.equal(steps()[2].getAttribute("aria-current"), "step");
+
+  const headers = [...app.document.querySelectorAll("th")].map((th) => th.textContent);
+  assert.deepEqual(headers, ["名前", "役割", "参加日"]);
+  assert.equal(app.document.querySelectorAll("tbody tr").length, 3);
+
+  const current = () => [...app.document.querySelectorAll("button[aria-current=true]")].map((b) => b.textContent);
+  assert.deepEqual(current(), ["受信トレイ未読 3 件"]);
+  await app.click("[role=tab]", 1);
+  assert.deepEqual(current(), ["スター付き"]);
+});
+
+test("Autocomplete: 打った文字で候補を絞り、矢印キーと Enter・クリックで選べる", async () => {
+  const app = await showcase();
+  const { document, window } = app;
+  const input = () => document.querySelector("[role=combobox]") as HTMLInputElement;
+  const options = () => [...document.querySelectorAll("#city [role=option]")].map((o) => o.textContent);
+  const key = (k: string) => input().dispatchEvent(new window.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+  assert.equal(input().getAttribute("aria-expanded"), "false");
+  assert.equal(options().length, 11);
+
+  await app.input("[role=combobox]", "京");
+  assert.equal(input().getAttribute("aria-expanded"), "true");
+  assert.deepEqual(options(), ["東京", "京都"]);
+
+  // 矢印キーで選んでいる候補は aria-activedescendant で表し、フォーカスは欄に残る
+  key("ArrowDown");
+  key("ArrowDown");
+  assert.equal(input().getAttribute("aria-activedescendant"), "city-1");
+  key("ArrowDown");
+  assert.equal(input().getAttribute("aria-activedescendant"), "city-0");
+  key("Enter");
+  await app.frame();
+  assert.equal(input().value, "東京");
+  assert.equal(input().getAttribute("aria-expanded"), "false");
+  // 候補と同じ文字が入っているときは、すべての候補を出し、その候補を選んだ印を付ける
+  assert.equal(options().length, 11);
+  assert.equal(document.querySelector("#city [aria-selected=true]")!.textContent, "東京");
+
+  key("Escape");
+  await app.click("[aria-controls=city][aria-haspopup]");
+  assert.equal(input().getAttribute("aria-expanded"), "true");
+  await app.click("#city [role=option]", 6);
+  assert.equal(input().value, "大阪");
+  assert.equal(input().getAttribute("aria-expanded"), "false");
+
+  await app.click("[aria-controls=city][aria-label=消す]");
+  assert.equal(input().value, "");
+  assert.equal(input().getAttribute("aria-expanded"), "true");
+
+  await app.input("[role=combobox]", "ろんどん");
+  assert.deepEqual(options(), []);
+  assert.match(document.getElementById("city")!.textContent!, /候補がありません/);
+});
+
+test("波紋: 押した要素に、押した位置と data-pressed が付く", async () => {
+  const app = await showcase();
+  const { document, window } = app;
+  const button = buttonNamed(document, "保存");
+  button.dispatchEvent(new window.MouseEvent("pointerdown", { bubbles: true, clientX: 10, clientY: 5 }));
+  assert.equal(button.getAttribute("data-pressed"), "down");
+  assert.equal(button.style.getPropertyValue("--press-x"), "10px");
+  assert.equal(button.style.getPropertyValue("--press-y"), "5px");
+  document.dispatchEvent(new window.MouseEvent("pointerup", { bubbles: true }));
+  assert.equal(button.getAttribute("data-pressed"), "up");
+});
+
+test("Menu: 矢印キーと Home・End で項目を移る", async () => {
+  const app = await showcase();
+  const { document, window } = app;
+  const menu = document.querySelector("[role=menu]") as HTMLElement;
+  const items = [...menu.querySelectorAll("[role=menuitem]")] as HTMLElement[];
+  items[0].focus();
+  items[0].dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+  assert.equal(document.activeElement, items[1]);
+  items[1].dispatchEvent(new window.KeyboardEvent("keydown", { key: "End", bubbles: true }));
+  assert.equal(document.activeElement, items[items.length - 1]);
+  items[items.length - 1].dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+  assert.equal(document.activeElement, items[0]);
+});
+
+test("README: すべての部品が表にあり、部品ごとの使い方が部品のファイルと合っている", () => {
+  const readme = readFileSync(join(import.meta.dirname, "..", "ui", "README.md"), "utf8");
+  const files = readdirSync(join(import.meta.dirname, "..", "ui", "src", "Ui")).map((f) => f.replace(/\.nn$/, "")).filter((n) => n !== "Theme");
+  const listed = [...readme.matchAll(/^\| `Ui\.(\w+)` \|/gm)].map((m) => m[1]);
+  assert.deepEqual([...listed].sort(), files.sort());
+  assert.equal(readme, render(readme), "ui/README.md が古くなっています。node scripts/ui-readme.ts を実行してください");
 });

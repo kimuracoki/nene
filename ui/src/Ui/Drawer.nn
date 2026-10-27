@@ -1,0 +1,48 @@
+-- 画面の左から出てくる引き出し。開いているかどうかは model に持つ。背景を押すと onClose が届く
+--
+--   <Drawer open={model.menuOpen} onClose={CloseMenu}>
+--     <ListItem icon={Just Icon.home} primary="ホーム" onClick={Just (Go "/")} />
+--   </Drawer>
+module Ui.Drawer (DrawerProps, drawer) where
+
+
+type DrawerProps msg =
+  { open    :: Bool
+  , onClose :: msg
+  }
+
+
+drawer :: DrawerProps msg -> [Html msg] -> Html msg
+drawer props children = <Body visible={props.open} />
+  where
+    body { visible = True } =
+      <div class={css.overlay}>
+        <div class={css.backdrop} onClick={props.onClose} />
+        <aside class={css.panel} role="dialog" aria-modal="true">{children}</aside>
+      </div>
+    body { visible = False } = <></>
+
+
+style
+  .overlay { position: fixed; inset: 0; z-index: 1200; }
+  .backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgb(0 0 0 / .5);
+    animation: fade .225s var(--ease);
+  }
+  .panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(280px, calc(100vw - 56px));
+    padding: 8px 0;
+    overflow-y: auto;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-16);
+    animation: slide .225s var(--ease);
+  }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes slide { from { transform: translateX(-100%); } }

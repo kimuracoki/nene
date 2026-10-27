@@ -15,12 +15,12 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { codeActions } from "./actions.ts";
-import { compileProgram, listModules, projectFiles, projectRoot, type CompiledModule, type ProgramResult } from "./compiler.ts";
+import { addImport, codeActions } from "./actions.ts";
+import { compileProgram, listModuleFiles, listModules, projectFiles, projectRoot, type CompiledModule, type ProgramResult } from "./compiler.ts";
 import { format } from "./format.ts";
 import { foldingRanges, outline, parse, selectionRange, type OutlineSymbol } from "./outline.ts";
 import { definitionOf, referencesOf, renameProblem, replacementFor, type Occurrence } from "./references.ts";
-import { HTML_ATTRS, HTML_ELEMENTS, type HoverInfo, type SemType, type TagCandidate } from "./checker.ts";
+import { HTML_ATTRS, HTML_ELEMENTS, tagCandidate, type HoverInfo, type SemType, type TagCandidate } from "./checker.ts";
 import { CompileError, type Pos } from "./syntax.ts";
 import { flattenRecord, prune } from "./types.ts";
 
@@ -100,7 +100,10 @@ function validate(uri: string) {
   for (const [u, text] of docs) overrides.set(fileURLToPath(u), text);
   let diagnostics: Json[] = [];
   try {
-    results.set(uri, { result: compileProgram(file, { overrides, requireMain: false }), text: docs.get(uri) ?? "" });
+    const result = compileProgram(file, { overrides, requireMain: false, holes: true });
+    results.set(uri, { result, text: docs.get(uri) ?? "" });
+    // まだ書いていない所（_）は、エラーではなく警告として、入る型を知らせる
+    diagnostics = result.entry.holes.map((h) => ({ range: toRange(h.pos, 1), severity: 2, source: "nene", message: `まだ書いていない所です。ここには ${h.type} 型の値が入ります` }));
     if (supportsRefresh) send({ id: `refresh-${Date.now()}`, method: "workspace/semanticTokens/refresh" });
   } catch (e) {
     if (!(e instanceof CompileError)) {
@@ -150,7 +153,7 @@ function projectModules(uri: string): CompiledModule[] {
   for (const file of projectFiles(root)) {
     if (seen.has(file)) continue;
     try {
-      for (const m of compileProgram(file, { overrides, requireMain: false }).modules) seen.set(m.file, m);
+      for (const m of compileProgram(file, { overrides, requireMain: false, holes: true }).modules) seen.set(m.file, m);
     } catch {
       // エラーのあるモジュールは、参照を数えられない
     }
@@ -388,13 +391,29 @@ function completion(uri: string, line: number, character: number): Json[] {
       insertTextFormat: 2,
       textEdit: edit(prefix, tagSnippet(t)),
     }));
+    // まだ import していない部品（プロジェクトとパッケージ）。選ぶと import も足す
+    const known = new Set(tags.map((t) => t.label));
+    const self = /^module\s+([\w.]+)/m.exec(text)?.[1];
+    const more = importableTags(uri)
+      .filter((c) => c.module !== self && !known.has(c.tag.name))
+      .map((c) => ({
+        label: c.tag.name,
+        labelDetails: { description: c.module },
+        detail: `import ${c.module}`,
+        documentation: c.tag.detail,
+        kind: KIND.class,
+        sortText: `1${c.tag.name}`,
+        insertTextFormat: 2,
+        textEdit: edit(prefix, tagSnippet(c.tag)),
+        additionalTextEdits: [addImport(text, `import ${c.module}`)],
+      }));
     const html = [...HTML_ELEMENTS].map((el) => ({
       label: el,
       kind: KIND.keyword,
       insertTextFormat: 2,
       textEdit: edit(prefix, el === "img" || el === "input" ? `${el} $0/>` : `${el}>$0</${el}>`),
     }));
-    return [...tags, ...html];
+    return [...tags.map((t) => ({ ...t, sortText: `0${t.label}` })), ...more, ...html.map((h) => ({ ...h, sortText: `2${h.label}` }))];
   }
 
   // List. のような修飾名
@@ -423,6 +442,46 @@ function completion(uri: string, line: number, character: number): Json[] {
     kind: /^[A-Z]/.test(v.name) ? KIND.enumMember : v.detail.includes("->") ? KIND.function : KIND.variable,
     textEdit: edit(word, v.name),
   }));
+}
+
+// import すればタグで使える部品（Ui/Card.nn の card なら <Card>）。ファイルが変わったときだけ型検査し直す
+const tagCache = new Map<string, { text: string; tag: TagCandidate | null }>();
+
+function importableTags(uri: string): { module: string; tag: TagCandidate }[] {
+  const root = rootOf(uri);
+  if (!root) return [];
+  const out: { module: string; tag: TagCandidate }[] = [];
+  for (const { name, file } of listModuleFiles(root)) {
+    const text = docs.get(pathToFileURL(file).href) ?? readText(file);
+    let cached = tagCache.get(file);
+    if (!cached || cached.text !== text) {
+      cached = { text, tag: mainTag(name, file) };
+      tagCache.set(file, cached);
+    }
+    if (cached.tag) out.push({ module: name, tag: cached.tag });
+  }
+  return out;
+}
+
+function mainTag(name: string, file: string): TagCandidate | null {
+  const last = name.split(".").pop()!;
+  try {
+    const overrides = new Map<string, string>();
+    for (const [u, text] of docs) overrides.set(fileURLToPath(u), text);
+    const mod = compileProgram(file, { overrides, requireMain: false, holes: true }).entry;
+    const v = mod.iface.values.get(last[0].toLowerCase() + last.slice(1));
+    return v ? tagCandidate(last, v) : null;
+  } catch {
+    return null; // エラーのあるモジュールは候補に出さない
+  }
+}
+
+function readText(file: string): string {
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    return "";
+  }
 }
 
 // <Button と打ったときに入れる中身。必須の属性と、閉じタグまで入れる

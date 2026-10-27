@@ -172,7 +172,7 @@ export function scopeSelectors(css: string, scope: string): string {
       }
       i++;
       const at = head.trim();
-      if (/^@(media|supports|container|layer|document)\b/i.test(at)) {
+      if (/^@(media|supports|container|layer|document|starting-style|scope)\b/i.test(at)) {
         const inner = rules();
         i++;
         out += `${head}{${inner}}`;

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { compileProgram } from "./compiler.ts";
 import { format } from "./format.ts";
 import { prerenderSite } from "./prerender.ts";
+import { runTestFile, testFiles, type TestResult } from "./testing.ts";
 import { displayWidth, formatError } from "./report.ts";
 import { CompileError } from "./syntax.ts";
 
@@ -70,12 +71,21 @@ const commands: Record<string, Command> = {
   },
   check: {
     usage: "check [File]",
-    summary: "型検査だけを行う（省略すると index.html の入口から）",
+    summary: "型検査だけを行う（省略すると index.html の入口と test/ のファイル）",
     run: (args) => {
       if (args[0]) checkAll([resolve(args[0])], false);
-      else checkAll(entries(projectDir()));
+      else {
+        const root = projectDir();
+        checkAll(entries(root));
+        checkAll(testFiles(root), false);
+      }
       console.log(`${paint("32", "✓")} エラーはありません`);
     },
+  },
+  test: {
+    usage: "test [File...]",
+    summary: "test/ の下のテストを実行する（tests :: [Test] を export したファイル）",
+    run: (args) => runTests(args.length > 0 ? args.map((a) => resolve(a)) : testFiles(projectDir())),
   },
   fmt: {
     usage: "fmt [Path...] [--check]",
@@ -169,6 +179,42 @@ function checkAll(files: string[], requireMain = true) {
   for (const err of errors) console.error(formatError(err, { cwd: process.cwd(), color }) + "\n");
   console.error(paint("31", `${errors.length} 個のエラーがあります`));
   process.exit(1);
+}
+
+function runTests(files: string[]) {
+  if (files.length === 0) fail("テストがありません。test/ の下に、tests :: [Test] を export するファイルを作ってください");
+  const errors: CompileError[] = [];
+  const results: TestResult[] = [];
+  for (const file of files) {
+    let fileResults: TestResult[];
+    try {
+      fileResults = runTestFile(file);
+    } catch (e) {
+      if (e instanceof CompileError) {
+        errors.push(...e.all);
+        continue;
+      }
+      // パターンの漏れなど、実行中に止まったもの
+      fileResults = [{ file, name: ["（実行中に止まりました）"], passed: false, actual: e instanceof Error ? e.message : String(e) }];
+    }
+    console.log(paint("1", relative(process.cwd(), file)));
+    for (const r of fileResults) {
+      const name = r.name.join(" › ");
+      if (r.passed) {
+        console.log(`  ${paint("32", "✓")} ${paint("2", name)}`);
+        continue;
+      }
+      console.log(`  ${paint("31", "✗")} ${name}`);
+      if (r.expected !== undefined) console.log(`      期待: ${paint("32", r.expected)}`);
+      if (r.actual !== undefined) console.log(`      実際: ${paint("31", r.actual)}`);
+    }
+    results.push(...fileResults);
+  }
+  for (const err of errors) console.error("\n" + formatError(err, { cwd: process.cwd(), color }));
+  const failed = results.filter((r) => !r.passed).length;
+  const summary = [`${results.length - failed} 件成功`, failed > 0 ? `${failed} 件失敗` : "", errors.length > 0 ? `${errors.length} 個の型エラー` : ""];
+  console.log(`\n${failed + errors.length > 0 ? paint("31", "✗") : paint("32", "✓")} ${summary.filter(Boolean).join("、")}`);
+  if (failed + errors.length > 0) process.exit(1);
 }
 
 async function viteOptions(root: string) {

@@ -9,10 +9,11 @@
 //   <script type="module" src="/src/Main.nn"></script>
 //
 // 入口の .nn を、依存する .nn ごと 1 つの JavaScript にして返す。
-// どれかの .nn を保存すると、ブラウザが再読み込みされる。
+// どれかの .nn を保存すると、ブラウザが再読み込みされる。ソースマップつきなので、開発者ツールでは .nn の行で止められる。
 
+import { relative } from "node:path";
 import type { Plugin } from "vite";
-import { LIB_FILES, RUNTIME_FILES, bundle, compileProgram } from "./compiler.ts";
+import { LIB_FILES, RUNTIME_FILES, bundleWithMap, compileProgram } from "./compiler.ts";
 import { errorFrame } from "./report.ts";
 import { CompileError } from "./syntax.ts";
 
@@ -22,18 +23,26 @@ export interface NeneOptions {
 }
 
 export default function nene(options: NeneOptions = {}): Plugin {
+  // 開発サーバーでは、まだ書いていない所（_）を残したまま動かせる。ビルドではエラーにする
+  let serve = false;
   return {
     name: "nene",
     // .env の NENE_ で始まる値を、Env.get で読めるようにする
     config: () => ({ envPrefix: "NENE_" }),
+    configResolved(config) {
+      serve = config.command === "serve";
+    },
     load(id) {
       const file = id.split("?")[0];
       if (!file.endsWith(".nn")) return null;
       try {
-        const result = compileProgram(file);
+        const result = compileProgram(file, { holes: serve });
+        for (const m of result.modules) {
+          for (const h of m.holes) this.warn(`${relative(process.cwd(), m.file)}:${h.pos.line}:${h.pos.col} まだ書いていない所（_）です。ここには ${h.type} 型の値が入ります`);
+        }
         for (const f of [...result.files, ...LIB_FILES, ...RUNTIME_FILES]) this.addWatchFile(f);
-        const code = bundle(result, { mount: options.mount, base: "import.meta.env.BASE_URL", env: "import.meta.env" });
-        return { code, map: null };
+        // ソースマップで、ブラウザの開発者ツールに .nn の行が出る（止める場所も .nn に置ける）
+        return bundleWithMap(result, { mount: options.mount, base: "import.meta.env.BASE_URL", env: "import.meta.env" });
       } catch (e) {
         if (e instanceof CompileError) throw overlayError(e, file);
         throw e;
@@ -48,15 +57,21 @@ export default function nene(options: NeneOptions = {}): Plugin {
           const result = await server.transformRequest(url);
           if (!result) return next();
           res.setHeader("Content-Type", "text/javascript; charset=utf-8");
-          res.end(result.code);
+          const map = result.map && "mappings" in result.map ? `\n//# sourceMappingURL=data:application/json;base64,${Buffer.from(JSON.stringify(result.map)).toString("base64")}\n` : "";
+          res.end(result.code + map);
         } catch (e) {
           next(e);
         }
       });
     },
     handleHotUpdate(ctx) {
-      // .nn はモジュール単位の差し替えをしないので、ページごと読み直す
+      // .nn はモジュール単位の差し替えをしないので、ページごと読み直す。
+      // 入口の .nn は依存する .nn ごと 1 つにまとめているので、変換済みのものをすべて捨てる
       if (ctx.file.endsWith(".nn")) {
+        const graph = ctx.server.moduleGraph;
+        for (const mod of graph.idToModuleMap.values()) {
+          if (mod.id?.split("?")[0].endsWith(".nn")) graph.invalidateModule(mod);
+        }
         ctx.server.ws.send({ type: "full-reload" });
         return [];
       }

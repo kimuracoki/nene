@@ -1,0 +1,89 @@
+-- リストの 1 行。onClick を渡すと押せる行になる。Card padding={None} の中に並べると、MUI の List になる
+--
+--   <Card padding={None}>
+--     <ListItem icon={Just Icon.mail} primary="受信トレイ" secondary="未読 3 件" onClick={Just (Open Inbox)} selected={model.box == Inbox} />
+--     <ListItem icon={Just Icon.star} primary="スター付き" onClick={Just (Open Starred)} />
+--   </Card>
+module Ui.ListItem (ListItemProps, listItem) where
+
+import qualified Ui.Icon as Icon
+
+
+type ListItemProps msg =
+  { primary   :: String
+  , secondary :: String          = ""
+  , icon      :: Maybe Icon.Icon = Nothing
+  , onClick   :: Maybe msg       = Nothing
+  , selected  :: Bool            = False
+  }
+
+
+listItem :: ListItemProps msg -> Html msg
+listItem props = <Body action={props.onClick} />
+  where
+    body { action = Just msg } = <button class={look} type="button" aria-current={current} onClick={msg}>{content}</button>
+    body { action = Nothing }  = <div class={look}>{content}</div>
+
+    content =
+      <Row align={Center}>
+        <Lead icon={props.icon} />
+        <span class={css.text}>
+          <span class={css.primary}>{props.primary}</span>
+          <Secondary text={props.secondary} />
+        </span>
+      </Row>
+
+    look
+      | props.selected = classes [css.item, css.selected]
+      | otherwise      = css.item
+    current
+      | props.selected = "true"
+      | otherwise      = "false"
+
+
+lead :: { icon :: Maybe Icon.Icon } -> Html msg
+lead { icon = Just i }  = <span class={css.icon}><Icon name={i} /></span>
+lead { icon = Nothing } = <></>
+
+secondary :: { text :: String } -> Html msg
+secondary { text = "" } = <></>
+secondary { text }      = <span class={css.secondary}>{text}</span>
+
+
+style
+  .item {
+    display: block;
+    width: 100%;
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-align: left;
+  }
+  button.item { position: relative; overflow: hidden; transition: background-color .15s var(--ease); }
+  button.item:hover { background: var(--hover); }
+  button.item:focus-visible { outline: none; background: var(--selected); }
+  /* 押したときの波紋。押した所（ランタイムが --press-x と --press-y に入れる）から広がり、離すと消える */
+  button.item::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  button.item[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  button.item[data-pressed=down]::after { opacity: .2; }
+  button.item[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+  .selected, button.selected:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+  .icon { display: inline-flex; min-width: 56px; color: var(--muted); font-size: 1.1875rem; }
+  .selected .icon { color: var(--primary); }
+  .text { display: flex; flex: 1; flex-direction: column; min-width: 0; padding: 4px 0; }
+  .primary { font-size: 1rem; line-height: 1.5; }
+  .secondary { color: var(--muted); font-size: .875rem; line-height: 1.43; }

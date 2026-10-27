@@ -32,19 +32,53 @@ tabs props =
 
 
 style
-  .tabs { border-bottom: 1px solid var(--border); }
+  .tabs { border-bottom: 1px solid var(--divider); }
   .tab {
-    margin-bottom: -1px;
-    padding: 10px 16px;
+    position: relative;
+    min-width: 90px;
+    min-height: 48px;
+    padding: 12px 16px;
+    overflow: hidden;
     border: none;
-    border-bottom: 2px solid transparent;
     background: none;
     color: var(--muted);
-    font-weight: 600;
-    transition: color .15s, border-color .15s;
+    font-size: .875rem;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: .02857em;
+    text-transform: uppercase;
+    transition: color .2s var(--ease), background-color .2s var(--ease);
   }
-  .tab:hover { color: var(--text); }
-  .active, .active:hover {
-    border-bottom-color: var(--primary);
-    color: var(--primary);
+  /* 選ばれたタブの下線 */
+  .tab::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transition: transform .3s var(--ease);
   }
+  /* 押したときの波紋。押した所（ランタイムが --press-x と --press-y に入れる）から広がり、離すと消える */
+  .tab::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  .tab[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  .tab[data-pressed=down]::after { opacity: .3; }
+  .tab[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+  .tab:focus-visible { outline: none; background: var(--hover); }
+  .active { color: var(--primary); }
+  .active::before { transform: scaleX(1); }

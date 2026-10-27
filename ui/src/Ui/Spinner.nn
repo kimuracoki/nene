@@ -25,15 +25,27 @@ sizeClass _  = css.medium
 
 
 style
+  /* 円弧（--arc の角度）が伸び縮みしながら回る。縮むあいだは先端が止まって見えるよう、1 周期で 360° 余分に回す */
+  @property --arc {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 20deg;
+  }
   .spinner {
     display: inline-block;
     flex: none;
-    border: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
-    border-top-color: var(--primary);
     border-radius: 50%;
-    animation: spin .7s linear infinite;
+    background: conic-gradient(var(--primary) var(--arc), transparent 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--thickness)), black calc(100% - var(--thickness) + .5px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - var(--thickness)), black calc(100% - var(--thickness) + .5px));
+    animation: spin 1.4s linear infinite, arc 1.4s ease-in-out infinite;
   }
-  .small  { width: 16px; height: 16px; }
-  .medium { width: 24px; height: 24px; }
-  .large  { width: 40px; height: 40px; border-width: 3px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .small  { width: 20px; height: 20px; --thickness: 2px; }
+  .medium { width: 40px; height: 40px; --thickness: 3.6px; }
+  .large  { width: 56px; height: 56px; --thickness: 4.5px; }
+  @keyframes spin { to { rotate: 360deg; } }
+  @keyframes arc {
+    0% { --arc: 20deg; transform: rotate(0deg); }
+    50% { --arc: 270deg; transform: rotate(110deg); }
+    100% { --arc: 20deg; transform: rotate(360deg); }
+  }
