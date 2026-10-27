@@ -8,6 +8,7 @@ UI 向けの関数型言語 Nene（Haskell 風の文法 + JSX、拡張子 `.nn`�
 - `npm run typecheck` … `tsc`。`.ts` を編集すると自動で実行される（`.claude/hooks/typecheck.mjs`）
 - `npm run dev` … `examples/` を開発サーバーで開く
 - `node src/cli.ts <command>` … 手元の `nene` コマンド
+- `npm run bump -- <版>` / `npm run release` … nene-lang・nene-lang-ui・create-nene-lang の版をそろえる / まだ npm にない版を公開する。3 つはいつも同じ版で一緒に出す（create-nene-lang の版が変わらないと、`npm create` が古いテンプレートを使い続けるため）。公開はユーザーが行う
 
 ## 読む順番
 

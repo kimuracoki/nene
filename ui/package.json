@@ -11,7 +11,7 @@
     "README.md"
   ],
   "peerDependencies": {
-    "nene-lang": "^0.1.2"
+    "nene-lang": "^0.1.3"
   },
   "publishConfig": {
     "access": "public"
