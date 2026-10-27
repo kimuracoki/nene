@@ -100,7 +100,10 @@ function validate(uri: string) {
   for (const [u, text] of docs) overrides.set(fileURLToPath(u), text);
   let diagnostics: Json[] = [];
   try {
-    results.set(uri, { result: compileProgram(file, { overrides, requireMain: false }), text: docs.get(uri) ?? "" });
+    const result = compileProgram(file, { overrides, requireMain: false, holes: true });
+    results.set(uri, { result, text: docs.get(uri) ?? "" });
+    // まだ書いていない所（_）は、エラーではなく警告として、入る型を知らせる
+    diagnostics = result.entry.holes.map((h) => ({ range: toRange(h.pos, 1), severity: 2, source: "nene", message: `まだ書いていない所です。ここには ${h.type} 型の値が入ります` }));
     if (supportsRefresh) send({ id: `refresh-${Date.now()}`, method: "workspace/semanticTokens/refresh" });
   } catch (e) {
     if (!(e instanceof CompileError)) {
@@ -150,7 +153,7 @@ function projectModules(uri: string): CompiledModule[] {
   for (const file of projectFiles(root)) {
     if (seen.has(file)) continue;
     try {
-      for (const m of compileProgram(file, { overrides, requireMain: false }).modules) seen.set(m.file, m);
+      for (const m of compileProgram(file, { overrides, requireMain: false, holes: true }).modules) seen.set(m.file, m);
     } catch {
       // エラーのあるモジュールは、参照を数えられない
     }
@@ -465,7 +468,7 @@ function mainTag(name: string, file: string): TagCandidate | null {
   try {
     const overrides = new Map<string, string>();
     for (const [u, text] of docs) overrides.set(fileURLToPath(u), text);
-    const mod = compileProgram(file, { overrides, requireMain: false }).entry;
+    const mod = compileProgram(file, { overrides, requireMain: false, holes: true }).entry;
     const v = mod.iface.values.get(last[0].toLowerCase() + last.slice(1));
     return v ? tagCandidate(last, v) : null;
   } catch {

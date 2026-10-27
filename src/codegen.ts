@@ -10,6 +10,7 @@
 import type { CheckResult } from "./checker.ts";
 import { fieldKey, jsName } from "./checker.ts";
 import type { Binding, CtorRef, Equation, Expr, JsxChild, JsxNode, Module, Pat, Pos } from "./syntax.ts";
+import { prune, show } from "./types.ts";
 
 // ソースマップのための印。式の前に元の位置（行:列）を埋め込み、bundle がまとめるときに取り除く
 const mark = (p: Pos) => `\u0001${p.line}:${p.col}\u0001`;
@@ -17,7 +18,7 @@ export const MARKS = /\u0001(\d+):(\d+)\u0001/g;
 const unmarked = (js: string) => js.replace(MARKS, "");
 
 export function generateModule(mod: Module, checked: CheckResult): string {
-  const g = new Gen(checked.style?.scope ?? null);
+  const g = new Gen(mod.name, checked.style?.scope ?? null);
   const lines: string[] = [];
   const exported: string[] = [];
   if (checked.style) {
@@ -52,10 +53,12 @@ function indent(s: string, n = 1): string {
 }
 
 class Gen {
+  module: string;
   // style ブロックがあるファイルでは、このファイルで書いたタグに印のクラスを付ける
   scope: string | null;
 
-  constructor(scope: string | null) {
+  constructor(module: string, scope: string | null) {
+    this.module = module;
     this.scope = scope;
   }
 
@@ -191,6 +194,11 @@ class Gen {
         return this.object(e.fields.map((f) => [f.name, this.expr(f.value)]), this.expr(e.target));
       case "jsx":
         return this.jsx(e.node);
+      case "hole": {
+        // 通ったところで止まる。関数の型なら、呼ばれるまでは止まらない（入力欄の onInput={_} は、打つまで画面を壊さない）
+        const where = JSON.stringify(`${this.module} ${e.pos.line}:${e.pos.col}`);
+        return `$rt.hole(${where}, ${JSON.stringify(show(e.type!))}, ${prune(e.type!).k === "fun"})`;
+      }
     }
   }
 

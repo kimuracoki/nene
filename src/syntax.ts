@@ -1,6 +1,6 @@
 // 構文木の定義
 
-import type { TVar } from "./types.ts";
+import type { TVar, Type } from "./types.ts";
 
 export interface Pos {
   line: number;
@@ -86,7 +86,8 @@ export type Expr =
   | { k: "unit"; pos: Pos }
   | { k: "record"; fields: FieldAssign[]; pos: Pos; defaultsJs?: string | null }
   | { k: "update"; target: Expr; fields: FieldAssign[]; pos: Pos }
-  | { k: "jsx"; node: JsxNode; pos: Pos };
+  | { k: "jsx"; node: JsxNode; pos: Pos }
+  | { k: "hole"; pos: Pos; type?: Type }; // まだ書いていない所（_）。type は検査で決まった型
 
 export interface FieldAssign {
   name: string;

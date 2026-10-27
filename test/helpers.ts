@@ -1,14 +1,14 @@
 import { join } from "node:path";
 import { JSDOM } from "jsdom";
-import { bundle, compileProgram, type ProgramResult } from "../src/compiler.ts";
+import { bundle, compileProgram, type CompileOptions, type ProgramResult } from "../src/compiler.ts";
 import { CompileError } from "../src/syntax.ts";
 
 const ROOT = "/virtual";
 
 // ファイル名と中身の組から、メモリ上だけでコンパイルする
-export function compile(files: Record<string, string>, entry = "Main"): ProgramResult {
+export function compile(files: Record<string, string>, entry = "Main", opts: CompileOptions = {}): ProgramResult {
   const overrides = new Map(Object.entries(files).map(([name, src]) => [`${ROOT}/${name.replace(/\./g, "/")}.nn`, src]));
-  return compileProgram(`${ROOT}/${entry}.nn`, { overrides });
+  return compileProgram(`${ROOT}/${entry}.nn`, { ...opts, overrides });
 }
 
 // コンパイルエラーのメッセージを返す（成功したら例外）
@@ -53,7 +53,7 @@ export async function runExample(name: string, options: DomOptions = {}) {
   return runProgram(compileProgram(join(import.meta.dirname, "..", "examples", `${name}.nn`)), options);
 }
 
-async function runProgram(program: ProgramResult, options: DomOptions) {
+export async function runProgram(program: ProgramResult, options: DomOptions) {
   const js = bundle(program, {
     base: JSON.stringify(options.base ?? "/"),
     env: JSON.stringify(options.env ?? {}),

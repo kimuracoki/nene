@@ -8,6 +8,7 @@ import {
   RESERVED_MODULES,
   STD_QUALIFIED,
   type CompletionInfo,
+  type Hole,
   type HoverInfo,
   type ModuleIface,
   type SemToken,
@@ -35,6 +36,7 @@ export interface CompiledModule {
   hovers: HoverInfo[];
   tokens: SemToken[];
   completion: CompletionInfo;
+  holes: Hole[];
 }
 
 export interface CompileOptions {
@@ -42,6 +44,8 @@ export interface CompileOptions {
   overrides?: Map<string, string>;
   // main を要求するか（ビルドでは true、エディタでの検査では false）
   requireMain?: boolean;
+  // まだ書いていない所（_）を許すか（開発サーバーとエディタでは true）。許すと、結果の holes に入る
+  holes?: boolean;
 }
 
 let libCache: { stamp: number; modules: CompiledModule[] } | null = null;
@@ -193,7 +197,7 @@ export function compileProgram(entryFile: string, opts: CompileOptions = {}): Pr
       throw new CompileError(`${name} は標準モジュールの名前なので使えません`, mod.pos, file);
     }
     const isEntry = name === entryName && (opts.requireMain ?? true);
-    const checked = checkModule(mod, file, { deps, builtin: false, entry: isEntry });
+    const checked = checkModule(mod, file, { deps, builtin: false, entry: isEntry, holes: opts.holes });
     deps.set(name, checked.iface);
     modules.push({ name, file, js: generateModule(mod, checked), ...checked });
   }
@@ -231,8 +235,10 @@ function bundleParts(result: ProgramResult, options: BundleOptions): Part[] {
   const lib = used.map((m) => m.js);
   const runtime = RUNTIME_PARTS.filter((p) => [...lib, ...user].some((js) => p.provides.some((name) => js.includes(`$rt.${name}`))));
   const code = (c: string): Part => ({ code: c, file: null });
+  const holes = result.modules.flatMap((m) => m.holes.map((h) => `${m.name} ${h.pos.line}:${h.pos.col}（${h.type}）`));
   return [
     code("// nene が生成したコード"),
+    ...(holes.length > 0 ? [code(`console.warn(${JSON.stringify(`nene: まだ書いていない所（_）があります: ${holes.join("、")}`)});`)] : []),
     code(readFileSync(RUNTIME_CORE, "utf8")),
     ...runtime.map((p) => code(readFileSync(p.file, "utf8"))),
     code(`$rt.configure({ base: ${options.base ?? '"/"'}, env: ${options.env ?? "{}"} });`),

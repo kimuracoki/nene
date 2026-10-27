@@ -218,6 +218,13 @@ export interface CheckOptions {
   deps: Map<string, ModuleIface>;
   builtin: boolean; // 標準ライブラリ（foreign の制限をかけない）
   entry: boolean; // main を持つべきモジュールか
+  holes?: boolean; // まだ書いていない所（_）を許すか（開発サーバーとエディタ）。許さないときはエラーにする
+}
+
+// まだ書いていない所（_）と、そこに入る型
+export interface Hole {
+  pos: Pos;
+  type: string;
 }
 
 export interface CheckResult {
@@ -227,6 +234,7 @@ export interface CheckResult {
   tokens: SemToken[];
   completion: CompletionInfo;
   style: ScopedStyle | null;
+  holes: Hole[];
 }
 
 export function checkModule(mod: Module, file: string, opts: CheckOptions): CheckResult {
@@ -250,6 +258,7 @@ class Checker {
   tokens: SemToken[] = [];
   style: ScopedStyle | null = null;
   jsonUses: { expr: Extract<Expr, { k: "var" }>; types: Type[] }[] = [];
+  holes: Extract<Expr, { k: "hole" }>[] = [];
 
   constructor(mod: Module, file: string, opts: CheckOptions) {
     this.mod = mod;
@@ -289,6 +298,12 @@ class Checker {
         use.expr.json = use.types.map((t) => this.jsonDescriptor(t, use.expr.pos));
       });
     }
+    const holes = this.holes.map((h) => ({ pos: h.pos, type: show(h.type!) }));
+    if (!this.opts.holes) {
+      for (const h of holes) {
+        this.errors.push(this.error(`まだ書いていない所（_）が残っています。ここには ${h.type} 型の値を書いてください（_ を置いたまま動かせるのは nene dev だけです）`, h.pos));
+      }
+    }
     if (this.errors.length > 0) {
       throw CompileError.of(this.errors.sort((a, b) => (a.pos?.line ?? 0) - (b.pos?.line ?? 0)));
     }
@@ -299,6 +314,7 @@ class Checker {
       tokens: this.tokens,
       completion: this.completionInfo(),
       style: this.style,
+      holes,
     };
     // ほかのモジュールが型の別名を展開しても、このモジュールの結果に書き足さない
     this.hovers = [];
@@ -1011,6 +1027,14 @@ class Checker {
       }
       case "jsx":
         return this.inferJsx(e.node);
+      case "hole": {
+        // どんな型の値の代わりにもなる。入る型は、まわりから決まったものを最後に報告する
+        const t = freshVar(this.level);
+        e.type = t;
+        this.holes.push(e);
+        this.hovers.push({ pos: e.pos, length: 1, name: "_", type: () => show(t), typeOf: () => t });
+        return t;
+      }
     }
   }
 

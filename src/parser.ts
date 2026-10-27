@@ -704,7 +704,7 @@ class Parser {
     const t = this.next();
     switch (t.kind) {
       case "var":
-        if (t.text === "_") throw this.errorAt(t, "_ は式には書けません");
+        if (t.text === "_") return { k: "hole", pos: t.pos };
         return { k: "var", name: t.text, module: null, pos: t.pos };
       case "qvar":
         return { k: "var", name: t.text, module: t.module, pos: t.pos };
@@ -987,6 +987,7 @@ function checkJsxExpr(e: Expr, file: string) {
       case "var":
       case "con":
       case "lit":
+      case "hole":
         return true;
       case "neg":
         return x.expr.k === "lit";
