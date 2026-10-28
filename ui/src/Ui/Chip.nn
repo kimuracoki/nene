@@ -2,8 +2,10 @@
 --
 --   <Chip tone={Success}>完了</Chip>
 --   <Chip selected={isAll} onClick={Just (SetFilter All)}>すべて</Chip>
+--   <Chip onDelete={Just (RemoveTag tag)}>{tag}</Chip>    -- 右に消すボタンが付く
 module Ui.Chip (ChipProps, chip) where
 
+import qualified Ui.Icon as Icon
 import Ui.Theme (Tone(..), toneVars)
 
 
@@ -11,15 +13,25 @@ type ChipProps msg =
   { onClick  :: Maybe msg = Nothing
   , selected :: Bool      = False
   , tone     :: Tone      = Neutral
+  , onDelete :: Maybe msg = Nothing   -- Just msg なら、右に消すボタンを付ける
   }
 
 
 chip :: ChipProps msg -> [Html msg] -> Html msg
-chip props children = <Body action={props.onClick}>{children}</Body>
+chip props children = <Body action={props.onClick} remove={props.onDelete}>{children}</Body>
   where
-    -- 押せるチップはボタンに、押せないチップはただの文字にする
+    -- 押せるチップはボタンに、押せないチップはただの文字にする。消せるチップは、文字と消すボタンを並べる
+    body { action, remove = Just msg } kids =
+      <span class={deletable} vars={colors}>
+        <Main action={action}>{kids}</Main>
+        <button class={css.delete} type="button" aria-label="消す" onClick={msg}><Icon name={Icon.cancel} /></button>
+      </span>
     body { action = Just msg } kids = <button class={look} vars={colors} type="button" aria-pressed={pressed} onClick={msg}>{kids}</button>
     body { action = Nothing } kids  = <span class={look} vars={colors}>{kids}</span>
+
+    main { action = Just msg } kids = <button class={css.main} type="button" aria-pressed={pressed} onClick={msg}>{kids}</button>
+    main { action = Nothing } kids  = <span>{kids}</span>
+    deletable = classes [look, css.deletable]
 
     colors = toneVars props.tone
     -- 押せないチップと選ばれたチップは塗りつぶし、選ばれていない押せるチップは枠だけ
@@ -82,3 +94,22 @@ style
   button.neutral.outlined:hover { background: var(--hover); }
   button.chip:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 30%, transparent); }
   button.chip:active { box-shadow: var(--shadow-1); }
+
+  /* 消せるチップ。右の余白を詰め、消すボタンを薄く出す */
+  .deletable { padding-right: 4px; }
+  .main { padding: 0; border: none; background: none; color: inherit; font: inherit; cursor: pointer; }
+  .delete {
+    display: inline-flex;
+    margin: 0 0 0 -2px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: currentColor;
+    font-size: 1.1rem;
+    opacity: .7;
+    cursor: pointer;
+    transition: opacity .15s var(--ease);
+  }
+  .neutral .delete { opacity: .26; }
+  .delete:hover { opacity: 1; }
+  .neutral .delete:hover { opacity: .4; }

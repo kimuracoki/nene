@@ -20,9 +20,14 @@ avatar props = <Face photo={props.src} />
     face { photo = Nothing }  = <span class={look} title={props.name} aria-label={props.name}>{initials props.name}</span>
 
 
--- "Ada Lovelace" は "AL"、"木村" は "木"
+-- "Ada Lovelace" は "AL"。大文字と小文字のない文字（漢字・かな）の名前は、"木村 光" でも "木" の 1 文字だけにする
 initials :: String -> String
-initials name = String.toUpper (String.join "" (map (String.slice 0 1) (take 2 (words name))))
+initials name
+  | cased     = String.toUpper (String.join "" (map (String.slice 0 1) (take 2 (words name))))
+  | otherwise = String.slice 0 1 name
+  where
+    first = String.slice 0 1 name
+    cased = String.toUpper first /= String.toLower first
 
 
 sizeClass :: Size -> Class
@@ -44,6 +49,7 @@ style
     background: light-dark(#bdbdbd, #757575);
     color: var(--background);
     line-height: 1;
+    white-space: nowrap;
     user-select: none;
   }
   .small  { width: 24px; height: 24px; font-size: .75rem; }

@@ -17,6 +17,7 @@ tabs :: TabsProps msg -> Html msg
 tabs props =
   <div class={css.tabs} role="tablist">
     <Row>{List.indexedMap tab props.labels}</Row>
+    <span class={css.indicator} aria-hidden="true" />
   </div>
   where
     tab i label = <button class={look} type="button" role="tab" aria-selected={state} onClick={choose}>{label}</button>
@@ -32,7 +33,7 @@ tabs props =
 
 
 style
-  .tabs { border-bottom: 1px solid var(--divider); }
+  .tabs { position: relative; border-bottom: 1px solid var(--divider); anchor-scope: --tab; }
   .tab {
     position: relative;
     min-width: 90px;
@@ -60,6 +61,23 @@ style
     background: var(--primary);
     transform: scaleX(0);
     transition: transform .3s var(--ease);
+  }
+  /* 選んだタブが変わると、下線がすべって移る（アンカー配置のあるブラウザ。ないブラウザでは、その場で伸びる） */
+  .indicator { display: none; }
+  @supports (anchor-name: --a) {
+    .active { anchor-name: --tab; }
+    .indicator {
+      display: block;
+      position: absolute;
+      bottom: 0;
+      height: 2px;
+      position-anchor: --tab;
+      left: anchor(left);
+      right: anchor(right);
+      background: var(--primary);
+      transition: left .3s var(--ease), right .3s var(--ease);
+    }
+    .tab::before { display: none; }
   }
   /* 押したときの波紋。押した所（ランタイムが --press-x と --press-y に入れる）から広がり、離すと消える */
   .tab::after {

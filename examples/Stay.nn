@@ -1,0 +1,393 @@
+-- 宿の予約ページ。写真のスライド（Carousel）・日付の入力・料金の計算・確かめるダイアログ・知らせ
+module Stay (main) where
+
+import Ui.AppBar
+import Ui.Avatar
+import Ui.Breadcrumbs
+import Ui.Button (Variant(..))
+import Ui.Card
+import Ui.Carousel
+import Ui.Chip
+import Ui.DatePicker
+import Ui.Dialog
+import Ui.Divider
+import qualified Ui.Icon as Icon
+import Ui.IconButton
+import Ui.Rating
+import Ui.Select
+import Ui.Snackbar
+import Ui.Tabs
+import Ui.Theme (Tone(..))
+
+
+main :: Program Model Msg
+main = App.app { init, update, view, subscriptions }
+
+
+-- VIEW
+
+view :: Model -> Html Msg
+view model =
+  <div>
+    <AppBar title="Nene Stay">
+      <IconButton icon={Icon.search} label="宿を探す" onClick={NoOp} />
+      <Avatar name="木村" size={S} />
+    </AppBar>
+    <main class={css.page}>
+      <Column gap={L}>
+        <Column gap={S}>
+          <Breadcrumbs links={areas} current={stay.name} />
+          <Row gap={S} align={Center} collapse={S}>
+            <h1 class={css.title}>{stay.name}</h1>
+            <Spacer />
+            <Row gap={XS}>
+              <IconButton icon={heart} label="お気に入り" tone={heartTone} onClick={ToggleSaved} />
+              <IconButton icon={Icon.share} label="共有" onClick={NoOp} />
+            </Row>
+          </Row>
+          <Row gap={S} align={Center} wrap>
+            <Rating value={5} />
+            <strong>4.9</strong>
+            <span class={css.muted}>レビュー 128 件 · {stay.area}</span>
+          </Row>
+        </Column>
+
+        <Carousel label="宿の写真" slides={photos} aspect="2 / 1" />
+
+        <Row gap={XL} align={Start} collapse={M}>
+          <div class={css.details}>
+            <Column gap={L}>
+              <Row gap={M} align={Center}>
+                <Avatar name="奈々" />
+                <Column>
+                  <strong>ホストは奈々さん</strong>
+                  <span class={css.muted}>スーパーホスト · ホスト歴 6 年</span>
+                </Column>
+              </Row>
+              <Row gap={S} wrap>{map amenity stay.amenities}</Row>
+              <Divider />
+              <Tabs labels={sections} selected={model.tab} onSelect={TabChanged} />
+              <TabBody tab={model.tab} />
+            </Column>
+          </div>
+          <div class={css.aside}>
+            <Booking model={model} />
+          </div>
+        </Row>
+
+        <Column gap={M}>
+          <h2 class={css.heading}>近くの宿</h2>
+          <Carousel label="近くの宿" slides={nearbyCards} perView={3} gap={M} dots={False} />
+        </Column>
+      </Column>
+    </main>
+
+    <Dialog open={model.confirming} onClose={CloseConfirm} title="予約の内容">
+      <Column gap={M}>
+        <Summary model={model} />
+        <Row gap={S} justify={End}>
+          <Button variant={Plain} onClick={CloseConfirm}>戻る</Button>
+          <Button onClick={Confirm}>予約を確定する</Button>
+        </Row>
+      </Column>
+    </Dialog>
+    <Snackbar open={noticing} message={model.notice} onClose={HideNotice} />
+  </div>
+  where
+    areas = [("#", "長野県"), ("#", "白馬村")]
+    noticing = model.notice /= ""
+    photos = map photo stay.photos
+    nearbyCards = map nearbyCard nearby
+    sections = ["紹介", "設備", "レビュー"]
+    heart
+      | model.saved = Icon.heartFilled
+      | otherwise   = Icon.heart
+    heartTone
+      | model.saved = Danger
+      | otherwise   = Neutral
+
+    photo p = <img src={p} alt={stay.name} />
+    amenity a = <Chip>{a}</Chip>
+
+    tabBody { tab = 0 } = <p class={css.body}>{stay.description}</p>
+    tabBody { tab = 1 } = <ul class={css.list}>{map item stay.facilities}</ul>
+    tabBody _           = <Column gap={M}>{map review reviews}</Column>
+    item f = <li>{f}</li>
+
+
+-- 予約の欄。日付と人数から料金を出す。チェックアウトがチェックインより前なら予約できない
+booking :: { model :: Model } -> Html Msg
+booking { model } =
+  <Card>
+    <Column gap={M}>
+      <Row align={End} gap={XS}>
+        <strong class={css.price}>{perNight}</strong>
+        <span class={css.muted}>/ 泊</span>
+      </Row>
+      <Row gap={S}>
+        <DatePicker id="check-in" label="チェックイン" value={model.checkIn} month={model.checkInMonth} onChange={CheckInChanged} onMonth={CheckInMonth} />
+        <DatePicker id="check-out" label="チェックアウト" value={model.checkOut} month={model.checkOutMonth} onChange={CheckOutChanged} onMonth={CheckOutMonth} error={dateError} />
+      </Row>
+      <Select label="人数" value={model.guests} options={guestOptions} onChange={GuestsChanged} />
+      <Button fullWidth disabled={invalid} onClick={OpenConfirm}>予約に進む</Button>
+      <span class={css.note}>まだ料金は発生しません</span>
+      <Divider />
+      <Summary model={model} />
+    </Column>
+  </Card>
+  where
+    perNight = yen stay.price
+    invalid = nights model <= 0
+    dateError
+      | invalid   = Just "チェックインより後の日にしてください"
+      | otherwise = Nothing
+    guestOptions = map guestOption (range 1 6)
+    guestOption n = (show n, show n ++ " 名")
+
+
+-- 料金の内訳
+summary :: { model :: Model } -> Html msg
+summary { model } =
+  <Column gap={XS}>
+    <Line label={stayLine} value={yen subtotal} />
+    <Line label="清掃料金" value={yen cleaning} />
+    <Line label="サービス料" value={yen fee} />
+    <Divider />
+    <Line label="合計" value={yen total} strong />
+  </Column>
+  where
+    n = max 0 (nights model)
+    stayLine = yen stay.price ++ " × " ++ show n ++ " 泊"
+    subtotal = stay.price * n
+    cleaning = 5000
+    fee = subtotal // 10
+    total = subtotal + cleaning + fee
+
+type LineProps = { label :: String, value :: String, strong :: Bool = False }
+
+line :: LineProps -> Html msg
+line props =
+  <Row justify={Start} class={look}>
+    <span>{props.label}</span>
+    <Spacer />
+    <span>{props.value}</span>
+  </Row>
+  where
+    look
+      | props.strong = classes [css.line, css.total]
+      | otherwise    = css.line
+
+
+review :: Review -> Html msg
+review r =
+  <Row gap={M} align={Start}>
+    <Avatar name={r.name} />
+    <Column gap={XS}>
+      <Row gap={S} align={Center}>
+        <strong>{r.name}</strong>
+        <span class={css.muted}>{r.date}</span>
+      </Row>
+      <Rating value={r.stars} />
+      <p class={css.body}>{r.text}</p>
+    </Column>
+  </Row>
+
+nearbyCard :: Nearby -> Html msg
+nearbyCard n =
+  <a href="#" class={css.nearby}>
+    <img class={css.nearbyPhoto} src={n.photo} alt={n.name} />
+    <Column gap={XS}>
+      <strong>{n.name}</strong>
+      <span class={css.muted}>{n.area}</span>
+      <Row gap={XS} align={Center}>
+        <span>{price}</span>
+        <span class={css.muted}>/ 泊 · ★ {n.score}</span>
+      </Row>
+    </Column>
+  </a>
+  where
+    price = yen n.price
+
+
+-- UPDATE
+
+update :: Msg -> Model -> Model
+update (CheckInChanged d) model  = { model | checkIn = d }
+update (CheckOutChanged d) model = { model | checkOut = d }
+update (CheckInMonth m) model    = { model | checkInMonth = m }
+update (CheckOutMonth m) model   = { model | checkOutMonth = m }
+update (GuestsChanged g) model   = { model | guests = g }
+update (TabChanged t) model      = { model | tab = t }
+update ToggleSaved model
+  | model.saved = { model | saved = False, notice = "お気に入りから外しました" }
+  | otherwise   = { model | saved = True, notice = "お気に入りに追加しました" }
+update OpenConfirm model  = { model | confirming = True }
+update CloseConfirm model = { model | confirming = False }
+update Confirm model      = { model | confirming = False, notice = "予約しました。確認のメールを送りました" }
+update HideNotice model   = { model | notice = "" }
+update NoOp model         = model
+
+-- 知らせは 4 秒で消す
+subscriptions :: Model -> Sub Msg
+subscriptions { notice = "" } = Sub.none
+subscriptions _               = Time.every 4000 (always HideNotice)
+
+
+-- 日付と料金
+
+-- 泊数。日付が読めなければ 0
+nights :: Model -> Int
+nights model = count (dayNumber model.checkIn) (dayNumber model.checkOut)
+  where
+    count (Just a) (Just b) = b - a
+    count _ _               = 0
+
+-- "2026-11-20" を、1970-01-01 から数えた日数にする
+dayNumber :: String -> Maybe Int
+dayNumber text = fromParts (map String.toInt (String.split "-" text))
+  where
+    fromParts [Just y, Just m, Just d] = Just (civil y m d)
+    fromParts _                        = Nothing
+
+civil :: Int -> Int -> Int -> Int
+civil year month day = era * 146097 + dayOfEra - 719468
+  where
+    y = shifted year month
+    era = y // 400
+    yearOfEra = y - era * 400
+    dayOfYear = (153 * mod (month + 9) 12 + 2) // 5 + day - 1
+    dayOfEra = yearOfEra * 365 + yearOfEra // 4 - yearOfEra // 100 + dayOfYear
+
+shifted :: Int -> Int -> Int
+shifted year month
+  | month <= 2 = year - 1
+  | otherwise  = year
+
+-- 28000 → "¥28,000"
+yen :: Int -> String
+yen n = "¥" ++ grouped n
+
+grouped :: Int -> String
+grouped n
+  | n < 1000  = show n
+  | otherwise = grouped (n // 1000) ++ "," ++ String.padLeft 3 "0" (show (mod n 1000))
+
+
+-- MODEL
+
+type Model =
+  { checkIn       :: String
+  , checkInMonth  :: String
+  , checkOut      :: String
+  , checkOutMonth :: String
+  , guests        :: String
+  , tab           :: Int
+  , saved         :: Bool
+  , confirming    :: Bool
+  , notice        :: String
+  }
+
+data Msg
+  = CheckInChanged String
+  | CheckOutChanged String
+  | CheckInMonth String
+  | CheckOutMonth String
+  | GuestsChanged String
+  | TabChanged Int
+  | ToggleSaved
+  | OpenConfirm
+  | CloseConfirm
+  | Confirm
+  | HideNotice
+  | NoOp
+
+init :: Model
+init =
+  { checkIn    = "2026-11-20"
+  , checkInMonth  = ""
+  , checkOut   = "2026-11-23"
+  , checkOutMonth = ""
+  , guests     = "2"
+  , tab        = 0
+  , saved      = False
+  , confirming = False
+  , notice     = ""
+  }
+
+
+-- DATA
+
+type Review = { name :: String, date :: String, stars :: Int, text :: String }
+
+type Nearby = { name :: String, area :: String, price :: Int, score :: String, photo :: String }
+
+stay :: { name :: String, area :: String, price :: Int, photos :: [String], amenities :: [String], description :: String, facilities :: [String] }
+stay =
+  { name        = "森と湖の小屋"
+  , area        = "長野県 白馬村"
+  , price       = 28000
+  , photos      = map picture [76, 1011, 1028, 1036, 1043]
+  , amenities   = ["湖まで徒歩 2 分", "薪ストーブ", "Wi-Fi", "駐車場 2 台", "ペット可"]
+  , description = "北アルプスを望む湖のほとりに建つ、木の小屋です。朝は湖に霧が立ち、夜は薪ストーブの火を眺めながら静かに過ごせます。キッチンには調理道具と器がそろっているので、地元の野菜を買ってきて料理するのもおすすめです。冬はスキー場まで車で 10 分。"
+  , facilities  = ["寝室 2 室（ダブルベッド 2 台）", "キッチン（IH・オーブン・食器洗い機）", "薪ストーブ（薪は用意してあります）", "洗濯機・乾燥機", "テラスとハンモック"]
+  }
+  where
+    picture id = "https://picsum.photos/id/" ++ show id ++ "/1600/900"
+
+reviews :: [Review]
+reviews =
+  [ { name = "佐藤", date = "2026 年 10 月", stars = 5, text = "写真のとおりの景色でした。朝の湖が本当にきれいで、また来たいです。" }
+  , { name = "Emily", date = "2026 年 9 月", stars = 5, text = "Quiet, cozy and very clean. The host was super helpful." }
+  , { name = "田中", date = "2026 年 8 月", stars = 4, text = "設備が整っていて快適でした。夜は冷えるので上着があると安心です。" }
+  ]
+
+nearby :: [Nearby]
+nearby =
+  [ { name = "白樺の離れ", area = "白馬村", price = 19000, score = "4.8", photo = thumb 1044 }
+  , { name = "山小屋 ことり", area = "小谷村", price = 15000, score = "4.7", photo = thumb 1039 }
+  , { name = "湖畔のヴィラ", area = "大町市", price = 42000, score = "4.9", photo = thumb 1015 }
+  , { name = "星見の宿", area = "安曇野市", price = 23000, score = "4.8", photo = thumb 1022 }
+  , { name = "雪見の家", area = "白馬村", price = 31000, score = "4.6", photo = thumb 29 }
+  ]
+  where
+    thumb id = "https://picsum.photos/id/" ++ show id ++ "/800/600"
+
+
+style
+  .page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 24px 16px 96px;
+  }
+  .title { font-size: 1.75rem; font-weight: 500; line-height: 1.3; }
+  .heading { font-size: 1.375rem; font-weight: 500; }
+  .muted { color: var(--muted); }
+  .body { line-height: 1.8; }
+  .list { padding-left: 1.25em; line-height: 2; }
+  .details { flex: 1 1 0; min-width: 0; }
+  .aside {
+    flex: 0 0 380px;
+    position: sticky;
+    top: 88px;
+  }
+  @media (max-width: 768px) {
+    .aside { position: static; flex-basis: auto; }
+  }
+  .price { font-size: 1.5rem; font-weight: 600; }
+  .note { color: var(--muted); font-size: .875rem; text-align: center; }
+  .line { font-size: .9375rem; }
+  .total { font-weight: 600; font-size: 1rem; }
+  .nearby {
+    display: grid;
+    gap: 12px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .nearby-photo {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 12px;
+    transition: transform .3s;
+  }
+  .nearby:hover .nearby-photo { transform: scale(1.02); }

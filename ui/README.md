@@ -1,6 +1,6 @@
 # nene-lang-ui
 
-[Nene](https://github.com/kimuracoki/nene) の公式 UI 部品集。ボタン・入力欄・表・ダイアログ・メニューなど 36 の部品がそろっている。見た目と動きは Material Design（MUI の既定のテーマ）に合わせてあり、ライトとダークの両方に対応し、色や形は CSS 変数で変えられる。
+[Nene](https://github.com/kimuracoki/nene) の公式 UI 部品集。ボタン・入力欄・表・ダイアログ・メニューなど 43 の部品がそろっている。見た目と動きは Material Design（MUI の既定のテーマ）に合わせてあり、ライトとダークの両方に対応し、色や形は CSS 変数で変えられる。
 
 `nene new` で作ったプロジェクトには、はじめから入っている。あとから入れるときは:
 
@@ -25,12 +25,15 @@ import Ui.Theme (Tone(..))
 
 | モジュール | タグ | 主な属性 |
 | --- | --- | --- |
-| `Ui.Button` | `<Button>…</Button>` | `onClick`、`variant`（`Filled` `Outlined` `Plain`）、`tone`、`size`、`startIcon` `endIcon`、`disabled`、`fullWidth` |
+| `Ui.Button` | `<Button>…</Button>` | `onClick`、`variant`（`Filled` `Outlined` `Plain`）、`tone`、`size`、`startIcon` `endIcon`、`disabled`、`fullWidth`、`loading`（回る印を出して押せなくする） |
 | `Ui.IconButton` | `<IconButton />` | `icon`、`label`（読み上げとツールチップ）、`onClick`、`variant`、`tone`、`size` |
 | `Ui.Icon` | `<Icon />` | `name`。`Icon.add` `Icon.close` `Icon.search` など 30 種類 |
-| `Ui.TextField` | `<TextField />` | `value`、`onInput`、`label`（欄の中にあり、入力すると枠の上に移る）、`placeholder`、`helper`、`error`、`kind`（`PlainText` `Email` `Password` `Number` `Search` `Tel` `Date` `Time`）、`rows`（2 以上で複数行） |
-| `Ui.Select` | `<Select />` | `value`、`options`（値と表示の組のリスト）、`onChange`、`label` |
-| `Ui.Autocomplete` | `<Autocomplete />` | `id`、`value`、`options`（候補の文字のリスト）、`onInput`（打った文字と選んだ候補）、`label`、`helper`、`error`、`noOptions` |
+| `Ui.TextField` | `<TextField />` | `value`、`onInput`、`label`（欄の中にあり、入力すると枠の上に移る）、`placeholder`、`helper`、`error`、`kind`（`PlainText` `Email` `Password` `Number` `Search` `Tel` `Date` `Time`）、`rows`（2 以上で複数行）、`variant`（`Outlined` のほか、塗った面の `Filled`、下線だけの `Plain`） |
+| `Ui.Calendar` | `<Calendar />` | `value`（`"2026-10-28"`）、`month`（表示する月 `"2026-10"`）、`onChange`、`onMonth`、`today` |
+| `Ui.DatePicker` | `<DatePicker />` | `id`、`value`、`month`、`onChange`、`onMonth`、`label`、`today`、`helper`、`error`、`variant` |
+| `Ui.Select` | `<Select />` | `value`、`options`（値と表示の組のリスト）、`onChange`、`label`、`variant` |
+| `Ui.Autocomplete` | `<Autocomplete />` | `id`、`value`、`options`（候補の文字のリスト）、`onInput`（打った文字と選んだ候補）、`label`、`helper`、`error`、`noOptions`、`variant` |
+| `Ui.MultiAutocomplete` | `<MultiAutocomplete />` | `id`、`value`（打った文字）、`selected`（選んだもののリスト）、`options`、`onInput`、`onChange`、`variant` |
 | `Ui.Checkbox` | `<Checkbox />` | `checked`、`onCheck`、`label` |
 | `Ui.Switch` | `<Switch />` | `checked`、`onCheck`、`label` |
 | `Ui.RadioGroup` | `<RadioGroup />` | `name`、`value`、`options`、`onChange`、`label`、`row`（横に並べる） |
@@ -38,17 +41,22 @@ import Ui.Theme (Tone(..))
 | `Ui.Rating` | `<Rating />` | `value`、`onChange`（`Just msg` で押せる。`Nothing` なら表示だけ）、`max` |
 | `Ui.ToggleGroup` | `<ToggleGroup />` | `value`、`options`、`onChange` |
 | `Ui.Fab` | `<Fab />` | `icon`、`label`、`onClick`、`extended`（label も出す）、`tone` |
+| `Ui.ButtonGroup` | `<ButtonGroup />` | `items`（表示と押したときのメッセージの組のリスト）、`variant`、`tone`、`size` |
+| `Ui.SpeedDial` | `<SpeedDial />` | `id`、`label`、`actions`（`Action { icon, label, onClick }` のリスト）、`icon`、`tone` |
 | `Ui.Card` | `<Card>…</Card>` | `title`、`padding`（`None` 〜 `XL`） |
-| `Ui.Chip` | `<Chip>…</Chip>` | `tone`、`selected`、`onClick`（`Just msg` で押せるチップになる） |
+| `Ui.Chip` | `<Chip>…</Chip>` | `tone`、`selected`、`onClick`（`Just msg` で押せるチップになる）、`onDelete`（`Just msg` で右に消すボタンが付く） |
 | `Ui.Dialog` | `<Dialog>…</Dialog>` | `open`、`onClose`、`title` |
 | `Ui.Tabs` | `<Tabs />` | `labels`、`selected`（0 から）、`onSelect` |
 | `Ui.AppBar` | `<AppBar>…</AppBar>` | `title`。子要素は右に並ぶ |
 | `Ui.Drawer` | `<Drawer>…</Drawer>` | `open`、`onClose` |
+| `Ui.Carousel` | `<Carousel />` | `label`、`slides`（1 枚ずつの `Html` のリスト）、`perView`（一度に見せる枚数）、`gap`、`aspect`、`dots`。いま何枚目かは model に持たない |
 | `Ui.Breadcrumbs` | `<Breadcrumbs />` | `links`（行き先と表示の組のリスト）、`current` |
 | `Ui.Pagination` | `<Pagination />` | `count`、`page`（1 から）、`onChange` |
 | `Ui.Stepper` | `<Stepper />` | `steps`、`active`（0 から） |
 | `Ui.ListItem` | `<ListItem />` | `primary`、`secondary`、`icon`、`onClick`（`Just msg` で押せる行になる）、`selected` |
-| `Ui.Table` | `<Table />` | `headers`、`rows`（セルの `Html` のリストのリスト）、`dense` |
+| `Ui.Table` | `<Table />` | `headers`、`rows`（セルの `Html` のリストのリスト）、`dense`、`sort`（並べている列と向き）、`onSort`（`Just msg` で見出しを押して並べ替えられる）、`selected`・`onSelect`（行を選ぶチェックボックス） |
+| `Ui.TransferList` | `<TransferList />` | `items`、`value`（`{ chosen, checked }`）、`onChange`、`leftTitle` `rightTitle` |
+| `Ui.Timeline` | `<Timeline />` | `items`（いつと何が起きたかの組のリスト）、`tone` |
 | `Ui.Divider` | `<Divider />` | `label`（線の中央の文字） |
 | `Ui.Alert` | `<Alert>…</Alert>` | `tone`、`title` |
 | `Ui.Snackbar` | `<Snackbar />` | `open`、`message`、`onClose`、`action`（`Just ("元に戻す", Undo)`） |
@@ -60,7 +68,7 @@ import Ui.Theme (Tone(..))
 | `Ui.Menu` | `<Menu />` | `id`、`label`、`items`（`Item { label, onClick, icon, tone }` のリスト）、`variant` |
 | `Ui.Popover` | `<Popover>…</Popover>` | `id`、`label`、`variant`。中身は自由 |
 | `Ui.Accordion` | `<Accordion>…</Accordion>` | `title`、`open`（最初から開くか）、`group`（同じ group は 1 つだけ開く） |
-| `Ui.Tooltip` | `<Tooltip>…</Tooltip>` | `text` |
+| `Ui.Tooltip` | `<Tooltip>…</Tooltip>` | `text`、`placement`（`Top` `Bottom` `Left` `Right`） |
 
 - 色の種類 `tone` は、どの部品でも `Ui.Theme` の `Primary` `Neutral` `Success` `Warning` `Danger`。
 - 大きさ `size` は、レイアウトタグと同じ `S` `M` `L`。
@@ -119,6 +127,7 @@ data Size = None | XS | S | M | L | XL
 ```haskell
 <Button onClick={Save}>保存</Button>
 <Button variant={Outlined} tone={Danger} startIcon={Just Icon.delete} onClick={Remove}>削除</Button>
+<Button loading={model.saving} onClick={Save}>保存</Button>    -- 読み込み中は回る印を出し、押せなくする
 ```
 
 ```haskell
@@ -131,6 +140,7 @@ type ButtonProps msg =
   , endIcon   :: Maybe Icon.Icon = Nothing
   , disabled  :: Bool            = False
   , fullWidth :: Bool            = False
+  , loading   :: Bool            = False   -- True なら、文字の代わりに回る印を出し、押せなくする
   }
 
 data Variant = Filled | Outlined | Plain
@@ -160,6 +170,8 @@ type IconButtonProps msg =
 
 アイコン。Icon.close のような値で選ぶので、名前を打ち間違えるとコンパイルエラーになる
 
+形は Material Icons（Google、Apache License 2.0）
+
 ```haskell
 import qualified Ui.Icon as Icon
 <Icon name={Icon.search} />
@@ -172,6 +184,7 @@ import qualified Ui.Icon as Icon
 | `Icon.add` | 足す |
 | `Icon.remove` | 減らす |
 | `Icon.close` | 閉じる |
+| `Icon.cancel` | 取り消す（丸の中の ×） |
 | `Icon.check` | チェック |
 | `Icon.chevronDown` | 下向きの矢じり |
 | `Icon.chevronUp` | 上向きの矢じり |
@@ -179,14 +192,18 @@ import qualified Ui.Icon as Icon
 | `Icon.chevronRight` | 右向きの矢じり |
 | `Icon.arrowLeft` | 左矢印 |
 | `Icon.arrowRight` | 右矢印 |
+| `Icon.arrowUp` | 上矢印 |
+| `Icon.arrowDown` | 下矢印 |
 | `Icon.search` | 検索 |
 | `Icon.menu` | メニュー |
 | `Icon.more` | その他 |
+| `Icon.moreVertical` | その他（縦） |
 | `Icon.edit` | 編集 |
 | `Icon.delete` | 削除 |
 | `Icon.star` | 星 |
 | `Icon.starFilled` | 塗りつぶした星 |
 | `Icon.heart` | ハート |
+| `Icon.heartFilled` | 塗りつぶしたハート |
 | `Icon.home` | ホーム |
 | `Icon.user` | 人 |
 | `Icon.settings` | 設定 |
@@ -194,11 +211,27 @@ import qualified Ui.Icon as Icon
 | `Icon.success` | 成功 |
 | `Icon.warning` | 注意 |
 | `Icon.error` | エラー |
+| `Icon.help` | ヘルプ |
 | `Icon.mail` | メール |
+| `Icon.send` | 送る |
+| `Icon.notifications` | 通知 |
 | `Icon.calendar` | カレンダー |
 | `Icon.upload` | アップロード |
 | `Icon.download` | ダウンロード |
 | `Icon.link` | リンク |
+| `Icon.share` | 共有 |
+| `Icon.copy` | 写す |
+| `Icon.refresh` | 読み直す |
+| `Icon.filter` | 絞り込み |
+| `Icon.sort` | 並べ替え |
+| `Icon.visible` | 見える |
+| `Icon.hidden` | 隠す |
+| `Icon.lock` | 鍵 |
+| `Icon.logout` | ログアウト |
+| `Icon.cart` | カート |
+| `Icon.image` | 画像 |
+| `Icon.folder` | フォルダ |
+| `Icon.time` | 時刻 |
 
 ### TextField
 
@@ -223,9 +256,66 @@ type TextFieldProps msg =
   , kind        :: InputKind    = PlainText
   , disabled    :: Bool         = False
   , rows        :: Int          = 1           -- 2 以上なら、その行数の複数行の入力欄になる
+  , variant     :: Variant      = Outlined    -- Filled は塗った面と下線、Plain は下線だけ
   }
 
 data InputKind = PlainText | Email | Password | Number | Search | Tel | Date | Time
+```
+
+### Calendar
+
+1 か月分の日付から 1 日を選ぶカレンダー。選んだ日と、表示している月を model に持つ
+
+日付は "2026-10-28"、月は "2026-10" の形の文字
+
+```haskell
+<Calendar value={model.day} month={model.month} onChange={DayPicked} onMonth={MonthShown} />
+```
+
+```haskell
+update (DayPicked d) model  = { model | day = d }
+update (MonthShown m) model = { model | month = m }
+```
+
+今日に印を付けるときは today="2026-10-28" を渡す（Time から作った日付など）
+
+```haskell
+type CalendarProps msg =
+  { value    :: String
+  , month    :: String = ""   -- 空なら、value の月（value も空なら today の月）
+  , onChange :: String -> msg
+  , onMonth  :: String -> msg
+  , today    :: String = ""
+  , closes   :: String = ""   -- 日を選んだら閉じる popover の id（DatePicker が使う）
+  }
+```
+
+### DatePicker
+
+日付を選ぶ欄。押すとカレンダーが開き、日を選ぶと閉じる。見た目は TextField と同じ
+
+選んだ日（"2026-10-28"、選んでいなければ ""）と、カレンダーに出している月（"2026-10"）を model に持つ
+
+```haskell
+<DatePicker id="due" label="期限" value={model.due} month={model.dueMonth} onChange={DuePicked} onMonth={DueMonthShown} />
+```
+
+month が空なら、value の月を出す。id は、ページの中でほかと重ならない名前にする
+
+```haskell
+type DatePickerProps msg =
+  { id       :: String
+  , value    :: String
+  , onChange :: String -> msg
+  , onMonth  :: String -> msg
+  , month    :: String       = ""
+  , label    :: String       = ""
+  , today    :: String       = ""
+  , helper   :: String       = ""
+  , error    :: Maybe String = Nothing
+  , disabled :: Bool         = False
+  , variant  :: Variant      = Outlined
+  }
 ```
 
 ### Select
@@ -247,8 +337,9 @@ type SelectProps msg =
   { value    :: String
   , options  :: [(String, String)]
   , onChange :: String -> msg
-  , label    :: String = ""
-  , disabled :: Bool   = False
+  , label    :: String  = ""
+  , disabled :: Bool    = False
+  , variant  :: Variant = Outlined   -- 見た目は TextField と同じ
   }
 ```
 
@@ -281,7 +372,45 @@ type AutocompleteProps msg =
   , helper      :: String       = ""
   , error       :: Maybe String = Nothing
   , disabled    :: Bool         = False
+  , variant     :: Variant      = Outlined    -- 見た目は TextField と同じ
   , noOptions   :: String       = "候補がありません"   -- 絞り込んで 1 つも残らないときに出す文字
+  }
+```
+
+### MultiAutocomplete
+
+候補から複数を選べる入力欄。選んだものは欄の中にチップで並び、チップの × で外せる
+
+打った文字（value）と、選んだもの（selected）の 2 つを model に持つ
+
+```haskell
+<MultiAutocomplete id="tags" label="タグ" value={model.tagText} selected={model.tags} options={allTags} onInput={TagTyped} onChange={TagsChanged} />
+```
+
+```haskell
+update (TagTyped s) model    = { model | tagText = s }
+update (TagsChanged ts) model = { model | tags = ts, tagText = "" }    -- 選んだら、打った文字は消すとよい
+```
+
+候補を押すと、選んでいなければ足し、選んでいれば外す。一覧は開いたままになる。空の欄で Backspace を押すと、最後に選んだものを外す
+
+id は、ページの中でほかと重ならない名前にする
+
+```haskell
+type MultiAutocompleteProps msg =
+  { id          :: String
+  , value       :: String
+  , selected    :: [String]
+  , options     :: [String]
+  , onInput     :: String -> msg
+  , onChange    :: [String] -> msg
+  , label       :: String       = ""
+  , placeholder :: String       = ""
+  , helper      :: String       = ""
+  , error       :: Maybe String = Nothing
+  , disabled    :: Bool         = False
+  , variant     :: Variant      = Outlined   -- 見た目は TextField と同じ
+  , noOptions   :: String       = "候補がありません"
   }
 ```
 
@@ -423,6 +552,61 @@ type FabProps msg =
   }
 ```
 
+### ButtonGroup
+
+つながったボタンの並び。items は（表示する文字, 押したときのメッセージ）の組
+
+1 つを選んだ状態を持つときは ToggleGroup を使う
+
+```haskell
+<ButtonGroup items={actions} />
+  where
+    actions = [("コピー", Copy), ("切り取り", Cut), ("貼り付け", Paste)]
+```
+
+```haskell
+type ButtonGroupProps msg =
+  { items    :: [(String, msg)]
+  , variant  :: Variant = Outlined
+  , tone     :: Tone    = Primary
+  , size     :: Size    = M
+  , disabled :: Bool    = False
+  }
+```
+
+### SpeedDial
+
+丸いボタンを押すと、関連する操作が上に並んで出る。開け閉めはブラウザが受け持つので、model に何も足さなくてよい
+
+（外を押すか Esc で閉じ、操作を押すとメッセージが届いて閉じる）
+
+```haskell
+<SpeedDial id="create" label="作る" actions={creates} />
+  where
+    creates =
+      [ Action { icon = Icon.mail, label = "メール", onClick = NewMail }
+      , Action { icon = Icon.calendar, label = "予定", onClick = NewEvent }
+      ]
+```
+
+id は、ページの中でほかと重ならない名前にする。置き場所（右下に固定するなど）は、使う側の style で決める
+
+```haskell
+type SpeedDialProps msg =
+  { id      :: String
+  , label   :: String
+  , actions :: [Action msg]
+  , icon    :: Icon.Icon = Icon.add
+  , tone    :: Tone      = Primary
+  }
+
+type Action msg =
+  { icon    :: Icon.Icon
+  , label   :: String
+  , onClick :: msg
+  }
+```
+
 ### Card
 
 内容をまとめる面。title を書くと見出しが付く
@@ -446,6 +630,7 @@ type CardProps =
 ```haskell
 <Chip tone={Success}>完了</Chip>
 <Chip selected={isAll} onClick={Just (SetFilter All)}>すべて</Chip>
+<Chip onDelete={Just (RemoveTag tag)}>{tag}</Chip>    -- 右に消すボタンが付く
 ```
 
 ```haskell
@@ -453,6 +638,7 @@ type ChipProps msg =
   { onClick  :: Maybe msg = Nothing
   , selected :: Bool      = False
   , tone     :: Tone      = Neutral
+  , onDelete :: Maybe msg = Nothing   -- Just msg なら、右に消すボタンを付ける
   }
 ```
 
@@ -531,6 +717,40 @@ type AppBarProps =
 type DrawerProps msg =
   { open    :: Bool
   , onClose :: msg
+  }
+```
+
+### Carousel
+
+横に送って見るスライド（スワイパー）。いま何枚目かはブラウザが受け持つので、model に何も足さなくてよい
+
+指やトラックパッドで送ると 1 枚ずつ止まる。矢印のボタンと下の点は CSS の ::scroll-button と ::scroll-marker で描く
+
+（対応したブラウザ: Chrome・Edge。ほかのブラウザでは、スワイプと細いスクロールバーで送る）
+
+```haskell
+<Carousel label="商品の写真" slides={photos} aspect="4 / 3" />
+  where
+    photos = map photo product.photos
+    photo p = <img src={p.src} alt={p.alt} />
+```
+
+```haskell
+<Carousel label="おすすめ" slides={cards} perView={3} gap={M} dots={False} />   -- 3 枚ずつ見せる
+```
+
+slides の 1 つが 1 枚になる。画像は枠いっぱいに広がる（縦横の比は aspect で決める）
+
+画面が狭いときは、perView が 2 より大きくても 2 枚ずつにする
+
+```haskell
+type CarouselProps msg =
+  { label   :: String                -- 読み上げに使う名前
+  , slides  :: [Html msg]
+  , perView :: Int    = 1            -- 一度に見せる枚数
+  , gap     :: Size   = None         -- 1 枚ずつの間隔
+  , aspect  :: String = "auto"       -- 1 枚の縦横の比（"4 / 3" など）。auto なら中身に合わせる
+  , dots    :: Bool   = True         -- 下に、何枚目かを示す点を出すか
   }
 ```
 
@@ -613,11 +833,78 @@ type ListItemProps msg =
 
 横に収まらないときは、表だけを横に送れる。行を詰めるときは dense
 
+見出しを押して並べ替えるときは、どの列をどちら向きに並べているかを model に持ち、rows を並べ替えて渡す
+
+```haskell
+<Table headers={columns} rows={sortedRows} sort={Just (model.sortColumn, model.sortOrder)} onSort={Just SortBy} />
+```
+
+行を選べるようにするときは、選んだ行の番号（0 から）を model に持つ。左の列にチェックボックスが付く
+
+```haskell
+<Table headers={columns} rows={rows} selected={model.picked} onSelect={Just Picked} />
+```
+
 ```haskell
 type TableProps msg =
-  { headers :: [String]
-  , rows    :: [[Html msg]]
-  , dense   :: Bool = False
+  { headers  :: [String]
+  , rows     :: [[Html msg]]
+  , dense    :: Bool                 = False
+  , sort     :: Maybe (Int, Order)   = Nothing   -- 並べている列（0 から）と向き。見出しに矢印が出る
+  , onSort   :: Maybe (Int -> msg)   = Nothing   -- Just なら見出しを押せ、押した列の番号が届く
+  , selected :: [Int]                = []        -- 選んでいる行の番号
+  , onSelect :: Maybe ([Int] -> msg) = Nothing   -- Just なら行を選べ、選んだ行の番号のリストが届く
+  }
+
+data Order = Ascending | Descending
+```
+
+### TransferList
+
+左右 2 つの一覧のあいだで、項目を移す。チェックを付けた項目を、真ん中のボタンで反対側へ送る
+
+右に移したもの（chosen）とチェックを付けたもの（checked）を、1 つのレコードとして model に持つ
+
+```haskell
+<TransferList items={members} value={model.team} onChange={TeamChanged} />
+```
+
+```haskell
+init = { …, team = { chosen = [], checked = [] } }
+update (TeamChanged t) model = { model | team = t }
+```
+
+```haskell
+type TransferListProps msg =
+  { items      :: [String]
+  , value      :: Transfer
+  , onChange   :: Transfer -> msg
+  , leftTitle  :: String = "候補"
+  , rightTitle :: String = "選んだもの"
+  }
+
+type Transfer =
+  { chosen  :: [String]
+  , checked :: [String]
+  }
+```
+
+### Timeline
+
+起きたことを、時間の順に縦に並べる。items は（いつ, 何が起きたか）の組
+
+```haskell
+<Timeline items={history} />
+  where
+    history = [("9:00", "注文を受けた"), ("10:30", "発送した"), ("翌日", "届いた")]
+```
+
+点の色は tone で変えられる
+
+```haskell
+type TimelineProps =
+  { items :: [(String, String)]
+  , tone  :: Tone = Primary
   }
 ```
 
@@ -836,16 +1123,20 @@ type AccordionProps =
 
 ### Tooltip
 
-子要素にマウスを載せるか、キーボードで選んだときに、下に出る説明
+子要素にマウスを載せるか、キーボードで選んだときに出る説明。出す向きは placement で選ぶ（既定は下）
 
 ```haskell
 <Tooltip text="保存（⌘S）">
   <IconButton icon={Icon.check} label="保存" onClick={Save} />
 </Tooltip>
+<Tooltip text="前へ" placement={Left}>…</Tooltip>
 ```
 
 ```haskell
 type TooltipProps =
-  { text :: String
+  { text      :: String
+  , placement :: Placement = Bottom
   }
+
+data Placement = Top | Bottom | Left | Right
 ```

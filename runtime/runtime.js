@@ -475,9 +475,17 @@ button { cursor: pointer; }
         input.removeAttribute("aria-activedescendant");
       }
     };
+    // 一覧が popover なら、一番上の層に出し入れする（枠の外にはみ出しても切れない）。
+    // 外を押したときに閉じるのはフォーカスが外れたときと同じなので、ブラウザには閉じさせない（manual）
     const expand = (input, open) => {
       input.setAttribute("aria-expanded", String(open));
       activate(input, null);
+      const list = document.getElementById(input.getAttribute("aria-controls"));
+      if (!list?.hasAttribute("popover") || !list.showPopover) return;
+      if (list.getAttribute("popover") !== "manual") list.setAttribute("popover", "manual");
+      const shown = list.matches(":popover-open");
+      if (open && !shown) list.showPopover();
+      else if (!open && shown) list.hidePopover();
     };
     const isCombobox = (el) => el instanceof Element && el.getAttribute("role") === "combobox";
 
@@ -502,7 +510,9 @@ button { cursor: pointer; }
         const input = comboboxFor(ev.target);
         if (!input) return;
         input.focus();
-        if (ev.target.closest('[role="option"]')) expand(input, false);
+        // 複数を選べる一覧（aria-multiselectable）は、選んでも開いたままにする
+        const option = ev.target.closest('[role="option"]');
+        if (option) expand(input, option.closest('[aria-multiselectable="true"]') !== null);
         else if (ev.target.closest("[aria-haspopup]")) expand(input, input.getAttribute("aria-expanded") !== "true");
         else expand(input, true);
       },
@@ -539,6 +549,10 @@ button { cursor: pointer; }
         } else if (ev.key === "Escape" && open) {
           ev.preventDefault();
           expand(target, false);
+        } else if (ev.key === "Backspace" && target.value === "") {
+          // 空の欄で Backspace を押すと、同じ一覧を指す aria-keyshortcuts="Backspace" のボタンを押す（最後のチップを外すなど）
+          const id = target.getAttribute("aria-controls").replace(/["\\]/g, "\\$&");
+          document.querySelector(`[aria-controls="${id}"][aria-keyshortcuts~="Backspace"]`)?.click();
         }
         return;
       }

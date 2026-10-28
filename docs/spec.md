@@ -467,7 +467,7 @@ URL を変えるときは `Nav.pushUrl` を `effect` から返す。
 - 見た目だけの状態は、アプリから読めない。読む必要が出てきたら Model に移す。
 - HTML だけでは足りない次の動きは、ランタイムがページ全体で受け持つ。どれも要素の属性を見て動き、Model には触らない。
   - ボタン・リンク・`summary`・`option` を押すと、その要素に押した位置（`--press-x` `--press-y`）と、要素を覆う円の直径（`--press-size`）を CSS 変数で入れ、`data-pressed` を `down`（押している）から `up`（離した）に変える。波紋を描くのに使う。
-  - `role="combobox"` の入力欄は、`aria-controls` が指す `role="listbox"` の中の `role="option"` を、矢印キーで選び（入力欄の `aria-activedescendant` と、候補の `data-active`）、Enter で押す。一覧を開いているかを入力欄の `aria-expanded` に書く（打つ・押す・矢印キーで開き、候補を選ぶ・Esc・フォーカスが外れると閉じる）。候補と、同じ `aria-controls` を持つボタンを押しても、フォーカスは入力欄に残る。そのボタンに `aria-haspopup` があれば一覧を開け閉めし、なければ開く。
+  - `role="combobox"` の入力欄は、`aria-controls` が指す `role="listbox"` の中の `role="option"` を、矢印キーで選び（入力欄の `aria-activedescendant` と、候補の `data-active`）、Enter で押す。一覧を開いているかを入力欄の `aria-expanded` に書き（打つ・押す・矢印キーで開き、候補を選ぶ・Esc・フォーカスが外れると閉じる）、一覧に `popover` があれば `manual` にして一番上の層に出し入れする。`aria-multiselectable="true"` の一覧は、候補を選んでも閉じない。候補と、同じ `aria-controls` を持つボタンを押しても、フォーカスは入力欄に残る。そのボタンに `aria-haspopup` があれば一覧を開け閉めし、なければ開く。
   - `role="menu"` の popover は、開くと最初の `role="menuitem"` にフォーカスし、矢印キーと Home・End で項目を移る。
 
 ### 7.6 静的生成

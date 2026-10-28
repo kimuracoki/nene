@@ -1,0 +1,104 @@
+-- 左右 2 つの一覧のあいだで、項目を移す。チェックを付けた項目を、真ん中のボタンで反対側へ送る
+-- 右に移したもの（chosen）とチェックを付けたもの（checked）を、1 つのレコードとして model に持つ
+--
+--   <TransferList items={members} value={model.team} onChange={TeamChanged} />
+--
+--   init = { …, team = { chosen = [], checked = [] } }
+--   update (TeamChanged t) model = { model | team = t }
+module Ui.TransferList (TransferListProps, Transfer, transferList) where
+
+import Ui.Checkbox
+
+
+type Transfer =
+  { chosen  :: [String]
+  , checked :: [String]
+  }
+
+type TransferListProps msg =
+  { items      :: [String]
+  , value      :: Transfer
+  , onChange   :: Transfer -> msg
+  , leftTitle  :: String = "候補"
+  , rightTitle :: String = "選んだもの"
+  }
+
+
+transferList :: TransferListProps msg -> Html msg
+transferList props =
+  <div class={css.transfer}>
+    <Row gap={M} align={Center} collapse={S}>
+      <section class={css.list} aria-label={props.leftTitle}>
+        <h3 class={css.title}>{props.leftTitle}</h3>
+        <div class={css.items}>{map entry left}</div>
+      </section>
+      <div class={css.moves}>
+        <Column gap={S}>
+          <button class={css.move} type="button" aria-label="すべて右へ" disabled={noLeft} onClick={allRight}>≫</button>
+          <button class={css.move} type="button" aria-label="選んだものを右へ" disabled={noLeftChecked} onClick={toRight}>{">"}</button>
+          <button class={css.move} type="button" aria-label="選んだものを左へ" disabled={noRightChecked} onClick={toLeft}>{"<"}</button>
+          <button class={css.move} type="button" aria-label="すべて左へ" disabled={noRight} onClick={allLeft}>≪</button>
+        </Column>
+      </div>
+      <section class={css.list} aria-label={props.rightTitle}>
+        <h3 class={css.title}>{props.rightTitle}</h3>
+        <div class={css.items}>{map entry right}</div>
+      </section>
+    </Row>
+  </div>
+  where
+    chosen item = elem item props.value.chosen
+    isChecked item = elem item props.value.checked
+    left = filter (not . chosen) props.items
+    right = filter chosen props.items
+    leftChecked = filter isChecked left
+    rightChecked = filter isChecked right
+    noLeft = null left
+    noRight = null right
+    noLeftChecked = null leftChecked
+    noRightChecked = null rightChecked
+
+    -- 移したら、移した項目のチェックは外す
+    allRight = props.onChange { chosen = props.items, checked = [] }
+    allLeft = props.onChange { chosen = [], checked = [] }
+    toRight = props.onChange { chosen = props.value.chosen ++ leftChecked, checked = rightChecked }
+    toLeft = props.onChange { chosen = filter (not . isChecked) props.value.chosen, checked = leftChecked }
+
+    entry item = <div class={css.item}><Checkbox label={item} checked={on} onCheck={toggled} /></div>
+      where
+        on = isChecked item
+        toggled b
+          | b         = props.onChange { props.value | checked = props.value.checked ++ [item] }
+          | otherwise = props.onChange { props.value | checked = filter (/= item) props.value.checked }
+
+
+style
+  .transfer { width: 100%; }
+  .list {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+  }
+  .title { padding: 12px 16px; border-bottom: 1px solid var(--divider); font-size: .875rem; font-weight: 500; }
+  .items { height: 230px; padding: 8px 0; overflow-y: auto; }
+  .item { padding: 0 16px 0 27px; transition: background-color .15s var(--ease); }
+  .item:hover { background: var(--hover); }
+  .moves { flex: none; }
+  .move {
+    min-width: 64px;
+    padding: 3px 9px;
+    border: 1px solid color-mix(in srgb, var(--primary) 50%, transparent);
+    border-radius: var(--radius);
+    background: none;
+    color: var(--primary);
+    font-size: .8125rem;
+    font-weight: 500;
+    line-height: 1.75;
+    transition: background-color .25s var(--ease), border-color .25s var(--ease);
+  }
+  .move:hover { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 4%, transparent); }
+  .move:focus-visible { outline: none; background: color-mix(in srgb, var(--primary) 12%, transparent); }
+  .move:disabled { border-color: var(--divider); color: var(--disabled); cursor: default; background: none; }

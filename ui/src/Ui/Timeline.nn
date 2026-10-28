@@ -1,0 +1,59 @@
+-- 起きたことを、時間の順に縦に並べる。items は（いつ, 何が起きたか）の組
+--
+--   <Timeline items={history} />
+--     where
+--       history = [("9:00", "注文を受けた"), ("10:30", "発送した"), ("翌日", "届いた")]
+--
+-- 点の色は tone で変えられる
+module Ui.Timeline (TimelineProps, timeline) where
+
+import Ui.Theme (Tone(..), toneVars)
+
+
+type TimelineProps =
+  { items :: [(String, String)]
+  , tone  :: Tone = Primary
+  }
+
+
+timeline :: TimelineProps -> Html msg
+timeline props = <ol class={css.timeline} vars={colors}>{map item props.items}</ol>
+  where
+    colors = toneVars props.tone
+    item (time, text) =
+      <li class={css.item}>
+        <span class={css.time}>{time}</span>
+        <span class={css.dot} aria-hidden="true" />
+        <span class={css.text}>{text}</span>
+      </li>
+
+
+style
+  .timeline { display: flex; flex-direction: column; padding: 6px 16px; list-style: none; }
+  .item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 12px 1fr;
+    column-gap: 16px;
+    min-height: 70px;
+  }
+  /* 点と点をつなぐ線。最後の項目には引かない */
+  .item:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    top: 23px;
+    bottom: 0;
+    left: calc(50% - 1px);
+    width: 2px;
+    background: light-dark(#bdbdbd, #757575);
+  }
+  .time { padding: 6px 0; color: var(--muted); text-align: right; }
+  .dot {
+    width: 12px;
+    height: 12px;
+    margin: 11.5px 0;
+    border-radius: 50%;
+    background: var(--tone);
+    box-shadow: var(--shadow-1);
+  }
+  .text { padding: 6px 0; color: var(--text); }

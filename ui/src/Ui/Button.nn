@@ -2,6 +2,7 @@
 --
 --   <Button onClick={Save}>保存</Button>
 --   <Button variant={Outlined} tone={Danger} startIcon={Just Icon.delete} onClick={Remove}>削除</Button>
+--   <Button loading={model.saving} onClick={Save}>保存</Button>    -- 読み込み中は回る印を出し、押せなくする
 module Ui.Button (ButtonProps, Variant(..), button) where
 
 import qualified Ui.Icon as Icon
@@ -19,12 +20,13 @@ type ButtonProps msg =
   , endIcon   :: Maybe Icon.Icon = Nothing
   , disabled  :: Bool            = False
   , fullWidth :: Bool            = False
+  , loading   :: Bool            = False   -- True なら、文字の代わりに回る印を出し、押せなくする
   }
 
 
 button :: ButtonProps msg -> [Html msg] -> Html msg
 button props children =
-  <button class={look} vars={colors} type="button" disabled={props.disabled} onClick={props.onClick}>
+  <button class={look} vars={colors} type="button" disabled={inactive} aria-busy={busy} onClick={props.onClick}>
     <Row gap={S} align={Center} justify={Center}>
       <Slot icon={props.startIcon} />
       {children}
@@ -33,10 +35,17 @@ button props children =
   </button>
   where
     colors = toneVars props.tone
-    look = classes [css.button, variantClass props.variant, sizeClass props.size, width]
+    look = classes [css.button, variantClass props.variant, sizeClass props.size, width, waiting]
     width
       | props.fullWidth = css.full
       | otherwise       = classes []
+    waiting
+      | props.loading = css.loading
+      | otherwise     = classes []
+    inactive = props.disabled || props.loading
+    busy
+      | props.loading = "true"
+      | otherwise     = "false"
 
 
 slot :: { icon :: Maybe Icon.Icon } -> Html msg
@@ -125,3 +134,19 @@ style
   .outlined:focus-visible, .plain:focus-visible { background: color-mix(in srgb, var(--tone) 12%, transparent); }
   .outlined:disabled { border-color: var(--divider); color: var(--disabled); }
   .plain:disabled { color: var(--disabled); }
+
+  /* 読み込み中。文字は場所を取ったまま隠し、真ん中で印を回す（ボタンの幅が変わらない） */
+  .loading > * { visibility: hidden; }
+  .loading::before {
+    content: "";
+    position: absolute;
+    top: calc(50% - 8px);
+    left: calc(50% - 8px);
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--disabled);
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: button-spin .8s linear infinite;
+  }
+  @keyframes button-spin { to { rotate: 360deg; } }

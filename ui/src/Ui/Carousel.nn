@@ -1,0 +1,142 @@
+-- 横に送って見るスライド（スワイパー）。いま何枚目かはブラウザが受け持つので、model に何も足さなくてよい
+-- 指やトラックパッドで送ると 1 枚ずつ止まる。矢印のボタンと下の点は CSS の ::scroll-button と ::scroll-marker で描く
+-- （対応したブラウザ: Chrome・Edge。ほかのブラウザでは、スワイプと細いスクロールバーで送る）
+--
+--   <Carousel label="商品の写真" slides={photos} aspect="4 / 3" />
+--     where
+--       photos = map photo product.photos
+--       photo p = <img src={p.src} alt={p.alt} />
+--
+--   <Carousel label="おすすめ" slides={cards} perView={3} gap={M} dots={False} />   -- 3 枚ずつ見せる
+--
+-- slides の 1 つが 1 枚になる。画像は枠いっぱいに広がる（縦横の比は aspect で決める）
+-- 画面が狭いときは、perView が 2 より大きくても 2 枚ずつにする
+module Ui.Carousel (CarouselProps, carousel) where
+
+
+type CarouselProps msg =
+  { label   :: String                -- 読み上げに使う名前
+  , slides  :: [Html msg]
+  , perView :: Int    = 1            -- 一度に見せる枚数
+  , gap     :: Size   = None         -- 1 枚ずつの間隔
+  , aspect  :: String = "auto"       -- 1 枚の縦横の比（"4 / 3" など）。auto なら中身に合わせる
+  , dots    :: Bool   = True         -- 下に、何枚目かを示す点を出すか
+  }
+
+
+carousel :: CarouselProps msg -> Html msg
+carousel props =
+  <section class={css.carousel} aria-roledescription="carousel" aria-label={props.label}>
+    <div class={track} vars={layout} tabindex={0}>{map slide props.slides}</div>
+  </section>
+  where
+    track
+      | props.dots = classes [css.track, css.dotted]
+      | otherwise  = css.track
+    layout = { perView = show props.perView, slideGap = spacing props.gap, slideAspect = props.aspect }
+
+    slide child = <div class={css.slide} aria-roledescription="slide">{child}</div>
+
+
+spacing :: Size -> String
+spacing None = "0px"
+spacing XS   = "var(--space-xs)"
+spacing S    = "var(--space-s)"
+spacing M    = "var(--space-m)"
+spacing L    = "var(--space-l)"
+spacing XL   = "var(--space-xl)"
+
+
+style
+  .carousel {
+    position: relative;
+    anchor-scope: --carousel;
+  }
+  .track {
+    display: grid;
+    grid-auto-flow: column;
+    --shown: var(--per-view);
+    grid-auto-columns: calc((100% - (var(--shown) - 1) * var(--slide-gap)) / var(--shown));
+    gap: var(--slide-gap);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    border-radius: var(--radius);
+    anchor-name: --carousel;
+  }
+  @media (max-width: 600px) {
+    .track { --shown: min(var(--per-view), 2); }
+  }
+  .track:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  .slide {
+    display: grid;
+    aspect-ratio: var(--slide-aspect);
+    overflow: hidden;
+    scroll-snap-align: start;
+  }
+  .slide > img,
+  .slide > picture,
+  .slide > video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* 矢印のボタンと点（対応したブラウザだけ。スクロールバーは隠す） */
+  @supports selector(::scroll-button(*)) {
+    .track { scrollbar-width: none; }
+    .track::scroll-button(*) {
+      position: absolute;
+      position-anchor: --carousel;
+      top: anchor(center);
+      translate: 0 -50%;
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border: 0;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      color: var(--text);
+      box-shadow: var(--shadow-2);
+      font: 400 24px / 1 var(--font);
+      cursor: pointer;
+      transition: opacity .2s, background-color .2s;
+    }
+    .track::scroll-button(*):hover { background: var(--surface); }
+    .track::scroll-button(*):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .track::scroll-button(*):disabled { opacity: 0; cursor: default; }
+    .track::scroll-button(left) {
+      content: "‹" / "前へ";
+      left: calc(anchor(left) + 12px);
+    }
+    .track::scroll-button(right) {
+      content: "›" / "次へ";
+      right: calc(anchor(right) + 12px);
+    }
+
+    .dotted { scroll-marker-group: after; }
+    .dotted::scroll-marker-group {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding-top: 12px;
+    }
+    .dotted > .slide::scroll-marker {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--disabled);
+      transition: width .2s, background-color .2s;
+    }
+    .dotted > .slide::scroll-marker:target-current {
+      width: 24px;
+      background: var(--primary);
+    }
+  }

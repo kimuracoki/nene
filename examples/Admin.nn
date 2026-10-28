@@ -1,0 +1,425 @@
+-- 管理画面。メンバーの一覧（検索・絞り込み・並べ替え・ページ送り）、招待のフォーム、削除と元に戻す
+module Admin (main) where
+
+import Ui.AppBar
+import Ui.Avatar
+import Ui.Badge
+import Ui.Button (Variant(..))
+import Ui.Card
+import Ui.Chip
+import Ui.Dialog
+import qualified Ui.Icon as Icon
+import Ui.IconButton
+import Ui.ListItem
+import Ui.Pagination
+import Ui.Select
+import Ui.Snackbar
+import Ui.Table (Order(..))
+import Ui.TextField (InputKind(..))
+import Ui.Theme (Tone(..))
+import Ui.ToggleGroup
+
+
+main :: Program Model Msg
+main = App.app { init, update, view, subscriptions }
+
+
+-- VIEW
+
+view :: Model -> Html Msg
+view model =
+  <div>
+    <AppBar title="Nene Admin">
+      <Badge count={3}>
+        <IconButton icon={Icon.notifications} label="お知らせ" onClick={NoOp} />
+      </Badge>
+      <Avatar name="木村" size={S} />
+    </AppBar>
+    <Row align={Stretch}>
+      <nav class={css.side}>
+        <Navigation />
+      </nav>
+      <main class={css.page}>
+        <Column gap={L}>
+          <Row gap={M} align={Center} collapse={S}>
+            <Column>
+              <h1 class={css.title}>メンバー</h1>
+              <span class={css.muted}>チームに参加している人と、招待中の人</span>
+            </Column>
+            <Spacer />
+            <Button startIcon={addIcon} onClick={OpenInvite}>メンバーを招待</Button>
+          </Row>
+
+          <Grid columns={4} gap={M} collapse={M}>
+            <Stat label="メンバー" value={total} />
+            <Stat label="参加中" value={activeCount} />
+            <Stat label="招待中" value={invitedCount} />
+            <Stat label="管理者" value={adminCount} />
+          </Grid>
+
+          <Card padding={None}>
+            <div class={css.toolbar}>
+              <Row gap={M} align={Center} collapse={S}>
+                <div class={css.search}>
+                  <TextField label="名前かメールで探す" kind={Search} value={model.query} onInput={QueryChanged} />
+                </div>
+                <Select label="役割" value={model.role} options={roleOptions} onChange={RoleChanged} />
+                <Spacer />
+                <ToggleGroup value={model.status} options={statusOptions} onChange={StatusChanged} />
+              </Row>
+            </div>
+            <Selection count={pickedCount} />
+            <Table headers={columns} rows={rows} sort={sorting} onSort={sortBy} selected={pickedRows} onSelect={pick} />
+            <Footer count={found} page={model.page} />
+          </Card>
+        </Column>
+      </main>
+    </Row>
+
+    <Dialog open={model.inviting} onClose={CloseInvite} title="メンバーを招待">
+      <InviteForm form={model.form} />
+    </Dialog>
+    <Snackbar open={noticing} message={model.notice} onClose={HideNotice} action={undo} />
+  </div>
+  where
+    addIcon = Just Icon.add
+    total = show (length model.members)
+    activeCount = show (length (filter (isStatus Active) model.members))
+    invitedCount = show (length (filter (isStatus Invited) model.members))
+    adminCount = show (length (filter isAdmin model.members))
+    isAdmin m = m.role == Owner || m.role == Admin
+
+    roleOptions = [("all", "すべて"), ("owner", "オーナー"), ("admin", "管理者"), ("member", "メンバー")]
+    statusOptions = [("all", "すべて"), ("active", "参加中"), ("invited", "招待中")]
+    columns = ["名前", "役割", "状態", "参加日", ""]
+    sorting = Just (model.sortColumn, model.order)
+    sortBy = Just SortBy
+    pick = Just Picked
+    shown = pageOf model.page matched
+    pickedRows = List.filterMap identity (List.indexedMap pickedIndex shown)
+    pickedIndex i m
+      | elem m.email model.picked = Just i
+      | otherwise                 = Nothing
+    pickedCount = length model.picked
+
+    matched = visible model
+    found = length matched
+    rows = map memberRow (pageOf model.page matched)
+    memberRow m = [<Person member={m} />, <>{roleLabel m.role}</>, <StatusChip status={m.status} />, <>{m.joined}</>, <RemoveButton member={m} />]
+
+    noticing = model.notice /= ""
+    undo
+      | model.previous == Nothing = Nothing
+      | otherwise                 = Just ("元に戻す", Undo)
+
+
+navigation :: {} -> Html Msg
+navigation _ =
+  <Column gap={XS}>
+    <ListItem icon={Just Icon.home} primary="ダッシュボード" onClick={Just NoOp} />
+    <ListItem icon={Just Icon.user} primary="メンバー" selected onClick={Just NoOp} />
+    <ListItem icon={Just Icon.folder} primary="プロジェクト" onClick={Just NoOp} />
+    <ListItem icon={Just Icon.settings} primary="設定" onClick={Just NoOp} />
+  </Column>
+
+stat :: { label :: String, value :: String } -> Html msg
+stat props =
+  <Card>
+    <Column gap={XS}>
+      <span class={css.muted}>{props.label}</span>
+      <strong class={css.stat}>{props.value}</strong>
+    </Column>
+  </Card>
+
+person :: { member :: Member } -> Html msg
+person { member } =
+  <Row gap={M} align={Center}>
+    <Avatar name={member.name} />
+    <Column>
+      <strong>{member.name}</strong>
+      <span class={css.email}>{member.email}</span>
+    </Column>
+  </Row>
+
+statusChip :: { status :: Status } -> Html msg
+statusChip { status = Active }  = <Chip tone={Success}>参加中</Chip>
+statusChip { status = Invited } = <Chip tone={Warning}>招待中</Chip>
+
+removeButton :: { member :: Member } -> Html Msg
+removeButton { member } = <IconButton icon={Icon.delete} label={label} onClick={Remove member.email} />
+  where
+    label = member.name ++ " を外す"
+
+-- 選んだ人がいるときだけ、表の上に出す帯
+selection :: { count :: Int } -> Html Msg
+selection { count = 0 } = <></>
+selection { count }     =
+  <div class={css.selection}>
+    <Row gap={M} align={Center}>
+      <strong>{label}</strong>
+      <Spacer />
+      <Button variant={Plain} onClick={clear}>選ぶのをやめる</Button>
+      <Button tone={Danger} startIcon={trash} onClick={RemovePicked}>外す</Button>
+    </Row>
+  </div>
+  where
+    label = show count ++ " 人を選んでいます"
+    trash = Just Icon.delete
+    clear = Picked []
+
+footer :: { count :: Int, page :: Int } -> Html Msg
+footer props =
+  <div class={css.footer}>
+    <Row align={Center} collapse={S}>
+      <span class={css.muted}>{summary}</span>
+      <Spacer />
+      <Pagination count={pages} page={props.page} onChange={PageChanged} />
+    </Row>
+  </div>
+  where
+    pages = max 1 ((props.count + pageSize - 1) // pageSize)
+    summary = show props.count ++ " 人"
+
+
+-- 招待のフォーム。送る前に、名前とメールを確かめる
+inviteForm :: { form :: Form } -> Html Msg
+inviteForm { form } =
+  <Column gap={M}>
+    <TextField label="名前" value={form.name} onInput={NameChanged} error={nameError} />
+    <TextField label="メールアドレス" kind={Email} value={form.email} onInput={EmailChanged} error={emailError} />
+    <Select label="役割" value={form.role} options={roles} onChange={FormRoleChanged} />
+    <Row gap={S} justify={End}>
+      <Button variant={Plain} onClick={CloseInvite}>やめる</Button>
+      <Button onClick={SendInvite}>招待を送る</Button>
+    </Row>
+  </Column>
+  where
+    roles = [("member", "メンバー"), ("admin", "管理者")]
+    nameError
+      | form.tried && String.isEmpty (trim form.name) = Just "名前を入れてください"
+      | otherwise                                     = Nothing
+    emailError
+      | form.tried && not (String.contains "@" form.email) = Just "メールアドレスの形にしてください"
+      | otherwise                                          = Nothing
+
+
+-- 一覧の絞り込み・並べ替え・ページ
+
+pageSize :: Int
+pageSize = 6
+
+visible :: Model -> [Member]
+visible model = ordered (filter matches model.members)
+  where
+    needle = String.toLower (trim model.query)
+    matches m = hits m && roleMatches m && statusMatches m
+    hits m = String.contains needle (String.toLower m.name) || String.contains needle (String.toLower m.email)
+    roleMatches m = model.role == "all" || roleKey m.role == model.role
+    statusMatches m = model.status == "all" || statusKey m.status == model.status
+    ordered ms = direction model.order (sortOn (sortKey model.sortColumn) ms)
+    direction Ascending ms  = ms
+    direction Descending ms = reverse ms
+
+sortKey :: Int -> Member -> String
+sortKey 1 m = roleKey m.role
+sortKey 2 m = statusKey m.status
+sortKey 3 m = m.joined
+sortKey _ m = m.name
+
+pageOf :: Int -> [a] -> [a]
+pageOf page xs = take pageSize (drop ((page - 1) * pageSize) xs)
+
+
+-- UPDATE
+
+update :: Msg -> Model -> Model
+update (QueryChanged q) model  = { model | query = q, page = 1 }
+update (RoleChanged r) model   = { model | role = r, page = 1 }
+update (StatusChanged s) model = { model | status = s, page = 1 }
+update (PageChanged p) model   = { model | page = p }
+update (SortBy column) model
+  | column == model.sortColumn = { model | order = flipped model.order }
+  | otherwise                  = { model | sortColumn = column, order = Ascending }
+update OpenInvite model          = { model | inviting = True, form = emptyForm }
+update CloseInvite model         = { model | inviting = False }
+update (NameChanged s) model     = { model | form = { model.form | name = s } }
+update (EmailChanged s) model    = { model | form = { model.form | email = s } }
+update (FormRoleChanged r) model = { model | form = { model.form | role = r } }
+update SendInvite model
+  | valid model.form = invite model
+  | otherwise        = { model | form = { model.form | tried = True } }
+update (Picked rows) model  = { model | picked = map (.email) (List.filterMap (rowAt (pageOf model.page (visible model))) rows) }
+update RemovePicked model   = { model | members = filter (notPicked model.picked) model.members, previous = Just model.members, picked = [], notice = show (length model.picked) ++ " 人を外しました" }
+update (Remove email) model = { model | members = filter (notEmail email) model.members, previous = Just model.members, notice = "メンバーを外しました" }
+update Undo model           = restore model.previous model
+update HideNotice model     = { model | notice = "", previous = Nothing }
+update NoOp model           = model
+
+invite :: Model -> Model
+invite model = { model | members = newcomer : model.members, previous = Just model.members, inviting = False, notice = message }
+  where
+    form = model.form
+    newcomer = { name = trim form.name, email = trim form.email, role = roleOf form.role, status = Invited, joined = "—" }
+    message = trim form.name ++ " さんに招待を送りました"
+
+restore :: Maybe [Member] -> Model -> Model
+restore (Just members) model = { model | members = members, previous = Nothing, notice = "" }
+restore Nothing model        = model
+
+valid :: Form -> Bool
+valid form = not (String.isEmpty (trim form.name)) && String.contains "@" form.email
+
+notPicked :: [String] -> Member -> Bool
+notPicked emails m = not (elem m.email emails)
+
+-- 表の行の番号から、その行のメンバーを取り出す
+rowAt :: [Member] -> Int -> Maybe Member
+rowAt members i = List.head (drop i members)
+
+notEmail :: String -> Member -> Bool
+notEmail email m = m.email /= email
+
+flipped :: Order -> Order
+flipped Ascending  = Descending
+flipped Descending = Ascending
+
+subscriptions :: Model -> Sub Msg
+subscriptions { notice = "" } = Sub.none
+subscriptions _               = Time.every 6000 (always HideNotice)
+
+
+-- MODEL
+
+type Model =
+  { members    :: [Member]
+  , previous   :: Maybe [Member]   -- 元に戻すときの一覧
+  , picked     :: [String]         -- 選んだ人のメール
+  , query      :: String
+  , role       :: String
+  , status     :: String
+  , sortColumn :: Int
+  , order      :: Order
+  , page       :: Int
+  , inviting   :: Bool
+  , form       :: Form
+  , notice     :: String
+  }
+
+type Form = { name :: String, email :: String, role :: String, tried :: Bool }
+
+type Member = { name :: String, email :: String, role :: Role, status :: Status, joined :: String }
+
+data Role = Owner | Admin | Regular
+
+data Status = Active | Invited
+
+data Msg
+  = QueryChanged String
+  | RoleChanged String
+  | StatusChanged String
+  | PageChanged Int
+  | SortBy Int
+  | OpenInvite
+  | CloseInvite
+  | NameChanged String
+  | EmailChanged String
+  | FormRoleChanged String
+  | SendInvite
+  | Remove String
+  | Picked [Int]
+  | RemovePicked
+  | Undo
+  | HideNotice
+  | NoOp
+
+init :: Model
+init =
+  { members    = team
+  , previous   = Nothing
+  , picked     = []
+  , query      = ""
+  , role       = "all"
+  , status     = "all"
+  , sortColumn = 3
+  , order      = Ascending
+  , page       = 1
+  , inviting   = False
+  , form       = emptyForm
+  , notice     = ""
+  }
+
+emptyForm :: Form
+emptyForm = { name = "", email = "", role = "member", tried = False }
+
+isStatus :: Status -> Member -> Bool
+isStatus s m = m.status == s
+
+roleLabel :: Role -> String
+roleLabel Owner   = "オーナー"
+roleLabel Admin   = "管理者"
+roleLabel Regular = "メンバー"
+
+roleKey :: Role -> String
+roleKey Owner   = "owner"
+roleKey Admin   = "admin"
+roleKey Regular = "member"
+
+roleOf :: String -> Role
+roleOf "admin" = Admin
+roleOf _       = Regular
+
+statusKey :: Status -> String
+statusKey Active  = "active"
+statusKey Invited = "invited"
+
+
+-- DATA
+
+team :: [Member]
+team =
+  [ { name = "木村 光", email = "hikaru@example.com", role = Owner, status = Active, joined = "2024-04-01" }
+  , { name = "佐藤 奈々", email = "nana@example.com", role = Admin, status = Active, joined = "2024-06-12" }
+  , { name = "田中 蓮", email = "ren@example.com", role = Regular, status = Active, joined = "2024-09-03" }
+  , { name = "Emily Clark", email = "emily@example.com", role = Regular, status = Active, joined = "2025-01-20" }
+  , { name = "鈴木 陽菜", email = "hina@example.com", role = Admin, status = Active, joined = "2025-03-08" }
+  , { name = "高橋 湊", email = "minato@example.com", role = Regular, status = Active, joined = "2025-05-17" }
+  , { name = "伊藤 結衣", email = "yui@example.com", role = Regular, status = Active, joined = "2025-07-02" }
+  , { name = "渡辺 大和", email = "yamato@example.com", role = Regular, status = Active, joined = "2025-08-29" }
+  , { name = "Lucas Martin", email = "lucas@example.com", role = Regular, status = Active, joined = "2025-10-11" }
+  , { name = "山本 さくら", email = "sakura@example.com", role = Regular, status = Active, joined = "2026-01-15" }
+  , { name = "中村 悠真", email = "yuma@example.com", role = Regular, status = Active, joined = "2026-03-30" }
+  , { name = "小林 葵", email = "aoi@example.com", role = Regular, status = Active, joined = "2026-06-04" }
+  , { name = "加藤 樹", email = "itsuki@example.com", role = Regular, status = Invited, joined = "—" }
+  , { name = "吉田 凛", email = "rin@example.com", role = Admin, status = Invited, joined = "—" }
+  ]
+
+
+style
+  .side {
+    flex: 0 0 240px;
+    padding: 16px 8px;
+    border-right: 1px solid var(--divider);
+  }
+  @media (max-width: 900px) {
+    .side { display: none; }
+  }
+  .page {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 1120px;
+    padding: 32px 24px 96px;
+  }
+  .title { font-size: 1.75rem; font-weight: 500; }
+  .muted { color: var(--muted); }
+  .stat { font-size: 2rem; font-weight: 500; line-height: 1.2; }
+  .toolbar { padding: 16px; }
+  .search { flex: 1 1 280px; max-width: 360px; }
+  .email { color: var(--muted); font-size: .875rem; }
+  .selection {
+    padding: 8px 16px;
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+  }
+  .footer {
+    padding: 8px 16px;
+    border-top: 1px solid var(--divider);
+  }
