@@ -5,13 +5,29 @@
 --       row m = [<>{m.name}</>, <Chip>{m.role}</Chip>, <>{m.joined}</>]
 --
 -- 横に収まらないときは、表だけを横に送れる。行を詰めるときは dense
-module Ui.Table (TableProps, table) where
+-- 見出しを押して並べ替えるときは、どの列をどちら向きに並べているかを model に持ち、rows を並べ替えて渡す
+--
+--   <Table headers={columns} rows={sortedRows} sort={Just (model.sortColumn, model.sortOrder)} onSort={Just SortBy} />
+--
+-- 行を選べるようにするときは、選んだ行の番号（0 から）を model に持つ。左の列にチェックボックスが付く
+--
+--   <Table headers={columns} rows={rows} selected={model.picked} onSelect={Just Picked} />
+module Ui.Table (TableProps, Order(..), table) where
 
+import Ui.Checkbox
+import qualified Ui.Icon as Icon
+
+
+data Order = Ascending | Descending
 
 type TableProps msg =
-  { headers :: [String]
-  , rows    :: [[Html msg]]
-  , dense   :: Bool = False
+  { headers  :: [String]
+  , rows     :: [[Html msg]]
+  , dense    :: Bool                 = False
+  , sort     :: Maybe (Int, Order)   = Nothing   -- 並べている列（0 から）と向き。見出しに矢印が出る
+  , onSort   :: Maybe (Int -> msg)   = Nothing   -- Just なら見出しを押せ、押した列の番号が届く
+  , selected :: [Int]                = []        -- 選んでいる行の番号
+  , onSelect :: Maybe ([Int] -> msg) = Nothing   -- Just なら行を選べ、選んだ行の番号のリストが届く
   }
 
 
@@ -19,17 +35,81 @@ table :: TableProps msg -> Html msg
 table props =
   <div class={css.scroll}>
     <table class={look}>
-      <thead><tr>{map heading props.headers}</tr></thead>
-      <tbody>{map row props.rows}</tbody>
+      <thead><tr><SelectAll by={props.onSelect} count={count} selected={props.selected} />{headings}</tr></thead>
+      <tbody>{List.indexedMap row props.rows}</tbody>
     </table>
   </div>
   where
     look
       | props.dense = classes [css.table, css.dense]
       | otherwise   = css.table
-    heading text = <th class={css.head} scope="col">{text}</th>
-    row cells = <tr class={css.row}>{map cell cells}</tr>
+    headings = List.indexedMap heading props.headers
+    heading i text = <th class={css.head} scope="col" aria-sort={ariaSort}><Sorter by={props.onSort} index={i} text={text} active={current} order={order} /></th>
+      where
+        current = column props.sort == i
+        order = direction props.sort
+        ariaSort
+          | current && order == Ascending = "ascending"
+          | current                       = "descending"
+          | otherwise                     = "none"
+    count = length props.rows
+    row i cells = <tr class={rowLook} aria-selected={state}><Pick by={props.onSelect} index={i} selected={props.selected} />{map cell cells}</tr>
+      where
+        on = elem i props.selected
+        rowLook
+          | on        = classes [css.row, css.picked]
+          | otherwise = css.row
+        state
+          | on        = "true"
+          | otherwise = "false"
     cell content = <td class={css.cell}>{content}</td>
+
+
+column :: Maybe (Int, Order) -> Int
+column (Just (i, _)) = i
+column Nothing       = -1
+
+direction :: Maybe (Int, Order) -> Order
+direction (Just (_, o)) = o
+direction Nothing       = Ascending
+
+
+-- 行を選ぶチェックボックス。onSelect がなければ列ごと出さない
+pick :: { by :: Maybe ([Int] -> msg), index :: Int, selected :: [Int] } -> Html msg
+pick { by = Nothing }                 = <></>
+pick { by = Just f, index, selected } = <td class={css.check}><Checkbox checked={on} onCheck={toggled} /></td>
+  where
+    on = elem index selected
+    toggled b
+      | b         = f (selected ++ [index])
+      | otherwise = f (filter (/= index) selected)
+
+-- 見出しの、すべての行を選ぶチェックボックス
+selectAll :: { by :: Maybe ([Int] -> msg), count :: Int, selected :: [Int] } -> Html msg
+selectAll { by = Nothing }                 = <></>
+selectAll { by = Just f, count, selected } = <th class={css.check} scope="col"><Checkbox checked={every} onCheck={toggled} /></th>
+  where
+    every = count > 0 && length selected == count
+    toggled b
+      | b         = f (range 0 (count - 1))
+      | otherwise = f []
+
+-- 見出しの文字。並べ替えられるときは押せるボタンにして、矢印を添える
+sorter :: { by :: Maybe (Int -> msg), index :: Int, text :: String, active :: Bool, order :: Order } -> Html msg
+sorter { by = Nothing, text } = <span>{text}</span>
+sorter { by = Just f, index, text, active, order } =
+  <button class={look} type="button" onClick={chosen}>
+    <span>{text}</span>
+    <span class={css.arrow}><Icon name={arrow} /></span>
+  </button>
+  where
+    chosen = f index
+    look
+      | active    = classes [css.sorter, css.active]
+      | otherwise = css.sorter
+    arrow
+      | order == Descending && active = Icon.arrowDown
+      | otherwise                     = Icon.arrowUp
 
 
 style
@@ -47,3 +127,28 @@ style
   .row { transition: background-color .15s var(--ease); }
   .row:hover { background: var(--hover); }
   .row:last-child .cell { border-bottom: none; }
+
+  /* 並べ替えられる見出し。矢印は、並べている列では濃く、マウスを載せた列では薄く出す */
+  .sorter {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .arrow { display: inline-flex; font-size: .9rem; opacity: 0; transition: opacity .2s var(--ease); }
+  .sorter:hover { color: var(--muted); }
+  .sorter:hover .arrow { opacity: .5; }
+  .active, .active:hover { color: var(--text); }
+  .active .arrow, .active:hover .arrow { opacity: 1; }
+  .sorter:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 2px; }
+
+  /* 行を選ぶチェックボックスの列と、選んだ行 */
+  .check { width: 48px; padding: 0 0 0 15px; border-bottom: 1px solid var(--divider); }
+  .dense .check { padding: 0 0 0 15px; }
+  .picked, .picked:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+  .row:last-child .check { border-bottom: none; }

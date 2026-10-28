@@ -1,13 +1,17 @@
--- 子要素にマウスを載せるか、キーボードで選んだときに、下に出る説明
+-- 子要素にマウスを載せるか、キーボードで選んだときに出る説明。出す向きは placement で選ぶ（既定は下）
 --
 --   <Tooltip text="保存（⌘S）">
 --     <IconButton icon={Icon.check} label="保存" onClick={Save} />
 --   </Tooltip>
-module Ui.Tooltip (TooltipProps, tooltip) where
+--   <Tooltip text="前へ" placement={Left}>…</Tooltip>
+module Ui.Tooltip (TooltipProps, Placement(..), tooltip) where
 
+
+data Placement = Top | Bottom | Left | Right
 
 type TooltipProps =
-  { text :: String
+  { text      :: String
+  , placement :: Placement = Bottom
   }
 
 
@@ -15,16 +19,23 @@ tooltip :: TooltipProps -> [Html msg] -> Html msg
 tooltip props children =
   <span class={css.anchor}>
     {children}
-    <span class={css.tip} role="tooltip">{props.text}</span>
+    <span class={look} role="tooltip">{props.text}</span>
   </span>
+  where
+    look = classes [css.tip, side props.placement]
+
+
+side :: Placement -> Class
+side Top    = css.top
+side Bottom = css.bottom
+side Left   = css.left
+side Right  = css.right
 
 
 style
   .anchor { position: relative; display: inline-flex; }
   .tip {
     position: absolute;
-    top: calc(100% + 14px);
-    left: 50%;
     z-index: 1500;
     max-width: 300px;
     padding: 4px 8px;
@@ -37,13 +48,16 @@ style
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
-    transform: translateX(-50%) scale(.75);
-    transform-origin: top center;
-    transition: opacity .2s var(--ease), transform .15s var(--ease);
+    scale: .75;
+    transition: opacity .2s var(--ease), scale .15s var(--ease);
   }
+  .top { bottom: calc(100% + 14px); left: 50%; translate: -50% 0; transform-origin: bottom center; }
+  .bottom { top: calc(100% + 14px); left: 50%; translate: -50% 0; transform-origin: top center; }
+  .left { right: calc(100% + 14px); top: 50%; translate: 0 -50%; transform-origin: right center; }
+  .right { left: calc(100% + 14px); top: 50%; translate: 0 -50%; transform-origin: left center; }
   .anchor:hover > .tip,
   .anchor:focus-within > .tip {
     opacity: 1;
-    transform: translateX(-50%) scale(1);
+    scale: 1;
     transition-delay: .1s;
   }

@@ -7,20 +7,23 @@
 --       orders = [("new", "新しい順"), ("old", "古い順")]
 module Ui.Select (SelectProps, select) where
 
+import Ui.Button (Variant(..))
+
 
 type SelectProps msg =
   { value    :: String
   , options  :: [(String, String)]
   , onChange :: String -> msg
-  , label    :: String = ""
-  , disabled :: Bool   = False
+  , label    :: String  = ""
+  , disabled :: Bool    = False
+  , variant  :: Variant = Outlined   -- 見た目は TextField と同じ
   }
 
 
 select :: SelectProps msg -> Html msg
 select props =
   <label class={css.field}>
-    <div class={css.box}>
+    <div class={box}>
       <select class={css.control} disabled={props.disabled} onChange={props.onChange}>
         {map choice props.options}
       </select>
@@ -31,10 +34,16 @@ select props =
     </div>
   </label>
   where
+    box = classes [css.box, look props.variant]
     choice (value, text) = <option value={value} selected={chosen}>{text}</option>
       where
         chosen = value == props.value
 
+
+look :: Variant -> Class
+look Filled   = css.filled
+look Outlined = classes []
+look Plain    = css.plain
 
 floating :: { text :: String } -> Html msg
 floating { text = "" } = <></>
@@ -168,3 +177,46 @@ style
     .control option:checked:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
     .control option:checked:focus-visible { background: color-mix(in srgb, var(--primary) 20%, transparent); }
   }
+
+  /* variant={Filled} は塗った面と下線、variant={Plain} は下線だけ（Material Design の Filled と Standard） */
+  .filled {
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: light-dark(rgb(0 0 0 / .06), rgb(255 255 255 / .09));
+    transition: background-color .2s var(--ease);
+  }
+  .filled:hover { background: light-dark(rgb(0 0 0 / .09), rgb(255 255 255 / .13)); }
+  .filled:focus-within { background: light-dark(rgb(0 0 0 / .06), rgb(255 255 255 / .09)); }
+  .plain { margin-top: 16px; border-radius: 0; }
+  .filled .outline, .plain .outline { display: none; }
+  .filled::before, .plain::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border-bottom: 1px solid light-dark(rgb(0 0 0 / .42), rgb(255 255 255 / .7));
+    pointer-events: none;
+    transition: border-color .2s var(--ease);
+  }
+  .filled:hover::before, .plain:hover::before { border-bottom-color: var(--text); }
+  .filled:has(.control:disabled)::before, .plain:has(.control:disabled)::before { border-bottom-style: dotted; }
+  .filled::after, .plain::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border-bottom: 2px solid var(--primary);
+    pointer-events: none;
+    transform: scaleX(0);
+    transition: transform .2s cubic-bezier(0, 0, .2, 1);
+  }
+  .filled:focus-within::after, .plain:focus-within::after { transform: scaleX(1); }
+  .invalid.filled::before, .invalid.plain::before { border-bottom-color: var(--danger); }
+  .invalid.filled::after, .invalid.plain::after { border-bottom-color: var(--danger); transform: scaleX(1); }
+  .filled .control { padding: 25px 32px 8px 12px; width: calc(100% - 44px); }
+  .plain .control { padding: 4px 24px 5px 0; width: calc(100% - 24px); }
+  .filled .label { transform: translate(12px, 7px) scale(.75); }
+  .plain .label { transform: translate(0, -17.5px) scale(.75); }
+  .plain .control { background-position: right 0 center; }
+  .plain .control::picker-icon { right: 0; }

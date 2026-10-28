@@ -1,0 +1,154 @@
+-- 丸いボタンを押すと、関連する操作が上に並んで出る。開け閉めはブラウザが受け持つので、model に何も足さなくてよい
+-- （外を押すか Esc で閉じ、操作を押すとメッセージが届いて閉じる）
+--
+--   <SpeedDial id="create" label="作る" actions={creates} />
+--     where
+--       creates =
+--         [ Action { icon = Icon.mail, label = "メール", onClick = NewMail }
+--         , Action { icon = Icon.calendar, label = "予定", onClick = NewEvent }
+--         ]
+--
+-- id は、ページの中でほかと重ならない名前にする。置き場所（右下に固定するなど）は、使う側の style で決める
+module Ui.SpeedDial (SpeedDialProps, Action, speedDial) where
+
+import qualified Ui.Icon as Icon
+import Ui.Theme (Tone(..), toneVars)
+
+
+type Action msg =
+  { icon    :: Icon.Icon
+  , label   :: String
+  , onClick :: msg
+  }
+
+type SpeedDialProps msg =
+  { id      :: String
+  , label   :: String
+  , actions :: [Action msg]
+  , icon    :: Icon.Icon = Icon.add
+  , tone    :: Tone      = Primary
+  }
+
+
+speedDial :: SpeedDialProps msg -> Html msg
+speedDial props =
+  <div class={css.dial} vars={vars}>
+    <button class={css.fab} type="button" popovertarget={props.id} aria-label={props.label} aria-haspopup="menu">
+      <Icon name={props.icon} />
+    </button>
+    <div class={css.actions} id={props.id} popover role="menu" aria-label={props.label}>
+      {map action props.actions}
+    </div>
+  </div>
+  where
+    vars = { anchor = "--speed-dial-" ++ props.id, tone = (toneVars props.tone).tone }
+    action a =
+      <button class={css.action} type="button" role="menuitem" popovertarget={props.id} popovertargetaction="hide" onClick={a.onClick}>
+        <span class={css.name}>{a.label}</span>
+        <span class={css.round}><Icon name={a.icon} /></span>
+      </button>
+
+
+style
+  .dial { display: inline-block; anchor-name: var(--anchor); }
+  .fab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    overflow: hidden;
+    border: none;
+    border-radius: 50%;
+    background: var(--tone);
+    color: var(--on-tone);
+    box-shadow: var(--shadow-6);
+    font-size: 1.375rem;
+    transition: background-color .25s var(--ease), box-shadow .25s var(--ease);
+  }
+  .fab:hover { background: color-mix(in srgb, var(--tone) 80%, black); }
+  .fab:active { box-shadow: var(--shadow-12); }
+  .fab:focus-visible { outline: none; box-shadow: var(--shadow-6), 0 0 0 4px color-mix(in srgb, var(--tone) 30%, transparent); }
+  /* 開いているあいだ、＋ を回して × に見せる */
+  .fab > * { transition: rotate .2s var(--ease); }
+  .dial:has(.actions:popover-open) .fab > * { rotate: 45deg; }
+  /* 押したときの波紋。押した所から広がり、離すと消える */
+  .fab::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  .fab[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  .fab[data-pressed=down]::after { opacity: .3; }
+  .fab[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+
+  /* 操作の並び。丸いボタンのすぐ上に、下から順に積む */
+  .actions {
+    margin: 0;
+    padding: 0 0 16px;
+    border: none;
+    background: none;
+    overflow: visible;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 16px;
+  }
+  .actions:popover-open { display: flex; }
+  @supports (anchor-name: --a) {
+    .actions {
+      position-anchor: var(--anchor);
+      inset: auto;
+      bottom: anchor(top);
+      right: anchor(right);
+      margin-right: 8px;
+    }
+  }
+  .action {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text);
+    animation: rise .2s var(--ease) both;
+  }
+  .action:nth-child(2) { animation-delay: 30ms; }
+  .action:nth-child(3) { animation-delay: 60ms; }
+  .action:nth-child(4) { animation-delay: 90ms; }
+  .action:nth-child(n + 5) { animation-delay: 120ms; }
+  @keyframes rise { from { opacity: 0; scale: .5; } }
+  .name {
+    padding: 4px 16px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--muted);
+    box-shadow: var(--shadow-1);
+    font-size: .875rem;
+    white-space: nowrap;
+  }
+  .round {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--muted);
+    box-shadow: var(--shadow-6);
+    font-size: 1.25rem;
+    transition: background-color .15s var(--ease);
+  }
+  .action:hover .round, .action:focus-visible .round { background: light-dark(#f5f5f5, #333333); }
+  .action:focus-visible { outline: none; }

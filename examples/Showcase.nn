@@ -8,9 +8,13 @@ import Ui.Autocomplete
 import Ui.Avatar
 import Ui.Badge
 import Ui.Breadcrumbs
+import Ui.ButtonGroup
+import Ui.Calendar
 import Ui.Button (Variant(..))
 import Ui.Card
+import Ui.Carousel
 import Ui.Checkbox
+import Ui.DatePicker
 import Ui.Chip
 import Ui.Dialog
 import Ui.Divider
@@ -20,6 +24,7 @@ import qualified Ui.Icon as Icon
 import Ui.IconButton
 import Ui.ListItem
 import Ui.Menu (Item)
+import Ui.MultiAutocomplete
 import Ui.Pagination
 import Ui.Popover
 import Ui.Progress
@@ -29,15 +34,18 @@ import Ui.Select
 import Ui.Skeleton (Shape(..))
 import Ui.Slider
 import Ui.Snackbar
+import Ui.SpeedDial (Action)
 import Ui.Spinner
 import Ui.Stepper
 import Ui.Switch
-import Ui.Table
+import Ui.Table (Order(..))
 import Ui.Tabs
+import Ui.Timeline
 import Ui.TextField (InputKind(..))
 import Ui.Theme (Tone(..))
 import Ui.ToggleGroup
-import Ui.Tooltip
+import Ui.Tooltip (Placement(..))
+import Ui.TransferList (Transfer)
 
 
 type Model =
@@ -60,6 +68,16 @@ type Model =
   , progress :: Float
   , liked    :: Bool
   , city     :: String
+  , tagText  :: String
+  , tags     :: [String]
+  , month    :: String
+  , sortBy   :: Int
+  , order    :: Order
+  , saving   :: Bool
+  , due      :: String
+  , dueMonth :: String
+  , picked   :: [Int]
+  , team     :: Transfer
   , day      :: String
   }
 
@@ -86,6 +104,15 @@ data Msg
   | Advance
   | ToggleLike
   | CityChanged String
+  | TagTyped String
+  | TagsChanged [String]
+  | MonthShown String
+  | SortBy Int
+  | ToggleSaving
+  | DuePicked String
+  | DueMonthShown String
+  | Picked [Int]
+  | TeamChanged Transfer
   | DayChanged String
 
 
@@ -94,7 +121,7 @@ init =
   { name = "", email = "", bio = "", agreed = False, notify = True, plan = "free"
   , contact = "mail", volume = 40.0, stars = 3, layout = "list"
   , tab = 0, page = 1, step = 1, dialog = False, drawer = False, saved = False
-  , progress = 0.3, liked = False, city = "", day = ""
+  , progress = 0.3, liked = False, city = "", tagText = "", tags = ["Nene"], day = "", month = "2026-10", sortBy = 0, order = Ascending, saving = False, due = "", dueMonth = "2026-10", picked = [], team = { chosen = ["Ada"], checked = [] }
   }
 
 
@@ -123,9 +150,21 @@ update Advance model            = { model | progress = next }
     next
       | model.progress >= 1.0 = 0.0
       | otherwise             = model.progress + 0.1
-update ToggleLike model      = { model | liked = not model.liked }
-update (CityChanged c) model = { model | city = c }
-update (DayChanged d) model  = { model | day = d }
+update ToggleLike model        = { model | liked = not model.liked }
+update (CityChanged c) model   = { model | city = c }
+update (TagTyped t) model      = { model | tagText = t }
+update (TagsChanged ts) model  = { model | tags = ts, tagText = "" }
+update (MonthShown m) model    = { model | month = m }
+update ToggleSaving model      = { model | saving = not model.saving }
+update (DuePicked d) model     = { model | due = d, dueMonth = "" }
+update (DueMonthShown m) model = { model | dueMonth = m }
+update (Picked rows) model     = { model | picked = rows }
+update (TeamChanged t) model   = { model | team = t }
+-- 同じ列をもう一度押すと、向きを逆にする
+update (SortBy i) model
+  | i == model.sortBy && model.order == Ascending = { model | order = Descending }
+  | otherwise                                     = { model | sortBy = i, order = Ascending }
+update (DayChanged d) model   = { model | day = d }
 
 
 -- 知らせは 4 秒で消す
@@ -161,6 +200,8 @@ view model =
               <Button tone={Success} size={S} onClick={Advance}>小さい</Button>
               <Button size={L} endIcon={Just Icon.arrowRight} onClick={Advance}>大きい</Button>
               <Button disabled onClick={Advance}>押せない</Button>
+              <Button loading={model.saving} onClick={ToggleSaving}>読み込み</Button>
+              <Button variant={Plain} size={S} onClick={ToggleSaving}>止める</Button>
             </Row>
             <Row gap={S} wrap={True} align={Center}>
               <IconButton icon={heart} label="いいね" tone={Danger} onClick={ToggleLike} />
@@ -169,6 +210,12 @@ view model =
               <ToggleGroup value={model.layout} options={layouts} onChange={LayoutChanged} />
               <Fab icon={Icon.add} label="新しく作る" onClick={Save} />
               <Fab icon={Icon.edit} label="書く" extended onClick={Save} />
+            </Row>
+            <Row gap={S} wrap={True} align={Center}>
+              <ButtonGroup items={edits} />
+              <ButtonGroup items={edits} variant={Filled} />
+              <ButtonGroup items={edits} variant={Plain} size={S} />
+              <SpeedDial id="create" label="作る" actions={creates} />
             </Row>
           </Column>
         </Card>
@@ -179,11 +226,17 @@ view model =
               <TextField label="名前" placeholder="木村 太郎" value={model.name} onInput={NameChanged} helper="あとから変えられます" />
               <TextField label="メール" kind={Email} value={model.email} onInput={EmailChanged} error={emailError} />
               <TextField label="自己紹介" rows={3} value={model.bio} onInput={BioChanged} />
+              <Row gap={M} collapse={S}>
+                <TextField variant={Filled} label="Filled" value={model.name} onInput={NameChanged} />
+                <TextField variant={Plain} label="Standard" value={model.name} onInput={NameChanged} />
+              </Row>
               <Select label="プラン" value={model.plan} options={plans} onChange={PlanChanged} />
+              <MultiAutocomplete id="tags" label="タグ" value={model.tagText} selected={model.tags} options={allTags} onInput={TagTyped} onChange={TagsChanged} />
               <Row gap={M} collapse={S}>
                 <Autocomplete id="city" label="都市" value={model.city} options={cities} onInput={CityChanged} helper="打つと候補が絞られます" />
                 <TextField label="日付" kind={Date} value={model.day} onInput={DayChanged} />
               </Row>
+              <DatePicker id="due" label="期限" value={model.due} month={model.dueMonth} onChange={DuePicked} onMonth={DueMonthShown} helper="押すとカレンダーが開きます" />
               <RadioGroup name="contact" label="連絡方法" row value={model.contact} options={contacts} onChange={ContactChanged} />
               <Slider label="音量" value={model.volume} onChange={VolumeChanged} />
               <Rating value={model.stars} onChange={Just Rated} />
@@ -215,6 +268,7 @@ view model =
                 <Chip tone={Warning}>確認待ち</Chip>
                 <Chip tone={Primary} selected={True} onClick={backToFirst}>選択中</Chip>
                 <Chip onClick={backToFirst}>押せる</Chip>
+                <Chip onDelete={backToFirst}>消せる</Chip>
               </Row>
               <Progress value={Just model.progress} />
               <Progress tone={Success} />
@@ -241,7 +295,7 @@ view model =
             <ListItem icon={Just Icon.star} primary="スター付き" selected={starred} onClick={toStarred} />
             <ListItem icon={Just Icon.delete} primary="ゴミ箱" secondary="30 日で消えます" />
             <Divider />
-            <Table headers={columns} rows={members} />
+            <Table headers={columns} rows={members} sort={sorting} onSort={Just SortBy} selected={model.picked} onSelect={Just Picked} />
             <div class={css.pager}>
               <Pagination count={10} page={model.page} onChange={PageChanged} />
             </div>
@@ -264,6 +318,9 @@ view model =
               <Tooltip text="あとで見るに追加">
                 <IconButton icon={Icon.star} label="あとで見る" onClick={ToggleLike} />
               </Tooltip>
+              <Tooltip text="右に出る説明" placement={Right}>
+                <IconButton icon={Icon.help} label="ヘルプ" onClick={ToggleLike} />
+              </Tooltip>
             </Row>
             <Column>
               <Accordion title="Nene とは？" group="faq" open>Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語です。</Accordion>
@@ -271,6 +328,23 @@ view model =
               <Accordion title="見た目は変えられる？" group="faq">入口のファイルの style で、:root の CSS 変数を上書きします。</Accordion>
             </Column>
           </Column>
+        </Card>
+
+        <Grid columns={2} gap={L} collapse={M}>
+          <Card title="カレンダー">
+            <Calendar value={model.day} month={model.month} onChange={DayChanged} onMonth={MonthShown} />
+          </Card>
+          <Card title="タイムライン">
+            <Timeline items={history} />
+          </Card>
+        </Grid>
+
+        <Card title="スライド">
+          <Carousel label="色の見本" slides={swatches} perView={3} gap={M} aspect="4 / 3" />
+        </Card>
+
+        <Card title="移し替え">
+          <TransferList items={everyone} value={model.team} onChange={TeamChanged} leftTitle="メンバー" rightTitle="チーム" />
         </Card>
 
         <Column gap={S}>
@@ -300,6 +374,7 @@ view model =
   where
     plans    = [("free", "無料"), ("pro", "プロ"), ("team", "チーム")]
     contacts = [("mail", "メール"), ("phone", "電話")]
+    allTags  = ["Nene", "Haskell", "Elm", "TypeScript", "React", "CSS", "デザイン", "テスト"]
     cities   = ["札幌", "仙台", "東京", "横浜", "名古屋", "京都", "大阪", "神戸", "広島", "福岡", "那覇"]
     layouts  = [("list", "リスト"), ("grid", "グリッド")]
     actions =
@@ -307,11 +382,27 @@ view model =
       , Item { label = "最初のタブへ", onClick = TabChanged 0 }
       , Item { label = "削除", onClick = OpenDialog, icon = Just Icon.delete, tone = Danger }
       ]
-    members =
-      [ [<>Ada Lovelace</>, <Chip tone={Primary}>管理者</Chip>, <>2024-01-10</>]
-      , [<>Alan Turing</>, <Chip>編集者</Chip>, <>2024-03-02</>]
-      , [<>Grace Hopper</>, <Chip>閲覧者</Chip>, <>2024-05-21</>]
+    people = [("Ada Lovelace", "管理者", "2024-01-10"), ("Alan Turing", "編集者", "2024-03-02"), ("Grace Hopper", "閲覧者", "2024-05-21")]
+    members = map member (ordered (sortOn sortKey people))
+    member (name, role, joined) = [<>{name}</>, <Chip>{role}</Chip>, <>{joined}</>]
+    sortKey (name, role, joined)
+      | model.sortBy == 1 = role
+      | model.sortBy == 2 = joined
+      | otherwise         = name
+    ordered rows
+      | model.order == Descending = reverse rows
+      | otherwise                 = rows
+    sorting = Just (model.sortBy, model.order)
+    edits = [("コピー", Advance), ("切り取り", Advance), ("貼り付け", Advance)]
+    creates =
+      [ Action { icon = Icon.mail, label = "メール", onClick = Save }
+      , Action { icon = Icon.calendar, label = "予定", onClick = Save }
+      , Action { icon = Icon.share, label = "共有", onClick = Save }
       ]
+    swatches = map swatch ["primary", "success", "warning", "danger", "neutral", "primary"]
+    swatch tone = <div class={css.swatch} data-tone={tone}>{tone}</div>
+    everyone = ["Ada", "Alan", "Grace", "Linus", "Margaret", "Dennis"]
+    history = [("9:00", "注文を受けた"), ("10:30", "発送した"), ("翌日 14:00", "届いた")]
     sections = ["概要", "メンバー", "設定"]
     crumbs   = [("/", "ホーム"), ("/showcase.html", "部品")]
     steps    = ["カート", "お届け先", "支払い"]
@@ -345,3 +436,9 @@ style
   .title { font-size: 2.125rem; font-weight: 400; line-height: 1.235; letter-spacing: .00735em; }
   .lead { color: var(--muted); }
   .pager { padding: 16px; }
+  .swatch { display: grid; place-items: center; height: 100%; border-radius: var(--radius); color: #fff; font-weight: 500; text-transform: uppercase; }
+  .swatch[data-tone=primary] { background: var(--primary); }
+  .swatch[data-tone=success] { background: var(--success); }
+  .swatch[data-tone=warning] { background: var(--warning); }
+  .swatch[data-tone=danger] { background: var(--danger); }
+  .swatch[data-tone=neutral] { background: var(--neutral); }

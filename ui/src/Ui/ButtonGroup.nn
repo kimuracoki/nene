@@ -1,0 +1,102 @@
+-- つながったボタンの並び。items は（表示する文字, 押したときのメッセージ）の組
+-- 1 つを選んだ状態を持つときは ToggleGroup を使う
+--
+--   <ButtonGroup items={actions} />
+--     where
+--       actions = [("コピー", Copy), ("切り取り", Cut), ("貼り付け", Paste)]
+module Ui.ButtonGroup (ButtonGroupProps, buttonGroup) where
+
+import Ui.Button (Variant(..))
+import Ui.Theme (Tone(..), toneVars)
+
+
+type ButtonGroupProps msg =
+  { items    :: [(String, msg)]
+  , variant  :: Variant = Outlined
+  , tone     :: Tone    = Primary
+  , size     :: Size    = M
+  , disabled :: Bool    = False
+  }
+
+
+buttonGroup :: ButtonGroupProps msg -> Html msg
+buttonGroup props = <div class={look} vars={colors} role="group">{map item props.items}</div>
+  where
+    colors = toneVars props.tone
+    look = classes [css.group, variantClass props.variant, sizeClass props.size]
+    item (text, msg) = <button class={css.button} type="button" disabled={props.disabled} onClick={msg}>{text}</button>
+
+
+variantClass :: Variant -> Class
+variantClass Filled   = css.filled
+variantClass Outlined = css.outlined
+variantClass Plain    = css.plain
+
+sizeClass :: Size -> Class
+sizeClass XS = css.small
+sizeClass S  = css.small
+sizeClass L  = css.large
+sizeClass XL = css.large
+sizeClass _  = css.medium
+
+
+style
+  .group { display: inline-flex; border-radius: var(--radius); }
+  .button {
+    position: relative;
+    min-width: 40px;
+    overflow: hidden;
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: none;
+    color: var(--tone);
+    font-weight: 500;
+    line-height: 1.75;
+    letter-spacing: .02857em;
+    text-transform: uppercase;
+    transition: background-color .25s var(--ease), border-color .25s var(--ease), box-shadow .25s var(--ease);
+  }
+  .button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  .button:disabled { color: var(--disabled); cursor: default; pointer-events: none; }
+  /* 押したときの波紋。押した所から広がり、離すと消える */
+  .button::after {
+    content: "";
+    position: absolute;
+    left: var(--press-x, 50%);
+    top: var(--press-y, 50%);
+    width: var(--press-size, 0);
+    height: var(--press-size, 0);
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    scale: 0;
+    pointer-events: none;
+  }
+  .button[data-pressed]::after { scale: 1; transition: scale .55s var(--ease); }
+  .button[data-pressed=down]::after { opacity: .3; }
+  .button[data-pressed=up]::after { transition: scale .55s var(--ease), opacity .55s var(--ease); }
+
+  .medium .button { padding: 5px 15px; font-size: .875rem; }
+  .small .button { padding: 3px 9px; font-size: .8125rem; }
+  .large .button { padding: 7px 21px; font-size: .9375rem; }
+
+  /* Filled: 塗ったボタンを、白っぽい線で区切って並べ、全体に影を付ける */
+  .filled { box-shadow: var(--shadow-2); }
+  .filled .button { background: var(--tone); color: var(--on-tone); }
+  .filled .button + .button { border-left-color: color-mix(in srgb, var(--tone) 60%, black); }
+  .filled .button:hover { background: color-mix(in srgb, var(--tone) 80%, black); }
+  .filled .button:disabled { background: var(--selected); color: var(--disabled); }
+
+  /* Outlined: 枠を重ねて 1 本の線にする */
+  .outlined .button { border-color: color-mix(in srgb, var(--tone) 50%, transparent); }
+  .outlined .button + .button { margin-left: -1px; }
+  .outlined .button:hover { position: relative; z-index: 1; border-color: var(--tone); background: color-mix(in srgb, var(--tone) 4%, transparent); }
+  .outlined .button:disabled { border-color: var(--divider); }
+
+  /* Plain: 文字だけ。間に細い線を引く */
+  .plain .button + .button { border-left-color: color-mix(in srgb, var(--tone) 50%, transparent); }
+  .plain .button:hover { background: color-mix(in srgb, var(--tone) 4%, transparent); }
+  .button:focus-visible { outline: none; background: color-mix(in srgb, var(--tone) 12%, transparent); }
+  .filled .button:focus-visible { background: color-mix(in srgb, var(--tone) 70%, black); }

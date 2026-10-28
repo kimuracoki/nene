@@ -10,6 +10,7 @@
 -- id は、ページの中でほかと重ならない名前にする
 module Ui.Autocomplete (AutocompleteProps, autocomplete) where
 
+import Ui.Button (Variant(..))
 import qualified Ui.Icon as Icon
 
 
@@ -23,6 +24,7 @@ type AutocompleteProps msg =
   , helper      :: String       = ""
   , error       :: Maybe String = Nothing
   , disabled    :: Bool         = False
+  , variant     :: Variant      = Outlined    -- 見た目は TextField と同じ
   , noOptions   :: String       = "候補がありません"   -- 絞り込んで 1 つも残らないときに出す文字
   }
 
@@ -30,7 +32,7 @@ type AutocompleteProps msg =
 autocomplete :: AutocompleteProps msg -> Html msg
 autocomplete props =
   <div class={css.field}>
-    <div class={box}>
+    <div class={box} vars={anchor}>
       <input class={css.input} id={inputId} type="text" role="combobox" aria-controls={props.id} aria-expanded="false" aria-autocomplete="list" autocomplete="off" value={props.value} placeholder={hint} disabled={props.disabled} aria-invalid={ariaInvalid} onInput={props.onInput} />
       <Floating text={props.label} for={inputId} />
       <fieldset class={css.outline} aria-hidden="true">
@@ -42,7 +44,7 @@ autocomplete props =
           <Icon name={Icon.chevronDown} />
         </button>
       </div>
-      <div class={css.list} id={props.id} role="listbox" aria-label={props.label}>
+      <div class={css.list} id={props.id} role="listbox" aria-label={props.label} popover>
         {choices}
         <Empty none={nothingShown} text={props.noOptions} />
       </div>
@@ -51,7 +53,8 @@ autocomplete props =
   </div>
   where
     inputId = props.id ++ "-input"
-    box = classes [css.box, invalid, labelled]
+    anchor = { anchor = "--autocomplete-" ++ props.id }
+    box = classes [css.box, invalid, labelled, look props.variant]
     invalid
       | props.error /= Nothing = css.invalid
       | otherwise              = classes []
@@ -85,6 +88,11 @@ autocomplete props =
           | otherwise             = "false"
 
 
+look :: Variant -> Class
+look Filled   = css.filled
+look Outlined = classes []
+look Plain    = css.plain
+
 -- 欄の中のラベル。input のあとに置き、input の状態を CSS の ~ で受け取る
 floating :: { text :: String, for :: String } -> Html msg
 floating { text = "" } = <></>
@@ -115,6 +123,7 @@ style
   .box {
     position: relative;
     border-radius: var(--radius);
+    anchor-name: var(--anchor);
   }
   .input {
     display: block;
@@ -223,23 +232,29 @@ style
   .box:hover .clear, .input:focus ~ .buttons .clear { visibility: visible; }
   .input[aria-expanded="true"] ~ .buttons .toggle { rotate: 180deg; }
 
-  /* 候補の一覧。開いているかは、ランタイムが input の aria-expanded に書く */
+  /* 候補の一覧。開け閉めはランタイムが受け持ち（input の aria-expanded と popover）、一番上の層で欄のすぐ下に出す */
   .list {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    z-index: 1300;
-    display: none;
     max-height: 40vh;
     padding: 8px 0;
+    margin: 0;
     overflow-y: auto;
+    border: none;
     border-radius: var(--radius);
     background: var(--surface);
     color: var(--text);
     box-shadow: var(--shadow-8);
   }
-  .input[aria-expanded="true"] ~ .list { display: block; }
+  @supports (anchor-name: --a) {
+    .list {
+      position-anchor: var(--anchor);
+      inset: auto;
+      top: anchor(bottom);
+      left: anchor(left);
+      width: anchor-size(width);
+      margin-top: 4px;
+      position-try-fallbacks: flip-block;
+    }
+  }
   .option {
     min-height: 36px;
     padding: 6px 16px;
@@ -262,3 +277,50 @@ style
   }
   .helper { color: var(--muted); }
   .error { color: var(--danger); }
+
+  /* variant={Filled} は塗った面と下線、variant={Plain} は下線だけ（Material Design の Filled と Standard） */
+  .filled {
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: light-dark(rgb(0 0 0 / .06), rgb(255 255 255 / .09));
+    transition: background-color .2s var(--ease);
+  }
+  .filled:hover { background: light-dark(rgb(0 0 0 / .09), rgb(255 255 255 / .13)); }
+  .filled:focus-within { background: light-dark(rgb(0 0 0 / .06), rgb(255 255 255 / .09)); }
+  .plain { margin-top: 16px; border-radius: 0; }
+  .filled .outline, .plain .outline { display: none; }
+  .filled::before, .plain::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border-bottom: 1px solid light-dark(rgb(0 0 0 / .42), rgb(255 255 255 / .7));
+    pointer-events: none;
+    transition: border-color .2s var(--ease);
+  }
+  .filled:hover::before, .plain:hover::before { border-bottom-color: var(--text); }
+  .filled:has(.input:disabled)::before, .plain:has(.input:disabled)::before { border-bottom-style: dotted; }
+  .filled::after, .plain::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border-bottom: 2px solid var(--primary);
+    pointer-events: none;
+    transform: scaleX(0);
+    transition: transform .2s cubic-bezier(0, 0, .2, 1);
+  }
+  .filled:focus-within::after, .plain:focus-within::after { transform: scaleX(1); }
+  .invalid.filled::before, .invalid.plain::before { border-bottom-color: var(--danger); }
+  .invalid.filled::after, .invalid.plain::after { border-bottom-color: var(--danger); transform: scaleX(1); }
+  .filled .input { padding: 25px 65px 8px 12px; width: calc(100% - 77px); }
+  .plain .input { padding: 4px 56px 5px 0; width: calc(100% - 56px); }
+  .filled .label { transform: translate(12px, 16px) scale(1); }
+  .plain .label { transform: translate(0, 4px) scale(1); }
+  .filled .input:focus ~ .label,
+  .filled .input:not(:placeholder-shown) ~ .label { transform: translate(12px, 7px) scale(.75); }
+  .plain .input:focus ~ .label,
+  .plain .input:not(:placeholder-shown) ~ .label { transform: translate(0, -17.5px) scale(.75); }
+  .filled .buttons { top: calc(50% - 10px); }
+  .plain .buttons { top: calc(50% - 14px); right: 0; }

@@ -1,0 +1,171 @@
+-- 1 か月分の日付から 1 日を選ぶカレンダー。選んだ日と、表示している月を model に持つ
+-- 日付は "2026-10-28"、月は "2026-10" の形の文字
+--
+--   <Calendar value={model.day} month={model.month} onChange={DayPicked} onMonth={MonthShown} />
+--
+--   update (DayPicked d) model  = { model | day = d }
+--   update (MonthShown m) model = { model | month = m }
+--
+-- 今日に印を付けるときは today="2026-10-28" を渡す（Time から作った日付など）
+module Ui.Calendar (CalendarProps, calendar) where
+
+import qualified Ui.Icon as Icon
+
+
+type CalendarProps msg =
+  { value    :: String
+  , month    :: String = ""   -- 空なら、value の月（value も空なら today の月）
+  , onChange :: String -> msg
+  , onMonth  :: String -> msg
+  , today    :: String = ""
+  , closes   :: String = ""   -- 日を選んだら閉じる popover の id（DatePicker が使う）
+  }
+
+
+calendar :: CalendarProps msg -> Html msg
+calendar props =
+  <div class={css.calendar}>
+    <div class={css.header}>
+      <Row align={Center}>
+        <span class={css.title}>{title}</span>
+        <Spacer />
+        <button class={css.nav} type="button" aria-label="前の月" onClick={previous}><Icon name={Icon.chevronLeft} /></button>
+        <button class={css.nav} type="button" aria-label="次の月" onClick={next}><Icon name={Icon.chevronRight} /></button>
+      </Row>
+    </div>
+    <div class={css.week} aria-hidden="true">{map weekday weekdays}</div>
+    <div class={css.days} vars={start}>{map day days}</div>
+  </div>
+  where
+    shown
+      | props.month /= "" = props.month
+      | props.value /= "" = props.value
+      | otherwise         = props.today
+    year = yearOf shown
+    month = monthOf shown
+    title = show year ++ "年 " ++ show month ++ "月"
+    previous = props.onMonth (monthKey (shift year (month - 1)))
+    next = props.onMonth (monthKey (shift year (month + 1)))
+    weekdays = ["日", "月", "火", "水", "木", "金", "土"]
+    weekday w = <span class={css.weekday}>{w}</span>
+    -- 1 日を、その曜日の列から始める
+    start = { start = show (weekdayOf year month 1 + 1) }
+    days = range 1 (daysIn year month)
+
+    day d = <button class={look} type="button" aria-label={spoken} aria-pressed={state} popovertarget={props.closes} popovertargetaction="hide" onClick={picked}>{show d}</button>
+      where
+        key = dateKey year month d
+        chosen = key == props.value
+        picked = props.onChange key
+        spoken = show year ++ "年" ++ show month ++ "月" ++ show d ++ "日"
+        look
+          | chosen             = classes [css.day, css.selected]
+          | key == props.today = classes [css.day, css.today]
+          | otherwise          = css.day
+        state
+          | chosen    = "true"
+          | otherwise = "false"
+
+
+-- "2026-10" や "2026-10-28" から、年と月を読む。読めなければ 2000 年 1 月
+yearOf :: String -> Int
+yearOf text = Maybe.withDefault 2000 (String.toInt (String.slice 0 4 text))
+
+monthOf :: String -> Int
+monthOf text = clamp (Maybe.withDefault 1 (String.toInt (String.slice 5 7 text)))
+  where
+    clamp m
+      | m < 1     = 1
+      | m > 12    = 12
+      | otherwise = m
+
+-- 月を 1 つ前後に動かしたときの（年, 月）。0 月は前の年の 12 月、13 月は次の年の 1 月
+shift :: Int -> Int -> (Int, Int)
+shift year 0  = (year - 1, 12)
+shift year 13 = (year + 1, 1)
+shift year m  = (year, m)
+
+monthKey :: (Int, Int) -> String
+monthKey (year, month) = show year ++ "-" ++ twoDigits month
+
+dateKey :: Int -> Int -> Int -> String
+dateKey year month d = show year ++ "-" ++ twoDigits month ++ "-" ++ twoDigits d
+
+twoDigits :: Int -> String
+twoDigits n = String.padLeft 2 "0" (show n)
+
+daysIn :: Int -> Int -> Int
+daysIn year 2
+  | leap year = 29
+  | otherwise = 28
+daysIn _ 4  = 30
+daysIn _ 6  = 30
+daysIn _ 9  = 30
+daysIn _ 11 = 30
+daysIn _ _  = 31
+
+leap :: Int -> Bool
+leap year = mod year 4 == 0 && (mod year 100 /= 0 || mod year 400 == 0)
+
+-- 曜日（0 が日曜）。Sakamoto の方法
+weekdayOf :: Int -> Int -> Int -> Int
+weekdayOf year month d = mod (y + y // 4 - y // 100 + y // 400 + offset month + d) 7
+  where
+    y
+      | month < 3 = year - 1
+      | otherwise = year
+
+offset :: Int -> Int
+offset 1  = 0
+offset 2  = 3
+offset 3  = 2
+offset 4  = 5
+offset 5  = 0
+offset 6  = 3
+offset 7  = 5
+offset 8  = 1
+offset 9  = 4
+offset 10 = 6
+offset 11 = 2
+offset _  = 4
+
+
+style
+  .calendar { width: 320px; max-width: 100%; padding: 0 12px 12px; }
+  .header { padding: 16px 0 8px 12px; }
+  .title { font-size: 1rem; font-weight: 500; }
+  .nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--text);
+    font-size: 1.5rem;
+    transition: background-color .15s var(--ease);
+  }
+  .nav:hover, .nav:focus-visible { outline: none; background: var(--hover); }
+  .week, .days { display: grid; grid-template-columns: repeat(7, 1fr); justify-items: center; }
+  .weekday { width: 36px; line-height: 40px; color: var(--muted); font-size: .75rem; text-align: center; }
+  .days { row-gap: 2px; }
+  .days > :first-child { grid-column-start: var(--start); }
+  .day {
+    width: 36px;
+    height: 36px;
+    margin: 0 2px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: none;
+    color: var(--text);
+    font-size: .75rem;
+    transition: background-color .15s var(--ease);
+  }
+  .day:hover { background: var(--hover); }
+  .day:focus-visible { outline: none; background: var(--selected); }
+  .today { border-color: var(--muted); }
+  .selected, .selected:hover, .selected:focus-visible { background: var(--primary); color: var(--on-tone); font-weight: 500; }

@@ -1,0 +1,227 @@
+-- 日付を選ぶ欄。押すとカレンダーが開き、日を選ぶと閉じる。見た目は TextField と同じ
+-- 選んだ日（"2026-10-28"、選んでいなければ ""）と、カレンダーに出している月（"2026-10"）を model に持つ
+--
+--   <DatePicker id="due" label="期限" value={model.due} month={model.dueMonth} onChange={DuePicked} onMonth={DueMonthShown} />
+--
+-- month が空なら、value の月を出す。id は、ページの中でほかと重ならない名前にする
+module Ui.DatePicker (DatePickerProps, datePicker) where
+
+import Ui.Button (Variant(..))
+import Ui.Calendar
+import qualified Ui.Icon as Icon
+
+
+type DatePickerProps msg =
+  { id       :: String
+  , value    :: String
+  , onChange :: String -> msg
+  , onMonth  :: String -> msg
+  , month    :: String       = ""
+  , label    :: String       = ""
+  , today    :: String       = ""
+  , helper   :: String       = ""
+  , error    :: Maybe String = Nothing
+  , disabled :: Bool         = False
+  , variant  :: Variant      = Outlined
+  }
+
+
+datePicker :: DatePickerProps msg -> Html msg
+datePicker props =
+  <div class={css.field} vars={anchor}>
+    <div class={box}>
+      <button class={css.input} type="button" popovertarget={props.id} aria-haspopup="dialog" disabled={props.disabled}>
+        <Shown value={props.value} />
+      </button>
+      <Floating text={props.label} />
+      <fieldset class={css.outline} aria-hidden="true">
+        <legend class={css.notch}><Gap text={props.label} /></legend>
+      </fieldset>
+      <span class={css.icon} aria-hidden="true"><Icon name={Icon.calendar} /></span>
+    </div>
+    <div class={css.panel} id={props.id} popover role="dialog" aria-label={props.label}>
+      <Calendar value={props.value} month={props.month} today={props.today} closes={props.id} onChange={props.onChange} onMonth={props.onMonth} />
+    </div>
+    <Note helper={props.helper} error={props.error} />
+  </div>
+  where
+    anchor = { anchor = "--date-picker-" ++ props.id }
+    box = classes [css.box, invalid, look props.variant]
+    invalid
+      | props.error /= Nothing = css.invalid
+      | otherwise              = classes []
+
+
+look :: Variant -> Class
+look Filled   = css.filled
+look Outlined = classes []
+look Plain    = css.plain
+
+-- "2026-10-28" を "2026/10/28" と出す。選んでいなければ、書式を薄く出す
+shown :: { value :: String } -> Html msg
+shown { value = "" } = <span class={css.placeholder}>年/月/日</span>
+shown { value }      = <span>{String.replace "-" "/" value}</span>
+
+floating :: { text :: String } -> Html msg
+floating { text = "" } = <></>
+floating { text }      = <span class={css.label}>{text}</span>
+
+gap :: { text :: String } -> Html msg
+gap { text = "" } = <></>
+gap { text }      = <span>{text}</span>
+
+note :: { helper :: String, error :: Maybe String } -> Html msg
+note { error = Just message } = <span class={css.error}>{message}</span>
+note { helper = "" }          = <></>
+note { helper }               = <span class={css.helper}>{helper}</span>
+
+
+style
+  .field { display: block; min-width: 0; }
+  .box {
+    position: relative;
+    border-radius: var(--radius);
+  }
+  .input {
+    display: block;
+    box-sizing: content-box;
+    width: calc(100% - 46px);
+    height: 1.4375em;
+    padding: 16.5px 32px 16.5px 14px;
+    border: 0;
+    margin: 0;
+    font: inherit;
+    color: var(--text);
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") right 7px center / 24px no-repeat;
+    appearance: none;
+    cursor: pointer;
+  }
+  .input:focus { outline: none; }
+  .input:disabled { color: var(--muted); cursor: not-allowed; }
+
+  .label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: calc(133% - 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4375em;
+    color: var(--muted);
+    pointer-events: none;
+    transform: translate(14px, -9px) scale(.75);
+    transform-origin: top left;
+    transition: color .2s;
+  }
+  .input:focus ~ .label { color: var(--primary); }
+
+  .outline {
+    position: absolute;
+    inset: -5px 0 0;
+    min-width: 0;
+    padding: 0 8px;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: inherit;
+    overflow: hidden;
+    text-align: left;
+    pointer-events: none;
+    transition: border-color .15s;
+  }
+  .notch {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: 11px;
+    padding: 0;
+    overflow: hidden;
+    font-size: .75em;
+    white-space: nowrap;
+    visibility: hidden;
+  }
+  .notch > span { display: inline-block; padding: 0 5px; }
+  .box:hover .input:not(:disabled) ~ .outline { border-color: var(--text); }
+  .input:focus ~ .outline,
+  .box:hover .input:focus ~ .outline { border: 2px solid var(--primary); padding: 0 7px; }
+  .input:disabled ~ .outline { border-color: color-mix(in srgb, var(--border) 60%, transparent); }
+
+
+  /* variant={Filled} は塗った面と下線、variant={Plain} は下線だけ（Material Design の Filled と Standard） */
+  .filled {
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: light-dark(rgb(0 0 0 / .06), rgb(255 255 255 / .09));
+    transition: background-color .2s var(--ease);
+  }
+  .filled:hover { background: light-dark(rgb(0 0 0 / .09), rgb(255 255 255 / .13)); }
+  .filled:focus-within { background: light-dark(rgb(0 0 0 / .06), rgb(255 255 255 / .09)); }
+  .plain { margin-top: 16px; border-radius: 0; }
+  .filled .outline, .plain .outline { display: none; }
+  .filled::before, .plain::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border-bottom: 1px solid light-dark(rgb(0 0 0 / .42), rgb(255 255 255 / .7));
+    pointer-events: none;
+    transition: border-color .2s var(--ease);
+  }
+  .filled:hover::before, .plain:hover::before { border-bottom-color: var(--text); }
+  .filled:has(.input:disabled)::before, .plain:has(.input:disabled)::before { border-bottom-style: dotted; }
+  .filled::after, .plain::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border-bottom: 2px solid var(--primary);
+    pointer-events: none;
+    transform: scaleX(0);
+    transition: transform .2s cubic-bezier(0, 0, .2, 1);
+  }
+  .filled:focus-within::after, .plain:focus-within::after { transform: scaleX(1); }
+  .invalid.filled::before, .invalid.plain::before { border-bottom-color: var(--danger); }
+  .invalid.filled::after, .invalid.plain::after { border-bottom-color: var(--danger); transform: scaleX(1); }
+  .filled .input { padding: 25px 32px 8px 12px; width: calc(100% - 44px); }
+  .plain .input { padding: 4px 24px 5px 0; width: calc(100% - 24px); }
+  .filled .label { transform: translate(12px, 7px) scale(.75); }
+  .plain .label { transform: translate(0, -17.5px) scale(.75); }
+
+  .input { text-align: left; background: none; }
+  .placeholder { color: var(--muted); }
+  .box.invalid .input ~ .outline { border-color: var(--danger); }
+  .invalid .label { color: var(--danger); }
+  .box { anchor-name: var(--anchor); }
+  .icon { position: absolute; top: calc(50% - 12px); right: 12px; color: var(--muted); font-size: 1.2rem; pointer-events: none; }
+  .plain .icon { right: 0; }
+
+  /* カレンダーを、欄のすぐ下に浮かせて出す */
+  .panel {
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-8);
+  }
+  @supports (anchor-name: --a) {
+    .panel {
+      position-anchor: var(--anchor);
+      inset: auto;
+      top: anchor(bottom);
+      left: anchor(left);
+      margin-top: 4px;
+      position-try-fallbacks: flip-block, flip-inline;
+    }
+  }
+
+  .helper, .error {
+    display: block;
+    margin: 3px 14px 0;
+    font-size: .75rem;
+    line-height: 1.66;
+  }
+  .helper { color: var(--muted); }
+  .error { color: var(--danger); }
