@@ -16,9 +16,9 @@ import Ui.IconButton
 
 
 type DialogProps msg =
-  { open    :: Bool
-  , onClose :: msg
-  , title   :: String = ""
+  { open    :: Bool          -- 開いているか
+  , onClose :: msg           -- 背景か右上の × を押したときに届くメッセージ。open を False にする（Esc で閉じるなら Keyboard.onKeyDown を購読する）
+  , title   :: String = ""   -- 見出し。空なら出さない
   }
 
 

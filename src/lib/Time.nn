@@ -2,8 +2,15 @@
 module Time where
 
 
+-- いまの時刻（1970-01-01 からのミリ秒）を受け取る
+--
+--   effect Start _ = Time.now Started
 foreign import now :: (Int -> msg) -> Cmd msg
   = "(toMsg) => (dispatch) => dispatch(toMsg(Date.now()))"
 
+-- ミリ秒ごとに、そのときの時刻を受け取る
+--
+--   subscriptions { running = True } = Time.every 1000 Tick
+--   subscriptions _                  = Sub.none
 foreign import every :: Int -> (Int -> msg) -> Sub msg
   = "(ms) => (toMsg) => $rt.sub('Time.every:' + ms, (t) => toMsg(t), (emit) => { const id = setInterval(() => emit(Date.now()), ms); return () => clearInterval(id); })"

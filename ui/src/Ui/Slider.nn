@@ -6,13 +6,13 @@ module Ui.Slider (SliderProps, slider) where
 
 
 type SliderProps msg =
-  { value    :: Float
-  , onChange :: Float -> msg
-  , min      :: Float  = 0.0
-  , max      :: Float  = 100.0
-  , step     :: Float  = 1.0
-  , label    :: String = ""
-  , disabled :: Bool   = False
+  { value    :: Float            -- いまの値
+  , onChange :: Float -> msg     -- 動かすたびに、動かした後の値を受け取る
+  , min      :: Float  = 0.0     -- いちばん小さい値
+  , max      :: Float  = 100.0   -- いちばん大きい値
+  , step     :: Float  = 1.0     -- 値の刻み
+  , label    :: String = ""      -- 上に出す名前。空なら出さない
+  , disabled :: Bool   = False   -- 動かせない
   }
 
 

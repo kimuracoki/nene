@@ -6,7 +6,7 @@ module Ui.Divider (DividerProps, divider) where
 
 
 type DividerProps =
-  { label :: String = ""
+  { label :: String = ""   -- 線の真ん中に出す文字。空なら線だけ
   }
 
 

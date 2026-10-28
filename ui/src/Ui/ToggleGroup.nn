@@ -7,10 +7,10 @@ module Ui.ToggleGroup (ToggleGroupProps, toggleGroup) where
 
 
 type ToggleGroupProps msg =
-  { value    :: String
-  , options  :: [(String, String)]
-  , onChange :: String -> msg
-  , disabled :: Bool = False
+  { value    :: String               -- 選んでいる選択肢の値
+  , options  :: [(String, String)]   -- （値, 表示する文字）の組
+  , onChange :: String -> msg        -- 押したときに、その選択肢の値を受け取る
+  , disabled :: Bool = False         -- どれも押せない
   }
 
 

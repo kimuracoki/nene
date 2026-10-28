@@ -11,8 +11,8 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type TimelineProps =
-  { items :: [(String, String)]
-  , tone  :: Tone = Primary
+  { items :: [(String, String)]   -- （いつ, 何が起きたか）の組。上から順に並ぶ
+  , tone  :: Tone = Primary       -- 点の色の種類
   }
 
 

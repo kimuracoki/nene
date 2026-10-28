@@ -1,0 +1,433 @@
+-- リファレンスの部品のページに埋め込む、部品ごとの動く見本。demo.html?c=Button のように、見せる部品を URL で選ぶ
+-- 1 つの部品ごとに、いちばんよく使う形を並べる（すべての部品を並べた見本は Showcase.nn）
+module Demo (main) where
+
+import Ui.Accordion
+import Ui.TransferList (Transfer)
+import Ui.Tooltip (Placement(..))
+import Ui.ToggleGroup
+import Ui.AppBar
+import Ui.Alert
+import Ui.Autocomplete
+import Ui.Avatar
+import Ui.Badge
+import Ui.Breadcrumbs
+import Ui.ButtonGroup
+import Ui.Calendar
+import Ui.Button (Variant(..))
+import Ui.Card
+import Ui.Carousel
+import Ui.Checkbox
+import Ui.DatePicker
+import Ui.Chip
+import Ui.Dialog
+import Ui.Divider
+import Ui.Drawer
+import Ui.Fab
+import qualified Ui.Icon as Icon
+import Ui.IconButton
+import Ui.ListItem
+import Ui.Menu (Item)
+import Ui.MultiAutocomplete
+import Ui.Pagination
+import Ui.Popover
+import Ui.Progress
+import Ui.RadioGroup
+import Ui.Rating
+import Ui.Select
+import Ui.Skeleton (Shape(..))
+import Ui.Slider
+import Ui.Snackbar
+import Ui.SpeedDial (Action)
+import Ui.Spinner
+import Ui.Stepper
+import Ui.Switch
+import Ui.Table (Order(..))
+import Ui.Tabs
+import Ui.Timeline
+import Ui.TextField (InputKind(..))
+import Ui.Theme (Tone(..))
+
+
+main :: Program Model Msg
+main = App.app { init, update, view, subscriptions, onUrlChange = UrlChanged }
+
+
+type Model =
+  { name      :: String
+  , email     :: String
+  , bio       :: String
+  , agreed    :: Bool
+  , notify    :: Bool
+  , plan      :: String
+  , contact   :: String
+  , volume    :: Float
+  , stars     :: Int
+  , layout    :: String
+  , tab       :: Int
+  , page      :: Int
+  , step      :: Int
+  , dialog    :: Bool
+  , drawer    :: Bool
+  , saved     :: Bool
+  , progress  :: Float
+  , liked     :: Bool
+  , city      :: String
+  , tagText   :: String
+  , tags      :: [String]
+  , month     :: String
+  , sortBy    :: Int
+  , order     :: Order
+  , saving    :: Bool
+  , due       :: String
+  , dueMonth  :: String
+  , picked    :: [Int]
+  , team      :: Transfer
+  , day       :: String
+  , component :: String   -- 見せる部品の名前（?c=Button）
+  }
+
+data Msg
+  = NameChanged String
+  | EmailChanged String
+  | BioChanged String
+  | Agreed Bool
+  | NotifyChanged Bool
+  | PlanChanged String
+  | ContactChanged String
+  | VolumeChanged Float
+  | Rated Int
+  | LayoutChanged String
+  | TabChanged Int
+  | PageChanged Int
+  | NextStep
+  | OpenDialog
+  | CloseDialog
+  | OpenDrawer
+  | CloseDrawer
+  | Save
+  | HideSaved
+  | Advance
+  | ToggleLike
+  | CityChanged String
+  | TagTyped String
+  | TagsChanged [String]
+  | MonthShown String
+  | SortBy Int
+  | ToggleSaving
+  | DuePicked String
+  | DueMonthShown String
+  | Picked [Int]
+  | TeamChanged Transfer
+  | DayChanged String
+  | UrlChanged Url
+
+
+init :: Model
+init =
+  { name = "", email = "", bio = "", agreed = False, notify = True, plan = "free"
+  , contact = "mail", volume = 40.0, stars = 3, layout = "list"
+  , tab = 0, page = 1, step = 1, dialog = False, drawer = False, saved = False
+  , progress = 0.3, liked = False, city = "", tagText = "", tags = ["Nene"], day = "", month = "2026-10", sortBy = 0, order = Ascending, saving = False, due = "", dueMonth = "2026-10", picked = [], team = { chosen = ["Ada"], checked = [] }, component = ""
+  }
+
+
+update :: Msg -> Model -> Model
+update (NameChanged s) model    = { model | name = s }
+update (EmailChanged s) model   = { model | email = s }
+update (BioChanged s) model     = { model | bio = s }
+update (Agreed b) model         = { model | agreed = b }
+update (NotifyChanged b) model  = { model | notify = b }
+update (PlanChanged p) model    = { model | plan = p }
+update (ContactChanged c) model = { model | contact = c }
+update (VolumeChanged v) model  = { model | volume = v }
+update (Rated n) model          = { model | stars = n }
+update (LayoutChanged l) model  = { model | layout = l }
+update (TabChanged i) model     = { model | tab = i }
+update (PageChanged n) model    = { model | page = n }
+update NextStep model           = { model | step = mod (model.step + 1) 4 }
+update OpenDialog model         = { model | dialog = True }
+update CloseDialog model        = { model | dialog = False }
+update OpenDrawer model         = { model | drawer = True }
+update CloseDrawer model        = { model | drawer = False }
+update Save model               = { model | saved = True }
+update HideSaved model          = { model | saved = False }
+update Advance model            = { model | progress = next }
+  where
+    next
+      | model.progress >= 1.0 = 0.0
+      | otherwise             = model.progress + 0.1
+update ToggleLike model        = { model | liked = not model.liked }
+update (CityChanged c) model   = { model | city = c }
+update (TagTyped t) model      = { model | tagText = t }
+update (TagsChanged ts) model  = { model | tags = ts, tagText = "" }
+update (MonthShown m) model    = { model | month = m }
+update ToggleSaving model      = { model | saving = not model.saving }
+update (DuePicked d) model     = { model | due = d, dueMonth = "" }
+update (DueMonthShown m) model = { model | dueMonth = m }
+update (Picked rows) model     = { model | picked = rows }
+update (TeamChanged t) model   = { model | team = t }
+-- 同じ列をもう一度押すと、向きを逆にする
+update (SortBy i) model
+  | i == model.sortBy && model.order == Ascending = { model | order = Descending }
+  | otherwise                                     = { model | sortBy = i, order = Ascending }
+update (DayChanged d) model   = { model | day = d }
+update (UrlChanged url) model = { model | component = Maybe.withDefault "" (List.lookup "c" url.query) }
+
+
+-- 知らせは 4 秒で消す
+subscriptions :: Model -> Sub Msg
+subscriptions model
+  | model.saved = Time.every 4000 (always HideSaved)
+  | otherwise   = Sub.none
+
+
+view :: Model -> Html Msg
+view model =
+  <main class={css.page}>
+    <Sample name={model.component} />
+  </main>
+  where
+    sample { name = "Accordion" } =
+      <Column>
+        <Accordion title="Nene とは？" group="faq" open>Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語です。</Accordion>
+        <Accordion title="状態はどこに置く？" group="faq">アプリが知る必要のある状態は model に、見た目だけの開け閉めはブラウザに任せます。</Accordion>
+      </Column>
+    sample { name = "Alert" } =
+      <Column gap={S}>
+        <Alert title="お知らせ">新しいバージョンが使えます。</Alert>
+        <Alert tone={Success} title="保存しました">次回からこの設定で開きます。</Alert>
+        <Alert tone={Danger} title="送信できませんでした">ネットワークを確かめてください。</Alert>
+      </Column>
+    sample { name = "AppBar" } =
+      <AppBar title="受信トレイ">
+        <IconButton icon={Icon.search} label="検索" onClick={Advance} />
+        <Button variant={Plain} onClick={Save}>保存</Button>
+      </AppBar>
+    sample { name = "Autocomplete" } = <Autocomplete id="city" label="都市" value={model.city} options={cities} onInput={CityChanged} helper="打つと候補が絞られます" />
+    sample { name = "Avatar" } =
+      <Row gap={M} align={Center}>
+        <Avatar name="木村 光" />
+        <Avatar name="Ada Lovelace" size={S} />
+        <Avatar name="Grace Hopper" size={L} />
+      </Row>
+    sample { name = "Badge" } =
+      <Row gap={L} align={Center}>
+        <Badge count={3}><IconButton icon={Icon.mail} label="メール" onClick={Advance} /></Badge>
+        <Badge count={120}><IconButton icon={Icon.notifications} label="お知らせ" onClick={Advance} /></Badge>
+      </Row>
+    sample { name = "Breadcrumbs" } = <Breadcrumbs links={crumbs} current="プロフィール" />
+    sample { name = "Button" } =
+      <Row gap={S} wrap align={Center}>
+        <Button onClick={OpenDialog}>開く</Button>
+        <Button variant={Outlined} startIcon={addIcon} onClick={Advance}>足す</Button>
+        <Button variant={Plain} onClick={Advance}>あとで</Button>
+        <Button tone={Danger} onClick={OpenDialog}>削除</Button>
+        <Button loading={model.saving} onClick={ToggleSaving}>読み込み</Button>
+        <Button disabled onClick={Advance}>押せない</Button>
+      </Row>
+    sample { name = "ButtonGroup" } = <ButtonGroup items={edits} />
+    sample { name = "Calendar" }    = <Calendar value={model.day} month={model.month} onChange={DayChanged} onMonth={MonthShown} />
+    sample { name = "Card" } =
+      <Card title="プロフィール">
+        <p>カードの中身。見出しは title で付ける。</p>
+      </Card>
+    sample { name = "Carousel" } = <Carousel label="色の見本" slides={swatches} perView={2} gap={M} aspect="4 / 3" />
+    sample { name = "Checkbox" } = <Checkbox label="利用規約に同意する" checked={model.agreed} onCheck={Agreed} />
+    sample { name = "Chip" } =
+      <Row gap={S} wrap>
+        <Chip>下書き</Chip>
+        <Chip tone={Success}>公開中</Chip>
+        <Chip selected onClick={backToFirst}>選択中</Chip>
+        <Chip onDelete={backToFirst}>消せる</Chip>
+      </Row>
+    sample { name = "DatePicker" } = <DatePicker id="due" label="期限" value={model.due} month={model.dueMonth} onChange={DuePicked} onMonth={DueMonthShown} />
+    sample { name = "Dialog" } =
+      <div>
+        <Button onClick={OpenDialog}>ダイアログを開く</Button>
+        <Dialog open={model.dialog} title="削除しますか？" onClose={CloseDialog}>
+          <p>この操作は取り消せません。</p>
+          <Row gap={S} justify={End}>
+            <Button variant={Plain} onClick={CloseDialog}>やめる</Button>
+            <Button tone={Danger} onClick={CloseDialog}>削除する</Button>
+          </Row>
+        </Dialog>
+      </div>
+    sample { name = "Divider" } =
+      <Column gap={M}>
+        <p>上の段落</p>
+        <Divider />
+        <Divider label="または" />
+        <p>下の段落</p>
+      </Column>
+    sample { name = "Drawer" } =
+      <div>
+        <Button onClick={OpenDrawer}>引き出しを開く</Button>
+        <Drawer open={model.drawer} onClose={CloseDrawer}>
+          <ListItem icon={homeIcon} primary="ホーム" selected onClick={closeDrawer} />
+          <ListItem icon={settingsIcon} primary="設定" onClick={closeDrawer} />
+        </Drawer>
+      </div>
+    sample { name = "Fab" } =
+      <Row gap={M} align={Center}>
+        <Fab icon={Icon.add} label="新しく作る" onClick={Save} />
+        <Fab icon={Icon.edit} label="書く" extended onClick={Save} />
+      </Row>
+    sample { name = "Icon" } = <Row gap={M} wrap>{map glyph icons}</Row>
+    sample { name = "IconButton" } =
+      <Row gap={S} align={Center}>
+        <IconButton icon={heart} label="いいね" tone={Danger} onClick={ToggleLike} />
+        <IconButton icon={Icon.settings} label="設定" variant={Outlined} onClick={Advance} />
+        <IconButton icon={Icon.add} label="追加" variant={Filled} tone={Primary} onClick={Advance} />
+      </Row>
+    sample { name = "ListItem" } =
+      <Card padding={None}>
+        <ListItem icon={mailIcon} primary="受信トレイ" secondary="未読 3 件" selected={inbox} onClick={backToFirst} />
+        <ListItem icon={starIcon} primary="スター付き" selected={starred} onClick={toStarred} />
+      </Card>
+    sample { name = "Menu" }              = <Menu id="actions" label="操作" items={actions} />
+    sample { name = "MultiAutocomplete" } = <MultiAutocomplete id="tags" label="タグ" value={model.tagText} selected={model.tags} options={allTags} onInput={TagTyped} onChange={TagsChanged} />
+    sample { name = "Pagination" }        = <Pagination count={10} page={model.page} onChange={PageChanged} />
+    sample { name = "Popover" } =
+      <Popover id="profile" label="プロフィール">
+        <Row gap={S} align={Center}>
+          <Avatar name="Ada Lovelace" />
+          <strong>Ada Lovelace</strong>
+        </Row>
+      </Popover>
+    sample { name = "Progress" } =
+      <Column gap={M}>
+        <Progress value={progressValue} />
+        <Progress tone={Success} />
+        <Row><Button variant={Plain} onClick={Advance}>進める</Button></Row>
+      </Column>
+    sample { name = "RadioGroup" } = <RadioGroup name="contact" label="連絡方法" row value={model.contact} options={contacts} onChange={ContactChanged} />
+    sample { name = "Rating" }     = <Rating value={model.stars} onChange={rate} />
+    sample { name = "Select" }     = <Select label="プラン" value={model.plan} options={plans} onChange={PlanChanged} />
+    sample { name = "Skeleton" } =
+      <Row gap={M} align={Center}>
+        <Skeleton shape={Circle} />
+        <Column gap={XS}>
+          <Skeleton width="180px" />
+          <Skeleton width="120px" />
+        </Column>
+      </Row>
+    sample { name = "Slider" } = <Slider label="音量" value={model.volume} onChange={VolumeChanged} />
+    sample { name = "Snackbar" } =
+      <div>
+        <Button onClick={Save}>保存する</Button>
+        <Snackbar open={model.saved} message="保存しました" onClose={HideSaved} action={undo} />
+      </div>
+    sample { name = "SpeedDial" } = <SpeedDial id="create" label="作る" actions={creates} />
+    sample { name = "Spinner" } =
+      <Row gap={M} align={Center}>
+        <Spinner size={S} />
+        <Spinner />
+        <Spinner size={L} />
+      </Row>
+    sample { name = "Stepper" } =
+      <Column gap={M}>
+        <Stepper steps={steps} active={model.step} />
+        <Row justify={End}><Button variant={Plain} onClick={NextStep}>次の手順</Button></Row>
+      </Column>
+    sample { name = "Switch" } = <Switch label="お知らせを受け取る" checked={model.notify} onCheck={NotifyChanged} />
+    sample { name = "Table" }  = <Table headers={columns} rows={members} sort={sorting} onSort={sortBy} selected={model.picked} onSelect={pick} />
+    sample { name = "Tabs" } =
+      <Column gap={M}>
+        <Tabs labels={sections} selected={model.tab} onSelect={TabChanged} />
+        <p>{tabText}</p>
+      </Column>
+    sample { name = "TextField" } =
+      <Column gap={M}>
+        <TextField label="名前" value={model.name} onInput={NameChanged} helper="あとから変えられます" />
+        <TextField label="メール" kind={Email} value={model.email} onInput={EmailChanged} error={emailError} />
+        <TextField label="自己紹介" rows={3} value={model.bio} onInput={BioChanged} />
+      </Column>
+    sample { name = "Timeline" }    = <Timeline items={history} />
+    sample { name = "ToggleGroup" } = <ToggleGroup value={model.layout} options={layouts} onChange={LayoutChanged} />
+    sample { name = "Tooltip" } =
+      <Row gap={M}>
+        <Tooltip text="あとで見るに追加">
+          <IconButton icon={Icon.star} label="あとで見る" onClick={ToggleLike} />
+        </Tooltip>
+        <Tooltip text="右に出る説明" placement={Right}>
+          <IconButton icon={Icon.help} label="ヘルプ" onClick={ToggleLike} />
+        </Tooltip>
+      </Row>
+    sample { name = "TransferList" } = <TransferList items={everyone} value={model.team} onChange={TeamChanged} leftTitle="メンバー" rightTitle="チーム" />
+    sample _                         = <p class={css.missing}>見本がありません。?c=Button のように部品の名前を書いてください。</p>
+
+    plans    = [("free", "無料"), ("pro", "プロ"), ("team", "チーム")]
+    contacts = [("mail", "メール"), ("phone", "電話")]
+    allTags  = ["Nene", "Haskell", "Elm", "TypeScript", "React", "CSS", "デザイン", "テスト"]
+    cities   = ["札幌", "仙台", "東京", "横浜", "名古屋", "京都", "大阪", "神戸", "広島", "福岡", "那覇"]
+    layouts  = [("list", "リスト"), ("grid", "グリッド")]
+    actions =
+      [ Item { label = "進める", onClick = Advance, icon = Just Icon.arrowRight }
+      , Item { label = "最初のタブへ", onClick = TabChanged 0 }
+      , Item { label = "削除", onClick = OpenDialog, icon = Just Icon.delete, tone = Danger }
+      ]
+    people = [("Ada Lovelace", "管理者", "2024-01-10"), ("Alan Turing", "編集者", "2024-03-02"), ("Grace Hopper", "閲覧者", "2024-05-21")]
+    members = map member (ordered (sortOn sortKey people))
+    member (name, role, joined) = [<>{name}</>, <Chip>{role}</Chip>, <>{joined}</>]
+    sortKey (name, role, joined)
+      | model.sortBy == 1 = role
+      | model.sortBy == 2 = joined
+      | otherwise         = name
+    ordered rows
+      | model.order == Descending = reverse rows
+      | otherwise                 = rows
+    sorting = Just (model.sortBy, model.order)
+    sortBy = Just SortBy
+    pick = Just Picked
+    edits = [("コピー", Advance), ("切り取り", Advance), ("貼り付け", Advance)]
+    creates =
+      [ Action { icon = Icon.mail, label = "メール", onClick = Save }
+      , Action { icon = Icon.calendar, label = "予定", onClick = Save }
+      , Action { icon = Icon.share, label = "共有", onClick = Save }
+      ]
+    swatches = map swatch ["primary", "success", "warning", "danger", "neutral"]
+    swatch tone = <div class={css.swatch} data-tone={tone}>{tone}</div>
+    icons = [Icon.add, Icon.close, Icon.check, Icon.search, Icon.menu, Icon.edit, Icon.delete, Icon.star, Icon.heart, Icon.home, Icon.user, Icon.settings, Icon.mail, Icon.calendar, Icon.share, Icon.notifications]
+    glyph i = <Icon name={i} />
+    everyone = ["Ada", "Alan", "Grace", "Linus", "Margaret", "Dennis"]
+    history = [("9:00", "注文を受けた"), ("10:30", "発送した"), ("翌日 14:00", "届いた")]
+    sections = ["概要", "メンバー", "設定"]
+    tabText = sectionText model.tab
+    sectionText 0 = "概要のタブを開いています"
+    sectionText 1 = "メンバーのタブを開いています"
+    sectionText _ = "設定のタブを開いています"
+    crumbs   = [("#", "ホーム"), ("#", "設定")]
+    steps    = ["カート", "お届け先", "支払い"]
+    columns  = ["名前", "役割", "参加日"]
+    undo     = Just ("元に戻す", HideSaved)
+    inbox    = model.tab == 0
+    starred  = model.tab == 1
+    toStarred = Just (TabChanged 1)
+    backToFirst = Just (TabChanged 0)
+    closeDrawer = Just CloseDrawer
+    addIcon = Just Icon.add
+    homeIcon = Just Icon.home
+    settingsIcon = Just Icon.settings
+    mailIcon = Just Icon.mail
+    starIcon = Just Icon.star
+    progressValue = Just model.progress
+    rate = Just Rated
+    heart
+      | model.liked = Icon.heartFilled
+      | otherwise   = Icon.heart
+    emailError
+      | String.isEmpty model.email || String.contains "@" model.email = Nothing
+      | otherwise = Just "メールアドレスの形になっていません"
+
+
+style
+  body { background: transparent; }
+  .page { padding: 16px; }
+  .missing { color: var(--muted); }
+  .swatch { display: grid; place-items: center; height: 100%; border-radius: var(--radius); color: #fff; font-weight: 500; text-transform: uppercase; }
+  .swatch[data-tone=primary] { background: var(--primary); }
+  .swatch[data-tone=success] { background: var(--success); }
+  .swatch[data-tone=warning] { background: var(--warning); }
+  .swatch[data-tone=danger] { background: var(--danger); }
+  .swatch[data-tone=neutral] { background: var(--neutral); }

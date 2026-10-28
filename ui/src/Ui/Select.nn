@@ -11,11 +11,11 @@ import Ui.Button (Variant(..))
 
 
 type SelectProps msg =
-  { value    :: String
-  , options  :: [(String, String)]
-  , onChange :: String -> msg
-  , label    :: String  = ""
-  , disabled :: Bool    = False
+  { value    :: String               -- 選んでいる選択肢の値
+  , options  :: [(String, String)]   -- （値, 表示する文字）の組
+  , onChange :: String -> msg        -- 選んだときに、その選択肢の値を受け取る
+  , label    :: String  = ""         -- 欄の名前
+  , disabled :: Bool    = False      -- 選べない
   , variant  :: Variant = Outlined   -- 見た目は TextField と同じ
   }
 

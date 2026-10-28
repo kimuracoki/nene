@@ -9,17 +9,25 @@ module Ui.TextField (TextFieldProps, InputKind(..), textField) where
 import Ui.Button (Variant(..))
 
 
-data InputKind = PlainText | Email | Password | Number | Search | Tel | Date | Time
+data InputKind
+  = PlainText   -- ふつうの文字
+  | Email       -- メールアドレス
+  | Password    -- パスワード（打った文字を隠す）
+  | Number      -- 数
+  | Search      -- 検索の語（消すボタンが出るブラウザもある）
+  | Tel         -- 電話番号
+  | Date        -- 日付。値は "2026-10-28" の形
+  | Time        -- 時刻。値は "09:30" の形
 
 type TextFieldProps msg =
-  { value       :: String
-  , onInput     :: String -> msg
-  , label       :: String       = ""
+  { value       :: String                     -- 欄の文字。描くたびにこの値に合わせる
+  , onInput     :: String -> msg              -- 打つたびに、打った後の文字を受け取る
+  , label       :: String       = ""          -- 欄の名前。欄の中にあり、フォーカスするか値が入ると枠の上に移る
   , placeholder :: String       = ""          -- ラベルがあるときは、フォーカスしている間だけ出る
   , helper      :: String       = ""          -- 欄の下に出す説明
   , error       :: Maybe String = Nothing     -- Just なら赤くして、説明の代わりに出す
-  , kind        :: InputKind    = PlainText
-  , disabled    :: Bool         = False
+  , kind        :: InputKind    = PlainText   -- 入力の種類。スマートフォンのキーボードや、日付の選び方が変わる
+  , disabled    :: Bool         = False       -- 打てない
   , rows        :: Int          = 1           -- 2 以上なら、その行数の複数行の入力欄になる
   , variant     :: Variant      = Outlined    -- Filled は塗った面と下線、Plain は下線だけ
   }

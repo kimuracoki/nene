@@ -9,13 +9,13 @@ module Ui.RadioGroup (RadioGroupProps, radioGroup) where
 
 
 type RadioGroupProps msg =
-  { name     :: String
-  , value    :: String
-  , options  :: [(String, String)]
-  , onChange :: String -> msg
-  , label    :: String = ""
-  , row      :: Bool   = False     -- True なら横に並べる
-  , disabled :: Bool   = False
+  { name     :: String               -- ページの中でほかと重ならない名前（ラジオボタンを 1 組にする）
+  , value    :: String               -- 選んでいる選択肢の値
+  , options  :: [(String, String)]   -- （値, 表示する文字）の組
+  , onChange :: String -> msg        -- 選んだときに、その選択肢の値を受け取る
+  , label    :: String = ""          -- 組の見出し。空なら出さない
+  , row      :: Bool   = False       -- True なら横に並べる
+  , disabled :: Bool   = False       -- どれも選べない
   }
 
 

@@ -10,7 +10,7 @@ module Ui.AppBar (AppBarProps, appBar) where
 
 
 type AppBarProps =
-  { title :: String
+  { title :: String   -- 左に出す題名
   }
 
 

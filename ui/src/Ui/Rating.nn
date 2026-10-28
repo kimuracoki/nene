@@ -8,10 +8,10 @@ import qualified Ui.Icon as Icon
 
 
 type RatingProps msg =
-  { value    :: Int
-  , onChange :: Maybe (Int -> msg) = Nothing
-  , max      :: Int                = 5
-  , label    :: String             = "評価"     -- 読み上げに使う
+  { value    :: Int                            -- 星の数
+  , onChange :: Maybe (Int -> msg) = Nothing   -- Just なら星を押して選べ、押した星の数を受け取る。Nothing なら表示だけ
+  , max      :: Int                = 5         -- 星の数の最大
+  , label    :: String             = "評価"      -- 読み上げに使う
   }
 
 

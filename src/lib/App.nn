@@ -1,18 +1,24 @@
-module App where
+-- アプリの入口。The Elm Architecture（model・update・view）で、状態はアプリ全体で 1 つだけ持つ
+module App (AppConfig, app) where
 
 
 -- アプリの設定。init・update・view 以外は、使うときだけ書けばよい
 type AppConfig model msg =
-  { init          :: model
-  , update        :: msg -> model -> model
-  , view          :: model -> Html msg
-  , effect        :: msg -> model -> Cmd msg = noEffect         -- update のあとに実行する副作用
-  , subscriptions :: model -> Sub msg        = noSubscriptions  -- 外から届くイベント
-  , onUrlChange   :: Url -> msg              = noRouting        -- URL が変わったとき（起動時にも届く）
-  , onStart       :: Cmd msg                 = Cmd.none         -- 起動したときに実行する副作用
+  { init          :: model                                       -- 最初の状態
+  , update        :: msg -> model -> model                       -- メッセージで状態をどう変えるか
+  , view          :: model -> Html msg                           -- 状態をどう見せるか
+  , effect        :: msg -> model -> Cmd msg = noEffect          -- update のあとに実行する副作用
+  , subscriptions :: model -> Sub msg        = noSubscriptions   -- 外から届くイベント
+  , onUrlChange   :: Url -> msg              = noRouting         -- URL が変わったとき（起動時にも届く）
+  , onStart       :: Cmd msg                 = Cmd.none          -- 起動したときに実行する副作用
   }
 
 
+-- アプリを作る。main にこの結果を置く。AppConfig のうち init・update・view だけは必ず書く
+--
+--   main :: Program Model Msg
+--   main = App.app { init, update, view }
+--   main = App.app { init, update, view, effect, subscriptions, onUrlChange = UrlChanged }
 app :: AppConfig model msg -> Program model msg
 app config = toProgram config
 

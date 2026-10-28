@@ -157,6 +157,18 @@ const MSG_EVENTS = ["onClick", "onDoubleClick", "onSubmit", "onFocus", "onBlur",
 const STRING_EVENTS = ["onInput", "onChange"];
 const BOOL_EVENTS = ["onCheck"];
 
+// 型ごとの属性（リファレンスの html.md を作るのに使う）
+export const HTML_ATTR_GROUPS = [
+  { type: "Class", names: ["class"] },
+  { type: "{ 名前 :: String, … }", names: ["vars"] },
+  { type: "String", names: STRING_ATTRS },
+  { type: "Int", names: INT_ATTRS },
+  { type: "Bool", names: BOOL_ATTRS },
+  { type: "msg", names: MSG_EVENTS },
+  { type: "String -> msg", names: STRING_EVENTS },
+  { type: "Bool -> msg", names: BOOL_EVENTS },
+];
+
 // エディタの補完用（aria-* と data-* は自由に書ける）
 export const HTML_ATTRS = [
   "class", "vars", ...STRING_ATTRS, ...INT_ATTRS, ...BOOL_ATTRS, ...MSG_EVENTS, ...STRING_EVENTS, ...BOOL_EVENTS,

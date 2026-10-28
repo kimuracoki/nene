@@ -2,20 +2,34 @@
 module Http where
 
 
+-- 通信がうまくいかなかったわけ
 data Error
   = BadStatus Int      -- 200 番台以外のステータスが返ってきた
   | NetworkError       -- サーバーにつながらなかった
   | BadBody String     -- 返ってきた JSON が型と合わなかった（どこが違ったか）
 
 
+-- GET で受け取る。返ってきた JSON は、メッセージの型（a）のとおりに読む
+--
+--   data Msg = GotTodos (Result Http.Error [Todo])
+--   effect Load _ = Http.get "/api/todos" GotTodos
 foreign import get :: Json a => String -> (Result Error a -> msg) -> Cmd msg
   = "(d) => (url) => (toMsg) => $rt.http('GET', url, undefined, d, toMsg)"
 
+-- POST で送る。body は JSON にして送り、返ってきた JSON は a として読む
+--
+--   effect (Save todo) _ = Http.post "/api/todos" todo Saved    -- Saved (Result Http.Error ())
 foreign import post :: (Json body, Json a) => String -> body -> (Result Error a -> msg) -> Cmd msg
   = "(b) => (d) => (url) => (body) => (toMsg) => $rt.http('POST', url, JSON.stringify(b.enc(body)), d, toMsg)"
 
+-- PUT で送る。使い方は post と同じ
+--
+--   Http.put ("/api/todos/" ++ show todo.id) todo Saved
 foreign import put :: (Json body, Json a) => String -> body -> (Result Error a -> msg) -> Cmd msg
   = "(b) => (d) => (url) => (body) => (toMsg) => $rt.http('PUT', url, JSON.stringify(b.enc(body)), d, toMsg)"
 
+-- DELETE を送る。返ってきた JSON は a として読む（中身がいらなければ ()）
+--
+--   Http.delete ("/api/todos/" ++ show id) Deleted
 foreign import delete :: Json a => String -> (Result Error a -> msg) -> Cmd msg
   = "(d) => (url) => (toMsg) => $rt.http('DELETE', url, undefined, d, toMsg)"

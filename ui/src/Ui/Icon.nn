@@ -8,6 +8,7 @@
 module Ui.Icon (Icon, icon, add, remove, close, cancel, check, chevronDown, chevronUp, chevronLeft, chevronRight, arrowLeft, arrowRight, arrowUp, arrowDown, search, menu, more, moreVertical, edit, delete, star, starFilled, heart, heartFilled, home, user, settings, info, success, warning, error, help, mail, send, notifications, calendar, upload, download, link, share, copy, refresh, filter, sort, visible, hidden, lock, logout, cart, image, folder, time) where
 
 
+-- アイコンの形。Icon.add のような下の値を使う（自分では作れない）
 data Icon = Icon Class
 
 

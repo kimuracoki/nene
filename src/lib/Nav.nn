@@ -2,6 +2,15 @@
 module Nav where
 
 
+-- URL を変え、履歴に足す。ページは読み直さず、App の onUrlChange にメッセージが届く。/ で始まるパスは、アプリの置き場所（--base）からのパス
+--
+--   effect (Open id) _ = Nav.pushUrl ("/photos/" ++ show id)
 foreign import pushUrl :: String -> Cmd msg = "(url) => (dispatch) => $rt.navigate(url, false)"
+-- URL を変える。履歴には足さず、今の履歴を置き換える（戻るボタンで前の画面に戻らない）
+--
+--   Nav.replaceUrl "?page=2"
 foreign import replaceUrl :: String -> Cmd msg = "(url) => (dispatch) => $rt.navigate(url, true)"
+-- ブラウザの「戻る」と同じ
+--
+--   effect Close _ = Nav.back
 foreign import back :: Cmd msg = "(dispatch) => history.back()"

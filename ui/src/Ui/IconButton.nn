@@ -9,13 +9,13 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type IconButtonProps msg =
-  { icon     :: Icon.Icon
-  , label    :: String
-  , onClick  :: msg
-  , variant  :: Variant = Plain
-  , tone     :: Tone    = Neutral
-  , size     :: Size    = M
-  , disabled :: Bool    = False
+  { icon     :: Icon.Icon           -- 出すアイコン
+  , label    :: String              -- 読み上げとツールチップに使う名前（画面には出ない）
+  , onClick  :: msg                 -- 押したときに届くメッセージ
+  , variant  :: Variant = Plain     -- 見た目（Filled・Outlined・Plain）
+  , tone     :: Tone    = Neutral   -- 色の種類
+  , size     :: Size    = M         -- 大きさ（S・M・L）
+  , disabled :: Bool    = False     -- 押せない
   }
 
 

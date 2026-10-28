@@ -6,8 +6,8 @@ module Ui.Card (CardProps, card) where
 
 
 type CardProps =
-  { title   :: String = ""
-  , padding :: Size   = M
+  { title   :: String = ""   -- 見出し。空なら出さない
+  , padding :: Size   = M    -- 中身のまわりの余白。None なら中身を端まで広げる（リストや表を入れるとき）
   }
 
 

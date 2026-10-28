@@ -7,9 +7,9 @@ module Ui.Tabs (TabsProps, tabs) where
 
 
 type TabsProps msg =
-  { labels   :: [String]
-  , selected :: Int
-  , onSelect :: Int -> msg
+  { labels   :: [String]     -- タブの文字。左から順に並ぶ
+  , selected :: Int          -- 選んでいるタブ（0 から数える）
+  , onSelect :: Int -> msg   -- タブを押したときに、その番号を受け取る
   }
 
 

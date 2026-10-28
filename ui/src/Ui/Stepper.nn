@@ -1,14 +1,16 @@
 -- 手順のどこにいるかを示す。active は 0 から数える。終わった手順には印が付く
 --
---   <Stepper steps={["カート", "お届け先", "支払い"]} active={model.step} />
+--   <Stepper steps={steps} active={model.step} />
+--     where
+--       steps = ["カート", "お届け先", "支払い"]
 module Ui.Stepper (StepperProps, stepper) where
 
 import qualified Ui.Icon as Icon
 
 
 type StepperProps =
-  { steps  :: [String]
-  , active :: Int
+  { steps  :: [String]   -- 手順の名前。左から順に並ぶ
+  , active :: Int        -- いまの手順（0 から数える）。それより前は終わった印が付く
   }
 
 

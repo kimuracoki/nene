@@ -11,9 +11,9 @@ import Ui.Button (Variant(..))
 
 
 type PopoverProps =
-  { id      :: String
-  , label   :: String
-  , variant :: Variant = Outlined
+  { id      :: String               -- ページの中でほかと重ならない名前
+  , label   :: String               -- 吹き出しを開くボタンの文字
+  , variant :: Variant = Outlined   -- 開くボタンの見た目（Filled・Outlined・Plain）
   }
 
 

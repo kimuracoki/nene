@@ -6,9 +6,9 @@ module Ui.Avatar (AvatarProps, avatar) where
 
 
 type AvatarProps =
-  { name :: String
-  , src  :: Maybe String = Nothing
-  , size :: Size         = M
+  { name :: String                   -- 人の名前。画像がなければ頭文字を出す（漢字・かななら 1 文字、英字なら 2 文字）。読み上げにも使う
+  , src  :: Maybe String = Nothing   -- Just なら、その画像を丸く出す
+  , size :: Size         = M         -- 大きさ（S・M・L）
   }
 
 

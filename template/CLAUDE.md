@@ -12,7 +12,7 @@
 
 ## 書き方の規則
 
-詳しくは `node_modules/nene-lang/docs/spec.md`（仕様）と `docs/guide.md`（入門）。迷ったら読むこと。
+詳しくは `node_modules/nene-lang/docs/` の `spec.md`（仕様）・`guide.md`（入門）・`reference/`（関数・部品・属性の辞書。`reference/README.md` の索引から引く）。迷ったら読むこと。
 
 - **`if` `case` `let` `in` ラムダは無い。** 等式のパターンマッチ・ガード・`where` で書く。
   ```haskell
@@ -36,7 +36,7 @@
 
 ## 部品（nene-lang-ui）
 
-ボタン・入力欄などは自分で作らず、まず `nene-lang-ui` を使う。一覧と属性は `node_modules/nene-lang-ui/README.md`、使い方の例は各ファイルの先頭のコメント（`node_modules/nene-lang-ui/src/Ui/*.nn`）。
+ボタン・入力欄などは自分で作らず、まず `nene-lang-ui` を使う。一覧は `node_modules/nene-lang-ui/README.md`、部品ごとのすべての属性と使い方の例は `node_modules/nene-lang/docs/reference/ui/<部品>.md`。
 
 ```haskell
 import Ui.Button (Variant(..))

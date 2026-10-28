@@ -13,12 +13,12 @@ import qualified Ui.Icon as Icon
 
 
 type CalendarProps msg =
-  { value    :: String
-  , month    :: String = ""   -- 空なら、value の月（value も空なら today の月）
-  , onChange :: String -> msg
-  , onMonth  :: String -> msg
-  , today    :: String = ""
-  , closes   :: String = ""   -- 日を選んだら閉じる popover の id（DatePicker が使う）
+  { value    :: String          -- 選んでいる日（"2026-10-28"）。選んでいなければ ""
+  , month    :: String = ""     -- 空なら、value の月（value も空なら today の月）
+  , onChange :: String -> msg   -- 日を押したときに、その日（"2026-10-28"）を受け取る
+  , onMonth  :: String -> msg   -- 前の月・次の月を押したときに、出す月（"2026-11"）を受け取る
+  , today    :: String = ""     -- 今日の日付。印を付ける。空なら付けない
+  , closes   :: String = ""     -- 日を選んだら閉じる popover の id（DatePicker が使う）
   }
 
 

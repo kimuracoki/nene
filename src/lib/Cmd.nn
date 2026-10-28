@@ -1,5 +1,11 @@
 module Cmd where
 
 
+-- 何もしない副作用。effect で、何もしないメッセージに返す
+--
+--   effect _ _ = Cmd.none
 foreign import none :: Cmd msg = "null"
+-- いくつかの副作用をまとめて 1 つにする。並べた順に実行する
+--
+--   effect Save model = Cmd.batch [Storage.set "draft" model.draft, Http.post "/api/save" model.draft Saved]
 foreign import batch :: [Cmd msg] -> Cmd msg = "(cmds) => cmds"

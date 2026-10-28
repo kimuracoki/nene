@@ -16,19 +16,19 @@ import qualified Ui.Icon as Icon
 
 
 type MultiAutocompleteProps msg =
-  { id          :: String
-  , value       :: String
-  , selected    :: [String]
-  , options     :: [String]
-  , onInput     :: String -> msg
-  , onChange    :: [String] -> msg
-  , label       :: String       = ""
-  , placeholder :: String       = ""
-  , helper      :: String       = ""
-  , error       :: Maybe String = Nothing
-  , disabled    :: Bool         = False
-  , variant     :: Variant      = Outlined   -- 見た目は TextField と同じ
-  , noOptions   :: String       = "候補がありません"
+  { id          :: String                      -- ページの中でほかと重ならない名前
+  , value       :: String                      -- 打っている文字
+  , selected    :: [String]                    -- 選んだもの。欄の中にチップで並ぶ
+  , options     :: [String]                    -- 候補。打った文字を含むものだけを出す
+  , onInput     :: String -> msg               -- 打つたびに、打った後の文字を受け取る
+  , onChange    :: [String] -> msg             -- 選んだり外したりしたときに、選んだもの全体を受け取る
+  , label       :: String       = ""           -- 欄の名前
+  , placeholder :: String       = ""           -- 何も選んでいないときに出す例
+  , helper      :: String       = ""           -- 欄の下に出す説明
+  , error       :: Maybe String = Nothing      -- Just なら赤くして、説明の代わりに出す
+  , disabled    :: Bool         = False        -- 打てない・選べない
+  , variant     :: Variant      = Outlined     -- 見た目は TextField と同じ
+  , noOptions   :: String       = "候補がありません"   -- 絞り込んで 1 つも残らないときに出す文字
   }
 
 

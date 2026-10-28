@@ -1,8 +1,11 @@
 -- 小さなラベル。onClick を渡すと押せるチップ（絞り込みなど）になる
 --
 --   <Chip tone={Success}>完了</Chip>
---   <Chip selected={isAll} onClick={Just (SetFilter All)}>すべて</Chip>
---   <Chip onDelete={Just (RemoveTag tag)}>{tag}</Chip>    -- 右に消すボタンが付く
+--   <Chip selected={isAll} onClick={showAll}>すべて</Chip>
+--   <Chip onDelete={remove}>{tag}</Chip>    -- 右に消すボタンが付く
+--     where
+--       showAll = Just (SetFilter All)
+--       remove = Just (RemoveTag tag)
 module Ui.Chip (ChipProps, chip) where
 
 import qualified Ui.Icon as Icon
@@ -10,9 +13,9 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type ChipProps msg =
-  { onClick  :: Maybe msg = Nothing
-  , selected :: Bool      = False
-  , tone     :: Tone      = Neutral
+  { onClick  :: Maybe msg = Nothing   -- Just なら押せるチップになり、押したときにこのメッセージが届く
+  , selected :: Bool      = False     -- 選んである印を付ける（絞り込みの選択肢など）
+  , tone     :: Tone      = Neutral   -- 色の種類
   , onDelete :: Maybe msg = Nothing   -- Just msg なら、右に消すボタンを付ける
   }
 

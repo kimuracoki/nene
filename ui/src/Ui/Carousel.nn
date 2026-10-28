@@ -15,12 +15,12 @@ module Ui.Carousel (CarouselProps, carousel) where
 
 
 type CarouselProps msg =
-  { label   :: String                -- 読み上げに使う名前
-  , slides  :: [Html msg]
-  , perView :: Int    = 1            -- 一度に見せる枚数
-  , gap     :: Size   = None         -- 1 枚ずつの間隔
-  , aspect  :: String = "auto"       -- 1 枚の縦横の比（"4 / 3" など）。auto なら中身に合わせる
-  , dots    :: Bool   = True         -- 下に、何枚目かを示す点を出すか
+  { label   :: String            -- 読み上げに使う名前
+  , slides  :: [Html msg]        -- 1 枚ずつの中身。並べた順に送る
+  , perView :: Int    = 1        -- 一度に見せる枚数
+  , gap     :: Size   = None     -- 1 枚ずつの間隔
+  , aspect  :: String = "auto"   -- 1 枚の縦横の比（"4 / 3" など）。auto なら中身に合わせる
+  , dots    :: Bool   = True     -- 下に、何枚目かを示す点を出すか
   }
 
 

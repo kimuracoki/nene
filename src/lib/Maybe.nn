@@ -1,18 +1,31 @@
 module Maybe where
 
 
+-- Just なら中身に関数を当てる。Nothing はそのまま
+--
+--   Maybe.map show (Just 3)    -- Just "3"
+--   Maybe.map show Nothing     -- Nothing
 map :: (a -> b) -> Maybe a -> Maybe b
 map f (Just x) = Just (f x)
 map _ Nothing  = Nothing
 
+-- Just なら中身に、Maybe を返す関数を当てる。ないかもしれない処理を続けるときに使う
+--
+--   Maybe.andThen String.toInt (List.head ["42"])    -- Just 42
 andThen :: (a -> Maybe b) -> Maybe a -> Maybe b
 andThen f (Just x) = f x
 andThen _ Nothing  = Nothing
 
+-- Just なら中身、Nothing なら代わりの値
+--
+--   Maybe.withDefault 0 (String.toInt "x")    -- 0
 withDefault :: a -> Maybe a -> a
 withDefault _ (Just x) = x
 withDefault d Nothing  = d
 
+-- Just か
+--
+--   Maybe.isJust (Just 1)    -- True
 isJust :: Maybe a -> Bool
 isJust (Just _) = True
 isJust Nothing  = False

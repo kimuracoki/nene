@@ -17,17 +17,17 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type Item msg =
-  { label   :: String
-  , onClick :: msg
-  , icon    :: Maybe Icon.Icon = Nothing
-  , tone    :: Tone            = Neutral
+  { label   :: String                      -- 項目の文字
+  , onClick :: msg                         -- 押したときに届くメッセージ（メニューは閉じる）
+  , icon    :: Maybe Icon.Icon = Nothing   -- 左に出すアイコン
+  , tone    :: Tone            = Neutral   -- 色の種類（削除なら Danger）
   }
 
 type MenuProps msg =
-  { id      :: String
-  , label   :: String
-  , items   :: [Item msg]
-  , variant :: Variant = Outlined
+  { id      :: String               -- ページの中でほかと重ならない名前
+  , label   :: String               -- メニューを開くボタンの文字
+  , items   :: [Item msg]           -- メニューの項目。上から順に並ぶ
+  , variant :: Variant = Outlined   -- 開くボタンの見た目（Filled・Outlined・Plain）
   }
 
 

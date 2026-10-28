@@ -11,12 +11,12 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type FabProps msg =
-  { icon     :: Icon.Icon
-  , label    :: String
-  , onClick  :: msg
-  , extended :: Bool = False
-  , tone     :: Tone = Primary
-  , disabled :: Bool = False
+  { icon     :: Icon.Icon        -- 出すアイコン
+  , label    :: String           -- 読み上げに使う名前。extended なら横に出す
+  , onClick  :: msg              -- 押したときに届くメッセージ
+  , extended :: Bool = False     -- label も出して、横に長いボタンにする
+  , tone     :: Tone = Primary   -- 色の種類
+  , disabled :: Bool = False     -- 押せない
   }
 
 

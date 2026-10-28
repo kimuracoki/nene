@@ -1,4 +1,4 @@
-# examples/ のサンプルと部品の見本を GitHub Pages に出す（https://kimuracoki.github.io/nene/）
+# examples/ のサンプルと部品の見本、リファレンス（docs/reference/ を HTML にしたもの）を GitHub Pages に出す（https://kimuracoki.github.io/nene/）
 # 使う前に、リポジトリの Settings → Pages の Source を「GitHub Actions」にしておく
 name: Pages
 
@@ -32,6 +32,7 @@ jobs:
       - run: npm test
       - run: node ../src/cli.ts build --base /nene/ --out ../dist/pages
         working-directory: examples
+      - run: node scripts/reference-html.ts dist/pages/reference
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist/pages
