@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { render } from "../scripts/ui-readme.ts";
 import { runExample } from "./helpers.ts";
 
 // nene-lang-ui の部品は examples/Showcase.nn で一通り使っている
@@ -242,12 +241,12 @@ test("Menu: 矢印キーと Home・End で項目を移る", async () => {
   assert.equal(document.activeElement, items[0]);
 });
 
-test("README: すべての部品が表にあり、部品ごとの使い方が部品のファイルと合っている", () => {
+test("README: すべての部品が表にあり、リファレンスのページへつながっている", () => {
   const readme = readFileSync(join(import.meta.dirname, "..", "ui", "README.md"), "utf8");
   const files = readdirSync(join(import.meta.dirname, "..", "ui", "src", "Ui")).map((f) => f.replace(/\.nn$/, "")).filter((n) => n !== "Theme");
-  const listed = [...readme.matchAll(/^\| `Ui\.(\w+)` \|/gm)].map((m) => m[1]);
-  assert.deepEqual([...listed].sort(), files.sort());
-  assert.equal(readme, render(readme), "ui/README.md が古くなっています。node scripts/ui-readme.ts を実行してください");
+  const listed = [...readme.matchAll(/^\| \[`Ui\.(\w+)`\]\(https:\/\/github\.com\/kimuracoki\/nene\/blob\/main\/docs\/reference\/ui\/(\w+)\.md\) \|/gm)];
+  assert.deepEqual(listed.map((m) => m[1]).sort(), files.sort());
+  for (const m of listed) assert.equal(m[1], m[2]);
 });
 
 test("Table: 見出しを押すと並べ替えのメッセージが届き、aria-sort と矢印で向きを表す", async () => {

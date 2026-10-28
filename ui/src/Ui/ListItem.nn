@@ -1,20 +1,26 @@
 -- リストの 1 行。onClick を渡すと押せる行になる。Card padding={None} の中に並べると、MUI の List になる
 --
 --   <Card padding={None}>
---     <ListItem icon={Just Icon.mail} primary="受信トレイ" secondary="未読 3 件" onClick={Just (Open Inbox)} selected={model.box == Inbox} />
---     <ListItem icon={Just Icon.star} primary="スター付き" onClick={Just (Open Starred)} />
+--     <ListItem icon={mail} primary="受信トレイ" secondary="未読 3 件" onClick={openInbox} selected={inInbox} />
+--     <ListItem icon={star} primary="スター付き" onClick={openStarred} />
 --   </Card>
+--     where
+--       mail = Just Icon.mail
+--       star = Just Icon.star
+--       openInbox = Just (Open Inbox)
+--       openStarred = Just (Open Starred)
+--       inInbox = model.box == Inbox
 module Ui.ListItem (ListItemProps, listItem) where
 
 import qualified Ui.Icon as Icon
 
 
 type ListItemProps msg =
-  { primary   :: String
-  , secondary :: String          = ""
-  , icon      :: Maybe Icon.Icon = Nothing
-  , onClick   :: Maybe msg       = Nothing
-  , selected  :: Bool            = False
+  { primary   :: String                      -- 1 行目の文字
+  , secondary :: String          = ""        -- 2 行目の控えめな文字。空なら 1 行だけ
+  , icon      :: Maybe Icon.Icon = Nothing   -- 左に出すアイコン
+  , onClick   :: Maybe msg       = Nothing   -- Just なら押せる行になり、押したときにこのメッセージが届く
+  , selected  :: Bool            = False     -- 選んである印を付ける（いまのページなど）
   }
 
 

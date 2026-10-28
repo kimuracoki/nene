@@ -16,17 +16,17 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type Action msg =
-  { icon    :: Icon.Icon
-  , label   :: String
-  , onClick :: msg
+  { icon    :: Icon.Icon   -- 出すアイコン
+  , label   :: String      -- 読み上げとツールチップに使う名前
+  , onClick :: msg         -- 押したときに届くメッセージ（閉じる）
   }
 
 type SpeedDialProps msg =
-  { id      :: String
-  , label   :: String
-  , actions :: [Action msg]
-  , icon    :: Icon.Icon = Icon.add
-  , tone    :: Tone      = Primary
+  { id      :: String                 -- ページの中でほかと重ならない名前
+  , label   :: String                 -- 丸いボタンの読み上げに使う名前
+  , actions :: [Action msg]           -- 開いたときに並べる操作。下から順に並ぶ
+  , icon    :: Icon.Icon = Icon.add   -- 丸いボタンのアイコン
+  , tone    :: Tone      = Primary    -- 色の種類
   }
 
 

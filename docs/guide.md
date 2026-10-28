@@ -1,6 +1,6 @@
 # Nene 入門
 
-画面を 1 つ作りながら、Nene の書き方を順に見ていく。細かい規則は [spec.md](spec.md) にある。
+画面を 1 つ作りながら、Nene の書き方を順に見ていく。細かい規則は [spec.md](spec.md)、関数や部品を名前から引くときは[リファレンス](reference/README.md)。
 
 ## 1. 動かしてみる
 
@@ -289,7 +289,7 @@ import Ui.Theme (Tone(..))
 <Dialog open={model.asking} title="削除しますか？" onClose={Cancel}>…</Dialog>
 ```
 
-部品の一覧（すべての属性の型と既定値、使い方の例）と、色の変え方は [nene-lang-ui の README](https://github.com/kimuracoki/nene/blob/main/ui/README.md) にある（手元では `node_modules/nene-lang-ui/README.md`）。見た目と動きは[部品の見本](https://kimuracoki.github.io/nene/showcase.html)で確かめられる。
+部品の一覧は [nene-lang-ui の README](https://github.com/kimuracoki/nene/blob/main/ui/README.md)、部品ごとのすべての属性の型・既定値・説明は[リファレンス](reference/README.md)にある（手元では `node_modules/nene-lang/docs/reference/`）。見た目と動きは[部品の見本](https://kimuracoki.github.io/nene/showcase.html)で確かめられる。
 
 メニューやアコーディオンの開け閉めのような、見た目だけの状態は Model に入れなくてよい。ブラウザが覚えておいてくれる。
 

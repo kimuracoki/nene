@@ -7,9 +7,9 @@ import qualified Ui.Icon as Icon
 
 
 type PaginationProps msg =
-  { count    :: Int
-  , page     :: Int
-  , onChange :: Int -> msg
+  { count    :: Int          -- ページの数
+  , page     :: Int          -- いまのページ（1 から数える）
+  , onChange :: Int -> msg   -- ページを押したときに、そのページの番号を受け取る
   }
 
 

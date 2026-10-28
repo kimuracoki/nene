@@ -2,98 +2,263 @@
 module Prelude where
 
 
+-- 真偽。if はないので、場合分けはガードかパターンで書く
 data Bool = False | True
 
-data Maybe a = Nothing | Just a
+-- ないかもしれない値。null の代わり（関数は Maybe モジュール）
+data Maybe a
+  = Nothing   -- ない
+  | Just a    -- ある
 
-data Result e a = Err e | Ok a
+-- 失敗するかもしれない処理の結果（関数は Result モジュール）
+data Result e a
+  = Err e   -- 失敗した。e はわけ
+  | Ok a    -- うまくいった
 
 
 -- レイアウトタグで使う値（spec 8 章）
 
--- 間隔の大きさ。CSS からは var(--space-s) などで同じ値を使える
-data Size = None | XS | S | M | L | XL
+-- 間隔と画面幅の大きさ。gap などの間隔では 0〜32px、collapse では画面幅を表す
+-- CSS からは var(--space-s) などで、間隔と同じ値を使える
+data Size
+  = None   -- 間隔 0。collapse では、狭くても並び方を変えない
+  | XS     -- 間隔 4px。collapse では画面幅 360px
+  | S      -- 間隔 8px。collapse では画面幅 480px
+  | M      -- 間隔 16px。collapse では画面幅 768px
+  | L      -- 間隔 24px。collapse では画面幅 1024px
+  | XL     -- 間隔 32px。collapse では画面幅 1280px
 
-data Align = Start | Center | End | Stretch
+-- 揃え方。並ぶ向き（justify）と、それに直角の向き（align）の両方に使う
+data Align
+  = Start     -- 始め（左・上）に寄せる
+  | Center    -- 真ん中に寄せる
+  | End       -- 終わり（右・下）に寄せる
+  | Stretch   -- いっぱいに伸ばす（justify では Start と同じ）
 
-data Direction = Horizontal | Vertical
+-- スクロールする向き（<Scroll direction={…}>）
+data Direction
+  = Horizontal   -- 横にスクロールする
+  | Vertical     -- 縦にスクロールする
 
 
 -- アプリ（spec 7 章）
 
 -- いまの URL。path は "/todos/3" なら ["todos", "3"]
 type Url =
-  { path  :: [String]
-  , query :: [(String, String)]
-  , hash  :: String
+  { path  :: [String]             -- / で区切った道筋。"/todos/3" なら ["todos", "3"]、"/" なら []
+  , query :: [(String, String)]   -- ? のあとの名前と値の組。"?q=nene&page=2" なら [("q", "nene"), ("page", "2")]
+  , hash  :: String               -- # のあと（# は含まない）。なければ ""
   }
 
 
 -- 基本
 
+-- いつも True。ガードの最後に書いて「それ以外のとき」を表す
+--
+--   label n
+--     | n > 0     = "正"
+--     | otherwise = "0 か負"
 otherwise :: Bool
 otherwise = True
 
+-- 真偽を反対にする
+--
+--   not True    -- False
 not :: Bool -> Bool
 not True  = False
 not False = True
 
+-- 受け取った値をそのまま返す。何もしない関数が要るときに使う
+--
+--   update = always identity    -- どのメッセージでも model を変えない
 identity :: a -> a
 identity x = x
 
+-- 1 つ目の値を返し、2 つ目の引数は使わない。引数を無視する関数を作るときに使う
+--
+--   always 1 "何でも"                     -- 1
+--   map (always 0) [5, 6, 7]              -- [0, 0, 0]
+--   Time.every 4000 (always HideNotice)   -- 時刻を受け取らずにメッセージを返す
 always :: a -> b -> a
 always x _ = x
 
+-- 組の 1 つ目
+--
+--   fst ("a", 1)    -- "a"
 fst :: (a, b) -> a
 fst (x, _) = x
 
+-- 組の 2 つ目
+--
+--   snd ("a", 1)    -- 1
 snd :: (a, b) -> b
 snd (_, y) = y
 
--- 複数のクラスを 1 つにまとめる（class={look} の look を作るとき）
+-- 複数のクラスを 1 つにまとめる。class={look} の look を where で作るときに使う
+--
+--   look
+--     | props.selected = classes [css.item, css.selected]
+--     | otherwise      = css.item
 foreign import classes :: [Class] -> Class = "(cs) => cs.filter((c) => c).join(' ')"
 
+-- Int・Float・Bool を文字にする。JSX の子要素に数を出すときに使う
+--
+--   show 42      -- "42"
+--   show 1.5     -- "1.5"
+--   show True    -- "True"
 foreign import show :: Show a => a -> String = "$rt.show"
+-- 符号を反対にする
+--
+--   negate 3    -- -3
 foreign import negate :: Num a => a -> a = "(x) => -x"
+-- 絶対値
+--
+--   abs (-3)    -- 3
 foreign import abs :: Num a => a -> a = "(x) => Math.abs(x)"
+-- 小さいほう
+--
+--   min 3 7    -- 3
 foreign import min :: Ord a => a -> a -> a = "(a) => (b) => (a <= b ? a : b)"
+-- 大きいほう
+--
+--   max 3 7    -- 7
 foreign import max :: Ord a => a -> a -> a = "(a) => (b) => (a >= b ? a : b)"
+-- 2 つ目の引数から 1 つ目を引く。(- 1) は負の数になるので、1 を引く関数は subtract 1 と書く
+--
+--   subtract 1 10           -- 9
+--   map (subtract 1) [5, 6] -- [4, 5]
 foreign import subtract :: Num a => a -> a -> a = "(a) => (b) => b - a"
+-- 割り算の余り。結果はいつも 0 以上（割る数が正のとき）。0 で割ると 0
+--
+--   mod 7 3       -- 1
+--   mod (-1) 12   -- 11
 foreign import mod :: Int -> Int -> Int = "(a) => (b) => (b === 0 ? 0 : ((a % b) + b) % b)"
+-- Int を Float にする
+--
+--   toFloat 3 / 2    -- 1.5
 foreign import toFloat :: Int -> Float = "(x) => x"
+-- いちばん近い整数にする（.5 は大きいほうへ）
+--
+--   round 2.5    -- 3
 foreign import round :: Float -> Int = "(x) => Math.round(x)"
+-- 小数点以下を切り捨てる（小さいほうの整数にする）
+--
+--   floor 2.7     -- 2
+--   floor (-2.1)  -- -3
 foreign import floor :: Float -> Int = "(x) => Math.floor(x)"
+-- 小数点以下を切り上げる（大きいほうの整数にする）
+--
+--   ceiling 2.1    -- 3
 foreign import ceiling :: Float -> Int = "(x) => Math.ceil(x)"
 
 
 -- リスト
 
+-- リストの要素それぞれに関数を当てる
+--
+--   map show [1, 2, 3]      -- ["1", "2", "3"]
+--   map (.title) todos      -- タイトルのリスト
 foreign import map :: (a -> b) -> [a] -> [b] = "(f) => (xs) => xs.map((x) => f(x))"
+-- 条件に合う要素だけを残す
+--
+--   filter (.done) todos    -- 済んだものだけ
+--   filter isAdult people   -- where に isAdult p = p.age >= 18 と書いておく
 foreign import filter :: (a -> Bool) -> [a] -> [a] = "(f) => (xs) => xs.filter((x) => f(x))"
+-- 左から順に、値を 1 つにまとめる。関数は（それまでの値, 要素）を受け取る
+--
+--   foldl (+) 0 [1, 2, 3]    -- 6
 foreign import foldl :: (b -> a -> b) -> b -> [a] -> b = "(f) => (z) => (xs) => xs.reduce((acc, x) => f(acc)(x), z)"
+-- 右から順に、値を 1 つにまとめる。関数は（要素, それまでの値）を受け取る
+--
+--   foldr (:) [] [1, 2, 3]    -- [1, 2, 3]
 foreign import foldr :: (a -> b -> b) -> b -> [a] -> b = "(f) => (z) => (xs) => xs.reduceRight((acc, x) => f(x)(acc), z)"
+-- リストの要素の数
+--
+--   length [1, 2, 3]    -- 3
 foreign import length :: [a] -> Int = "(xs) => xs.length"
+-- リストが空か
+--
+--   null []     -- True
+--   null [1]    -- False
 foreign import null :: [a] -> Bool = "(xs) => xs.length === 0"
+-- リストを逆の順にする
+--
+--   reverse [1, 2, 3]    -- [3, 2, 1]
 foreign import reverse :: [a] -> [a] = "(xs) => xs.slice().reverse()"
+-- 数の合計。空なら 0
+--
+--   sum [1, 2, 3]    -- 6
 foreign import sum :: Num a => [a] -> a = "(xs) => xs.reduce((a, b) => a + b, 0)"
+-- 数の積。空なら 1
+--
+--   product [2, 3, 4]    -- 24
 foreign import product :: Num a => [a] -> a = "(xs) => xs.reduce((a, b) => a * b, 1)"
+-- リストのリストを 1 つのリストにつなげる
+--
+--   concat [[1, 2], [3]]    -- [1, 2, 3]
 foreign import concat :: [[a]] -> [a] = "(xss) => [].concat(...xss)"
+-- 要素それぞれからリストを作り、それをつなげる
+--
+--   concatMap (.tags) posts    -- すべての投稿のタグ
 foreign import concatMap :: (a -> [b]) -> [a] -> [b] = "(f) => (xs) => [].concat(...xs.map((x) => f(x)))"
+-- 条件に合う要素が 1 つでもあるか。空なら False
+--
+--   any (.done) todos
 foreign import any :: (a -> Bool) -> [a] -> Bool = "(f) => (xs) => xs.some((x) => f(x))"
+-- すべての要素が条件に合うか。空なら True
+--
+--   all (.done) todos
 foreign import all :: (a -> Bool) -> [a] -> Bool = "(f) => (xs) => xs.every((x) => f(x))"
+-- 先頭から n 個を取り出す。足りなければあるだけ
+--
+--   take 2 [1, 2, 3]    -- [1, 2]
 foreign import take :: Int -> [a] -> [a] = "(n) => (xs) => xs.slice(0, Math.max(0, n))"
+-- 先頭から n 個を取り除く
+--
+--   drop 2 [1, 2, 3]    -- [3]
 foreign import drop :: Int -> [a] -> [a] = "(n) => (xs) => xs.slice(Math.max(0, n))"
+-- 2 つのリストの要素を順に組にする。長さは短いほうに合わせる
+--
+--   zip ["a", "b"] [1, 2, 3]    -- [("a", 1), ("b", 2)]
 foreign import zip :: [a] -> [b] -> [(a, b)] = "(xs) => (ys) => xs.slice(0, Math.min(xs.length, ys.length)).map((x, i) => [x, ys[i]])"
+-- a から b までの整数（両端を含む）。b が a より小さければ []
+--
+--   range 1 5    -- [1, 2, 3, 4, 5]
 foreign import range :: Int -> Int -> [Int] = "(a) => (b) => Array.from({ length: Math.max(0, b - a + 1) }, (_, i) => a + i)"
+-- 小さい順に並べる（Int・Float・String）
+--
+--   sort [3, 1, 2]    -- [1, 2, 3]
 foreign import sort :: Ord a => [a] -> [a] = "(xs) => xs.slice().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))"
+-- 関数で取り出した値の小さい順に並べる。同じ値のものは元の順のまま
+--
+--   sortOn (.name) members
+--   reverse (sortOn (.joined) members)    -- 大きい順
 foreign import sortOn :: Ord b => (a -> b) -> [a] -> [a] = "(f) => (xs) => xs.slice().sort((a, b) => { const x = f(a), y = f(b); return x < y ? -1 : x > y ? 1 : 0; })"
+-- 値がリストに含まれるか（== と同じ比べ方）
+--
+--   elem 2 [1, 2, 3]    -- True
 foreign import elem :: a -> [a] -> Bool = "(x) => (xs) => xs.some((y) => $rt.eq(x, y))"
 
 
 -- 文字列
 
+-- 前後の空白と改行を取り除く
+--
+--   trim "  nene  "    -- "nene"
 foreign import trim :: String -> String = "(s) => s.trim()"
+-- 空白で区切った単語のリストにする。空の単語は除く
+--
+--   words " 森と  湖 "    -- ["森と", "湖"]
 foreign import words :: String -> [String] = "(s) => s.split(/\\s+/).filter((w) => w !== '')"
+-- 単語を空白 1 つでつなげる
+--
+--   unwords ["森と", "湖"]    -- "森と 湖"
 foreign import unwords :: [String] -> String = "(ws) => ws.join(' ')"
+-- 改行で区切った行のリストにする
+--
+--   lines "a\nb"    -- ["a", "b"]
 foreign import lines :: String -> [String] = "(s) => s.split('\\n')"
+-- 行を改行でつなげる（最後には改行を付けない）
+--
+--   unlines ["a", "b"]    -- "a\nb"
 foreign import unlines :: [String] -> String = "(ls) => ls.join('\\n')"

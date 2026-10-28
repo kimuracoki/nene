@@ -12,17 +12,17 @@ import qualified Ui.Icon as Icon
 
 
 type DatePickerProps msg =
-  { id       :: String
-  , value    :: String
-  , onChange :: String -> msg
-  , onMonth  :: String -> msg
-  , month    :: String       = ""
-  , label    :: String       = ""
-  , today    :: String       = ""
-  , helper   :: String       = ""
-  , error    :: Maybe String = Nothing
-  , disabled :: Bool         = False
-  , variant  :: Variant      = Outlined
+  { id       :: String                    -- ページの中でほかと重ならない名前（カレンダーの吹き出しに使う）
+  , value    :: String                    -- 選んでいる日（"2026-10-28"）。選んでいなければ ""
+  , onChange :: String -> msg             -- カレンダーで日を選んだときに、その日を受け取る（カレンダーは閉じる）
+  , onMonth  :: String -> msg             -- カレンダーで月を送ったときに、出す月（"2026-11"）を受け取る
+  , month    :: String       = ""         -- カレンダーに出す月（"2026-10"）。空なら value の月（value も空なら today の月）
+  , label    :: String       = ""         -- 欄の名前
+  , today    :: String       = ""         -- 今日の日付。カレンダーで印を付ける
+  , helper   :: String       = ""         -- 欄の下に出す説明
+  , error    :: Maybe String = Nothing    -- Just なら赤くして、説明の代わりに出す
+  , disabled :: Bool         = False      -- 開けない
+  , variant  :: Variant      = Outlined   -- 見た目（Filled・Outlined・Plain）。TextField と同じ
   }
 
 

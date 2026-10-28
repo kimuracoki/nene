@@ -8,8 +8,8 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type AlertProps =
-  { tone  :: Tone   = Primary
-  , title :: String = ""
+  { tone  :: Tone   = Primary   -- 色の種類。知らせの重さに合わせる（Success・Warning・Danger など）
+  , title :: String = ""        -- 太字の見出し。空なら出さない
   }
 
 

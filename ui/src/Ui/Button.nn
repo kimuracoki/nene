@@ -9,18 +9,21 @@ import qualified Ui.Icon as Icon
 import Ui.Theme (Tone(..), toneVars)
 
 
-data Variant = Filled | Outlined | Plain
+data Variant
+  = Filled     -- 色で塗ったボタン（いちばん目立つ）
+  | Outlined   -- 枠だけのボタン
+  | Plain      -- 文字だけのボタン（いちばん控えめ）
 
 type ButtonProps msg =
-  { onClick   :: msg
-  , variant   :: Variant         = Filled
-  , tone      :: Tone            = Primary
-  , size      :: Size            = M
-  , startIcon :: Maybe Icon.Icon = Nothing
-  , endIcon   :: Maybe Icon.Icon = Nothing
-  , disabled  :: Bool            = False
-  , fullWidth :: Bool            = False
-  , loading   :: Bool            = False   -- True なら、文字の代わりに回る印を出し、押せなくする
+  { onClick   :: msg                         -- 押したときに届くメッセージ
+  , variant   :: Variant         = Filled    -- 見た目（Filled・Outlined・Plain）
+  , tone      :: Tone            = Primary   -- 色の種類
+  , size      :: Size            = M         -- 大きさ（S・M・L）
+  , startIcon :: Maybe Icon.Icon = Nothing   -- 文字の前に出すアイコン
+  , endIcon   :: Maybe Icon.Icon = Nothing   -- 文字の後に出すアイコン
+  , disabled  :: Bool            = False     -- 押せない
+  , fullWidth :: Bool            = False     -- 横幅いっぱいに広げる
+  , loading   :: Bool            = False     -- True なら、文字の代わりに回る印を出し、押せなくする
   }
 
 

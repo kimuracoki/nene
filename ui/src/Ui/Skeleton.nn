@@ -8,12 +8,15 @@
 module Ui.Skeleton (SkeletonProps, Shape(..), skeleton) where
 
 
-data Shape = Line | Block | Circle
+data Shape
+  = Line     -- 1 行の文字の形
+  | Block    -- 四角（画像やカード）
+  | Circle   -- 丸（アバター）
 
 type SkeletonProps =
-  { shape  :: Shape  = Line
-  , width  :: String = ""
-  , height :: String = ""
+  { shape  :: Shape  = Line   -- 形（Line・Block・Circle）
+  , width  :: String = ""     -- 幅（CSS の長さ）。空なら形ごとの決まった幅
+  , height :: String = ""     -- 高さ（CSS の長さ）。空なら形ごとの決まった高さ
   }
 
 

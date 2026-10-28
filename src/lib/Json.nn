@@ -4,9 +4,15 @@
 module Json where
 
 
+-- 値を JSON の文字列にする
+--
+--   Json.encode { id = 1, tags = ["a"] }    -- "{\"id\":1,\"tags\":[\"a\"]}"
 foreign import encode :: Json a => a -> String
   = "(d) => (x) => JSON.stringify(d.enc(x))"
 
--- うまく読めなかったときは、どこが違ったかを Err で返す
+-- JSON の文字列を読む。読む型は、使う場所で決まる。合わなければ、どこが違ったかを Err で返す
+--
+--   loaded :: Result String [Todo]
+--   loaded = Json.decode text
 foreign import decode :: Json a => String -> Result String a
   = "(d) => (text) => $rt.decodeJson(d, text)"

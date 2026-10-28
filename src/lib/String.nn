@@ -1,24 +1,76 @@
 module String where
 
 
+-- 文字の数（絵文字などは 2 と数えることがある）
+--
+--   String.length "ねね"    -- 2
 foreign import length :: String -> Int = "(s) => s.length"
+-- 空の文字か
+--
+--   String.isEmpty ""    -- True
 foreign import isEmpty :: String -> Bool = "(s) => s.length === 0"
+-- 英字を大文字にする
+--
+--   String.toUpper "nene"    -- "NENE"
 foreign import toUpper :: String -> String = "(s) => s.toUpperCase()"
+-- 英字を小文字にする
+--
+--   String.toLower "Nene"    -- "nene"
 foreign import toLower :: String -> String = "(s) => s.toLowerCase()"
+-- 1 つ目の文字が 2 つ目の中にあるか
+--
+--   String.contains "@" email
+--   String.contains "湖" "森と湖"    -- True
 foreign import contains :: String -> String -> Bool = "(part) => (s) => s.includes(part)"
+-- 整数として読む。前後の空白は無視する。読めなければ Nothing
+--
+--   String.toInt " 42 "    -- Just 42
+--   String.toInt "4.2"     -- Nothing
 foreign import toInt :: String -> Maybe Int = "(s) => (/^-?\\d+$/.test(s.trim()) ? $rt.Just(parseInt(s, 10)) : $rt.Nothing)"
+-- 数として読む。前後の空白は無視する。読めなければ Nothing
+--
+--   String.toFloat "4.2"    -- Just 4.2
+--   String.toFloat ""       -- Nothing
 foreign import toFloat :: String -> Maybe Float = "(s) => { const n = Number(s.trim()); return s.trim() !== '' && Number.isFinite(n) ? $rt.Just(n) : $rt.Nothing; }"
+-- 区切りの文字で分ける
+--
+--   String.split "-" "2026-11-20"    -- ["2026", "11", "20"]
 foreign import split :: String -> String -> [String] = "(sep) => (s) => s.split(sep)"
+-- 区切りの文字を挟んでつなげる
+--
+--   String.join ", " ["a", "b"]    -- "a, b"
 foreign import join :: String -> [String] -> String = "(sep) => (xs) => xs.join(sep)"
+-- 1 つ目の文字で始まるか
+--
+--   String.startsWith "http" url
 foreign import startsWith :: String -> String -> Bool = "(part) => (s) => s.startsWith(part)"
+-- 1 つ目の文字で終わるか
+--
+--   String.endsWith ".png" file
 foreign import endsWith :: String -> String -> Bool = "(part) => (s) => s.endsWith(part)"
+-- 1 つ目の文字をすべて 2 つ目の文字に置き換える
+--
+--   String.replace "-" "/" "2026-11-20"    -- "2026/11/20"
 foreign import replace :: String -> String -> String -> String = "(from) => (to) => (s) => s.split(from).join(to)"
+-- 同じ文字を n 回つなげる
+--
+--   String.repeat 3 "★"    -- "★★★"
 foreign import repeat :: Int -> String -> String = "(n) => (s) => s.repeat(Math.max(0, n))"
+-- 文字を逆の順にする
+--
+--   String.reverse "abc"    -- "cba"
 foreign import reverse :: String -> String = "(s) => [...s].reverse().join('')"
 
--- 位置（0 から）で切り出す。slice 1 3 "abcde" は "bc"
+-- 位置（0 から）で切り出す。終わりの位置の文字は含まない
+--
+--   String.slice 1 3 "abcde"    -- "bc"
 foreign import slice :: Int -> Int -> String -> String = "(a) => (b) => (s) => [...s].slice(a, b).join('')"
 
--- 長さが n になるまで、左（右）を文字で埋める。padLeft 2 "0" "7" は "07"
+-- 長さが n になるまで、左を文字で埋める
+--
+--   String.padLeft 2 "0" "7"    -- "07"
 foreign import padLeft :: Int -> String -> String -> String = "(n) => (c) => (s) => s.padStart(n, c)"
+-- 長さが n になるまで、右を文字で埋める
+--
+--   String.padRight 5 "." "ab"    -- "ab..."
 foreign import padRight :: Int -> String -> String -> String = "(n) => (c) => (s) => s.padEnd(n, c)"

@@ -4,46 +4,52 @@ module Layout where
 
 -- collapse に画面幅を渡すと、それより狭い画面では縦に並ぶ（S: 480px, M: 768px, L: 1024px）
 type RowProps =
-  { gap      :: Size  = None
-  , align    :: Align = Stretch
-  , justify  :: Align = Start
-  , wrap     :: Bool  = False
-  , collapse :: Size  = None
-  , class    :: Class = noClass
+  { gap      :: Size  = None      -- 子要素どうしの間隔
+  , align    :: Align = Stretch   -- 縦の揃え方（並ぶ向きと直角）
+  , justify  :: Align = Start     -- 横の揃え方（並ぶ向き）
+  , wrap     :: Bool  = False     -- 入りきらないときに次の行へ折り返すか
+  , collapse :: Size  = None      -- 画面幅がこれより狭いと、縦に並べる
+  , class    :: Class = noClass   -- style ブロックのクラス
   }
 
 type ColumnProps =
-  { gap     :: Size  = None
-  , align   :: Align = Stretch
-  , justify :: Align = Start
-  , class   :: Class = noClass
+  { gap     :: Size  = None      -- 子要素どうしの間隔
+  , align   :: Align = Stretch   -- 横の揃え方（並ぶ向きと直角）
+  , justify :: Align = Start     -- 縦の揃え方（並ぶ向き）
+  , class   :: Class = noClass   -- style ブロックのクラス
   }
 
 -- collapse に画面幅を渡すと、それより狭い画面では 1 列になる
 type GridProps =
-  { columns  :: Int
-  , gap      :: Size  = None
-  , collapse :: Size  = None
-  , class    :: Class = noClass
+  { columns  :: Int               -- 列の数。どの列も同じ幅になる
+  , gap      :: Size  = None      -- 縦と横の間隔
+  , collapse :: Size  = None      -- 画面幅がこれより狭いと、1 列にする
+  , class    :: Class = noClass   -- style ブロックのクラス
   }
 
 type StackProps =
-  { align   :: Align = Stretch
-  , justify :: Align = Stretch
-  , class   :: Class = noClass
+  { align   :: Align = Stretch   -- 縦の揃え方
+  , justify :: Align = Stretch   -- 横の揃え方
+  , class   :: Class = noClass   -- style ブロックのクラス
   }
 
 type ScrollProps =
-  { direction :: Direction = Vertical
-  , class     :: Class     = noClass
+  { direction :: Direction = Vertical   -- スクロールする向き
+  , class     :: Class     = noClass    -- style ブロックのクラス
   }
 
 
+-- 子要素を横に並べる
 foreign import row :: RowProps -> [Html msg] -> Html msg = "$rt.layout('row')"
+-- 子要素を縦に並べる
 foreign import column :: ColumnProps -> [Html msg] -> Html msg = "$rt.layout('column')"
+-- 子要素を columns 列のグリッドに、左上から順に並べる
 foreign import grid :: GridProps -> [Html msg] -> Html msg = "$rt.layout('grid')"
+-- 子要素を同じ場所に重ねる。後ろに書いたものほど手前に来る
 foreign import stack :: StackProps -> [Html msg] -> Html msg = "$rt.layout('stack')"
+-- 1 つの子要素を、スクロールできる領域に入れる。大きさは親か class で決める
 foreign import scroll :: ScrollProps -> [Html msg] -> Html msg = "$rt.layout('scroll')"
+-- Row・Column の中で残りの空きを埋め、前後の子要素を押し離す
 foreign import spacer :: {} -> Html msg = "$rt.spacer"
 
 foreign import noClass :: Class = "''"

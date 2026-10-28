@@ -2,12 +2,20 @@
 module Dom where
 
 
+-- id の要素にフォーカスを移す。画面を描いたあとに実行するので、いま出した要素にも使える
+--
+--   effect OpenSearch _ = Dom.focus "search"
 foreign import focus :: String -> Cmd msg
   = "(id) => (dispatch) => requestAnimationFrame(() => document.getElementById(id)?.focus())"
 
+-- id の要素からフォーカスを外す
+--
+--   Dom.blur "search"
 foreign import blur :: String -> Cmd msg
   = "(id) => (dispatch) => requestAnimationFrame(() => document.getElementById(id)?.blur())"
 
--- 要素が見えるところまでスクロールする
+-- id の要素が見えるところまで、滑らかにスクロールする
+--
+--   Dom.scrollIntoView "comments"
 foreign import scrollIntoView :: String -> Cmd msg
   = "(id) => (dispatch) => requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))"

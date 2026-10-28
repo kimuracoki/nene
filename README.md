@@ -55,6 +55,7 @@ style
 | | 内容 |
 | --- | --- |
 | [docs/guide.md](docs/guide.md) | **入門。** 最初に読むもの。画面を作りながら書き方を一通り見る |
+| [docs/reference/](docs/reference/README.md) | **リファレンス。** 書き方・標準ライブラリの全関数・全部品の全属性・HTML の要素と属性を、名前から引ける辞書。[Pages 版](https://kimuracoki.github.io/nene/reference/)は名前で検索でき、部品のページで動く見本を触れる |
 | [ui/README.md](ui/README.md) | 部品集 nene-lang-ui。全部品の使い方の例と、属性の型と既定値、テーマの変え方 |
 | [docs/spec.md](docs/spec.md) | 言語仕様。すべての規則を正確に書いた参照用 |
 | [docs/design.md](docs/design.md) | 設計の考え方。なぜこういう言語なのか、何を入れなかったのか |

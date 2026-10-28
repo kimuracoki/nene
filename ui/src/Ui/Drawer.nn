@@ -1,14 +1,17 @@
 -- 画面の左から出てくる引き出し。開いているかどうかは model に持つ。背景を押すと onClose が届く
 --
 --   <Drawer open={model.menuOpen} onClose={CloseMenu}>
---     <ListItem icon={Just Icon.home} primary="ホーム" onClick={Just (Go "/")} />
+--     <ListItem icon={home} primary="ホーム" onClick={goHome} />
 --   </Drawer>
+--     where
+--       home = Just Icon.home
+--       goHome = Just (Go "/")
 module Ui.Drawer (DrawerProps, drawer) where
 
 
 type DrawerProps msg =
-  { open    :: Bool
-  , onClose :: msg
+  { open    :: Bool   -- 開いているか
+  , onClose :: msg    -- 背景を押したときに届くメッセージ。open を False にする
   }
 
 

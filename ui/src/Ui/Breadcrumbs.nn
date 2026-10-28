@@ -1,12 +1,14 @@
 -- いまのページまでの道すじ。links は（行き先, 表示する文字）の組で、最後に current を出す
 --
---   <Breadcrumbs links={[("/", "ホーム"), ("/settings", "設定")]} current="プロフィール" />
+--   <Breadcrumbs links={trail} current="プロフィール" />
+--     where
+--       trail = [("/", "ホーム"), ("/settings", "設定")]
 module Ui.Breadcrumbs (BreadcrumbsProps, breadcrumbs) where
 
 
 type BreadcrumbsProps =
-  { links   :: [(String, String)]
-  , current :: String
+  { links   :: [(String, String)]   -- （行き先, 表示する文字）の組。上の階層から順に並べる
+  , current :: String               -- 最後に出す、いまのページの名前（リンクにしない）
   }
 
 

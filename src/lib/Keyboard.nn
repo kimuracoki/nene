@@ -2,5 +2,9 @@
 module Keyboard where
 
 
+-- キーが押されるたびに、キーの名前（"Enter"、"Escape"、"ArrowUp"、" "、"a" など）を受け取る。入力欄に打っているときも届く
+--
+--   subscriptions _ = Keyboard.onKeyDown KeyPressed
+--   update (KeyPressed "Escape") model = { model | open = False }
 foreign import onKeyDown :: (String -> msg) -> Sub msg
   = "(toMsg) => $rt.sub('Keyboard.onKeyDown', (k) => toMsg(k), (emit) => { const f = (e) => emit(e.key); document.addEventListener('keydown', f); return () => document.removeEventListener('keydown', f); })"

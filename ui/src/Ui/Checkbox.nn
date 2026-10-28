@@ -5,10 +5,10 @@ module Ui.Checkbox (CheckboxProps, checkbox) where
 
 
 type CheckboxProps msg =
-  { checked  :: Bool
-  , onCheck  :: Bool -> msg
-  , label    :: String = ""
-  , disabled :: Bool   = False
+  { checked  :: Bool             -- チェックしてあるか
+  , onCheck  :: Bool -> msg      -- 押したときに、押した後のチェックの状態を受け取る
+  , label    :: String = ""      -- 右に出す文字。押しても切り替わる
+  , disabled :: Bool   = False   -- 押せない
   }
 
 

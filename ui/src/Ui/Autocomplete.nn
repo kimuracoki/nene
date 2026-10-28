@@ -15,16 +15,16 @@ import qualified Ui.Icon as Icon
 
 
 type AutocompleteProps msg =
-  { id          :: String
-  , value       :: String
-  , options     :: [String]
-  , onInput     :: String -> msg
-  , label       :: String       = ""
-  , placeholder :: String       = ""
-  , helper      :: String       = ""
-  , error       :: Maybe String = Nothing
-  , disabled    :: Bool         = False
-  , variant     :: Variant      = Outlined    -- 見た目は TextField と同じ
+  { id          :: String                      -- ページの中でほかと重ならない名前（候補の一覧と結び付けるのに使う）
+  , value       :: String                      -- 欄の文字。打った文字か、選んだ候補
+  , options     :: [String]                    -- 候補の文字。打った文字を含むものだけを出す
+  , onInput     :: String -> msg               -- 打つたびと、候補を選んだときに、欄の文字を受け取る
+  , label       :: String       = ""           -- 欄の名前。欄の中にあり、フォーカスするか値が入ると枠の上に移る
+  , placeholder :: String       = ""           -- 空のときに出す例。ラベルがあるときは、フォーカスしている間だけ出る
+  , helper      :: String       = ""           -- 欄の下に出す説明
+  , error       :: Maybe String = Nothing      -- Just なら赤くして、説明の代わりに出す
+  , disabled    :: Bool         = False        -- 打てない・選べない
+  , variant     :: Variant      = Outlined     -- 見た目は TextField と同じ
   , noOptions   :: String       = "候補がありません"   -- 絞り込んで 1 つも残らないときに出す文字
   }
 

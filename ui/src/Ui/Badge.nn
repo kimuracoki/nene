@@ -9,9 +9,9 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type BadgeProps =
-  { count :: Int
-  , max   :: Int  = 99     -- これを超えたら 99+ と出す
-  , tone  :: Tone = Danger
+  { count :: Int             -- 重ねる数。0 なら出さない
+  , max   :: Int  = 99       -- これを超えたら 99+ と出す
+  , tone  :: Tone = Danger   -- 色の種類
   }
 
 

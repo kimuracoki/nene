@@ -7,8 +7,8 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type ProgressProps =
-  { value :: Maybe Float = Nothing
-  , tone  :: Tone        = Primary
+  { value :: Maybe Float = Nothing   -- 進み具合（0 から 1）。Nothing なら、終わりの見えない処理として動き続ける
+  , tone  :: Tone        = Primary   -- 色の種類
   }
 
 

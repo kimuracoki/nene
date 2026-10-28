@@ -2,11 +2,20 @@
 module Storage where
 
 
+-- 保存した文字を読む。なければ Nothing。起動したときに読むなら App の onStart に書く
+--
+--   main = App.app { init, update, view, onStart = Storage.get "todos" Loaded }
 foreign import get :: String -> (Maybe String -> msg) -> Cmd msg
   = "(key) => (toMsg) => (dispatch) => { const v = localStorage.getItem(key); dispatch(toMsg(v === null ? $rt.Nothing : $rt.Just(v))); }"
 
+-- 文字を保存する。同じキーがあれば置き換える。値を保存するときは Json.encode で文字にする
+--
+--   effect _ model = Storage.set "todos" (Json.encode model.todos)
 foreign import set :: String -> String -> Cmd msg
   = "(key) => (value) => (dispatch) => localStorage.setItem(key, value)"
 
+-- 保存した文字を消す
+--
+--   Storage.remove "todos"
 foreign import remove :: String -> Cmd msg
   = "(key) => (dispatch) => localStorage.removeItem(key)"

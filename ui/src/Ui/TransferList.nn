@@ -11,16 +11,16 @@ import Ui.Checkbox
 
 
 type Transfer =
-  { chosen  :: [String]
-  , checked :: [String]
+  { chosen  :: [String]   -- 右の一覧に移したもの
+  , checked :: [String]   -- チェックを付けているもの（左右どちらの一覧のものも）
   }
 
 type TransferListProps msg =
-  { items      :: [String]
-  , value      :: Transfer
-  , onChange   :: Transfer -> msg
-  , leftTitle  :: String = "候補"
-  , rightTitle :: String = "選んだもの"
+  { items      :: [String]           -- すべての項目。chosen にないものが左の一覧に出る
+  , value      :: Transfer           -- 右に移したものと、チェックを付けたもの
+  , onChange   :: Transfer -> msg    -- チェックを付けたり項目を移したりしたときに、新しい value を受け取る
+  , leftTitle  :: String = "候補"      -- 左の一覧の見出し
+  , rightTitle :: String = "選んだもの"   -- 右の一覧の見出し
   }
 
 

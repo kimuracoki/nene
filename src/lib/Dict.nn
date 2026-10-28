@@ -2,53 +2,97 @@
 module Dict (Dict, empty, singleton, fromList, toList, insert, remove, update, get, member, keys, values, size, isEmpty, map, filter) where
 
 
+-- キー k から値 v を引く表。キーの小さい順に並んでいる。同じキーは 1 つだけ持てる
 data Dict k v = Dict [(k, v)]
 
 
+-- 空の表
+--
+--   Dict.empty
 empty :: Dict k v
 empty = Dict []
 
+-- キーと値を 1 組だけ持つ表
+--
+--   Dict.singleton "a" 1
 singleton :: k -> v -> Dict k v
 singleton k v = Dict [(k, v)]
 
+-- キーと値の組のリストにする（キーの小さい順）
+--
+--   Dict.toList (Dict.fromList [("b", 2), ("a", 1)])    -- [("a", 1), ("b", 2)]
 toList :: Dict k v -> [(k, v)]
 toList (Dict pairs) = pairs
 
+-- 組の数
+--
+--   Dict.size scores
 size :: Dict k v -> Int
 size (Dict pairs) = length pairs
 
+-- 空の表か
+--
+--   Dict.isEmpty Dict.empty    -- True
 isEmpty :: Dict k v -> Bool
 isEmpty (Dict pairs) = null pairs
 
+-- キーがあるか
+--
+--   Dict.member "a" scores
 member :: Ord k => k -> Dict k v -> Bool
 member k dict = Maybe.isJust (get k dict)
 
--- キーがあれば、その値を関数で変える
+-- キーがあれば、その値を関数で変える。なければ何もしない
+--
+--   Dict.update id toggle todos
 update :: Ord k => k -> (v -> v) -> Dict k v -> Dict k v
 update k f dict = change (get k dict)
   where
     change (Just v) = insert k (f v) dict
     change Nothing  = dict
 
+-- キーのリスト（小さい順）
+--
+--   Dict.keys scores
 foreign import keys :: Dict k v -> [k] = "(d) => d.a[0].map((p) => p[0])"
+-- 値のリスト（キーの小さい順）
+--
+--   Dict.values scores
 foreign import values :: Dict k v -> [v] = "(d) => d.a[0].map((p) => p[1])"
 
+-- 値それぞれに関数を当てる。キーはそのまま
+--
+--   Dict.map show scores
 foreign import map :: (v -> w) -> Dict k v -> Dict k w
   = "(f) => (d) => ({ $: 'Dict', a: [d.a[0].map(([k, v]) => [k, f(v)])] })"
 
+-- キーと値を受け取る関数が True を返す組だけを残す
+--
+--   Dict.filter passed scores    -- where passed _ score = score >= 60
 foreign import filter :: (k -> v -> Bool) -> Dict k v -> Dict k v
   = "(f) => (d) => ({ $: 'Dict', a: [d.a[0].filter(([k, v]) => f(k)(v))] })"
 
 
--- 同じキーが何度も出てきたら、後のものを使う
+-- キーと値の組のリストから作る。同じキーが何度も出てきたら、後のものを使う
+--
+--   Dict.fromList [("a", 1), ("b", 2)]
 foreign import fromList :: Ord k => [(k, v)] -> Dict k v
   = "(pairs) => { const m = new Map(pairs.map(([k, v]) => [k, v])); return { $: 'Dict', a: [[...m].sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0))] }; }"
 
+-- キーと値を足す。同じキーがあれば値を置き換える
+--
+--   Dict.insert "c" 3 scores
 foreign import insert :: Ord k => k -> v -> Dict k v -> Dict k v
   = "(k) => (v) => (d) => { const ps = d.a[0].filter((p) => p[0] !== k); let i = ps.findIndex((p) => p[0] > k); if (i < 0) i = ps.length; ps.splice(i, 0, [k, v]); return { $: 'Dict', a: [ps] }; }"
 
+-- キーの組を取り除く。なければ何もしない
+--
+--   Dict.remove "a" scores
 foreign import remove :: Ord k => k -> Dict k v -> Dict k v
   = "(k) => (d) => ({ $: 'Dict', a: [d.a[0].filter((p) => p[0] !== k)] })"
 
+-- キーの値。なければ Nothing
+--
+--   Dict.get "a" scores    -- Just 1
 foreign import get :: Ord k => k -> Dict k v -> Maybe v
   = "(k) => (d) => { const p = d.a[0].find((p) => p[0] === k); return p ? $rt.Just(p[1]) : $rt.Nothing; }"

@@ -7,11 +7,15 @@
 module Ui.Tooltip (TooltipProps, Placement(..), tooltip) where
 
 
-data Placement = Top | Bottom | Left | Right
+data Placement
+  = Top      -- 上に出す
+  | Bottom   -- 下に出す
+  | Left     -- 左に出す
+  | Right    -- 右に出す
 
 type TooltipProps =
-  { text      :: String
-  , placement :: Placement = Bottom
+  { text      :: String               -- 出す説明の文字
+  , placement :: Placement = Bottom   -- 子要素のどちら側に出すか
   }
 
 

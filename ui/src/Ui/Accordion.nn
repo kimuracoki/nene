@@ -8,9 +8,9 @@ import qualified Ui.Icon as Icon
 
 
 type AccordionProps =
-  { title :: String
-  , open  :: Bool   = False    -- 最初から開いておくか
-  , group :: String = ""
+  { title :: String           -- 見出しの文字。押すと開け閉めする
+  , open  :: Bool   = False   -- 最初から開いておくか
+  , group :: String = ""      -- 同じ group の Accordion は、1 つだけが開く。空ならほかと関係なく開く
   }
 
 

@@ -20,6 +20,7 @@ view =
           <p class={css.lead}>Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語。タグを見れば画面の形が分かり、型が通れば実行時エラーは起きない。</p>
           <Row gap={S} wrap>
             <a class={css.primary} href="https://github.com/kimuracoki/nene/blob/main/docs/guide.md">入門を読む</a>
+            <a class={css.secondary} href="/reference/index.html">リファレンス</a>
             <a class={css.secondary} href="https://github.com/kimuracoki/nene">GitHub</a>
           </Row>
           <code class={css.install}>npm create nene-lang my-app</code>

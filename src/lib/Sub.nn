@@ -1,5 +1,11 @@
 module Sub where
 
 
+-- 何も受け取らない
+--
+--   subscriptions _ = Sub.none
 foreign import none :: Sub msg = "null"
+-- いくつかの購読をまとめて 1 つにする
+--
+--   subscriptions _ = Sub.batch [Time.every 1000 Tick, Keyboard.onKeyDown KeyPressed]
 foreign import batch :: [Sub msg] -> Sub msg = "(subs) => subs"

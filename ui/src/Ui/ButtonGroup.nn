@@ -11,11 +11,11 @@ import Ui.Theme (Tone(..), toneVars)
 
 
 type ButtonGroupProps msg =
-  { items    :: [(String, msg)]
-  , variant  :: Variant = Outlined
-  , tone     :: Tone    = Primary
-  , size     :: Size    = M
-  , disabled :: Bool    = False
+  { items    :: [(String, msg)]      -- （表示する文字, 押したときのメッセージ）の組。左から順に並ぶ
+  , variant  :: Variant = Outlined   -- 見た目（Filled・Outlined・Plain）
+  , tone     :: Tone    = Primary    -- 色の種類
+  , size     :: Size    = M          -- 大きさ（S・M・L）
+  , disabled :: Bool    = False      -- どのボタンも押せない
   }
 
 

@@ -1,13 +1,17 @@
 -- 表。headers は列の見出し、rows は 1 行ずつのセルの並び
 --
---   <Table headers={["名前", "役割", "参加日"]} rows={map row model.members} />
+--   <Table headers={columns} rows={map row model.members} />
 --     where
+--       columns = ["名前", "役割", "参加日"]
 --       row m = [<>{m.name}</>, <Chip>{m.role}</Chip>, <>{m.joined}</>]
 --
 -- 横に収まらないときは、表だけを横に送れる。行を詰めるときは dense
 -- 見出しを押して並べ替えるときは、どの列をどちら向きに並べているかを model に持ち、rows を並べ替えて渡す
 --
---   <Table headers={columns} rows={sortedRows} sort={Just (model.sortColumn, model.sortOrder)} onSort={Just SortBy} />
+--   <Table headers={columns} rows={sortedRows} sort={sorting} onSort={sortBy} />
+--     where
+--       sorting = Just (model.sortColumn, model.sortOrder)
+--       sortBy = Just SortBy
 --
 -- 行を選べるようにするときは、選んだ行の番号（0 から）を model に持つ。左の列にチェックボックスが付く
 --
@@ -18,12 +22,14 @@ import Ui.Checkbox
 import qualified Ui.Icon as Icon
 
 
-data Order = Ascending | Descending
+data Order
+  = Ascending    -- 小さい順（見出しに上向きの矢印）
+  | Descending   -- 大きい順（見出しに下向きの矢印）
 
 type TableProps msg =
-  { headers  :: [String]
-  , rows     :: [[Html msg]]
-  , dense    :: Bool                 = False
+  { headers  :: [String]                         -- 列の見出し。左から順に並ぶ
+  , rows     :: [[Html msg]]                     -- 1 行ずつのセルの並び。セルは Html なので、文字は <>{…}</> で包む
+  , dense    :: Bool                 = False     -- 行の高さを詰める
   , sort     :: Maybe (Int, Order)   = Nothing   -- 並べている列（0 から）と向き。見出しに矢印が出る
   , onSort   :: Maybe (Int -> msg)   = Nothing   -- Just なら見出しを押せ、押した列の番号が届く
   , selected :: [Int]                = []        -- 選んでいる行の番号

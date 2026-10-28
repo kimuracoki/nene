@@ -257,7 +257,7 @@ view model =
 
 ```haskell
 <input type="checkbox" checked={todo.done} onCheck={ToggleTodo todo.id} />
-<Card flush>
+<button disabled>送る</button>
 ```
 
 - `name="文字列"` … 文字列リテラル
@@ -722,6 +722,8 @@ jsx       ::= "<" Name attr* ("/>" | ">" child* "</" Name ">") | "<>" child* "</
 ```
 
 ## 14. 標準モジュール
+
+ここでは名前だけを並べる。全関数の型・説明・例は[リファレンス](reference/README.md)にある。
 
 `Prelude`（import 不要）:
 
