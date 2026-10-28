@@ -46,7 +46,7 @@ style
 | 層 | 中身 | パッケージ |
 | --- | --- | --- |
 | 言語 | コンパイラ、ランタイム、`nene` コマンド、標準ライブラリ（ルーティング・HTTP・JSON など） | `nene-lang` |
-| 部品集 | Material Design に合わせたボタン・入力欄・表・ダイアログ・メニューなど 36 の部品 | [`nene-lang-ui`](ui/README.md) |
+| 部品集 | Material Design に合わせたボタン・入力欄・表・ダイアログ・メニューなど 43 の部品 | [`nene-lang-ui`](ui/README.md) |
 
 標準ライブラリは差し替えられない（ルーティングも HTTP も一通りだけ）。部品集は別のパッケージで、使わなくてもよい。出力には、アプリが使っている標準モジュールとランタイムの部分だけが入る。
 
@@ -208,15 +208,23 @@ npm pack                  # 配布するパッケージを手元で作る
 
 ## サンプル
 
+[見本のページ](https://kimuracoki.github.io/nene/)で、ブラウザでそのまま動かせる（`main` に push すると `.github/workflows/pages.yml` が GitHub Pages に出す）。
+
 | ファイル | 動かす | 内容 |
 | --- | --- | --- |
-| [examples/Counter.nn](examples/Counter.nn) | [開く](https://kimuracoki.github.io/nene/counter.html) | 最小のカウンター |
-| [examples/Todo.nn](examples/Todo.nn) | [開く](https://kimuracoki.github.io/nene/todo.html) | elm-sample のタスク管理画面に相当するもの |
-| [examples/Gallery.nn](examples/Gallery.nn) | [開く](https://kimuracoki.github.io/nene/gallery.html) | アルバムごとに写真が横に続くギャラリー。開いた写真は URL に入り、戻るボタンや Esc で閉じる |
-| [examples/Stopwatch.nn](examples/Stopwatch.nn) | [開く](https://kimuracoki.github.io/nene/stopwatch.html) | タイマー・キーボード・ブラウザへの保存・ダークテーマを使う例 |
+| [examples/Stay.nn](examples/Stay.nn) | [開く](https://kimuracoki.github.io/nene/stay.html) | 宿の予約ページ。写真のスライド（Carousel）、日付と人数から出す料金、確かめるダイアログ |
+| [examples/Admin.nn](examples/Admin.nn) | [開く](https://kimuracoki.github.io/nene/admin.html) | メンバーの管理画面。検索・絞り込み・並べ替え・ページ送りのある表、招待のフォーム、元に戻す |
 | [examples/Showcase.nn](examples/Showcase.nn) | [開く](https://kimuracoki.github.io/nene/showcase.html) | nene-lang-ui の部品を一通り並べた見本 |
+| [examples/Examples.nn](examples/Examples.nn) | [開く](https://kimuracoki.github.io/nene/) | 見本の入口のページ |
 
-[一覧のページ](https://kimuracoki.github.io/nene/)は [examples/Examples.nn](examples/Examples.nn)。`main` に push すると、`.github/workflows/pages.yml` がこれらを GitHub Pages に出す。
+次の小さな例は、書き方を確かめるためのもので、公開はしていない（`npm run dev` で開ける）。
+
+| ファイル | 内容 |
+| --- | --- |
+| [examples/Counter.nn](examples/Counter.nn) | 最小のカウンター |
+| [examples/Todo.nn](examples/Todo.nn) | タスク管理。入力欄・絞り込み・ブラウザへの保存 |
+| [examples/Gallery.nn](examples/Gallery.nn) | 開いた写真が URL に入るギャラリー（`onUrlChange` の例） |
+| [examples/Stopwatch.nn](examples/Stopwatch.nn) | タイマー・キーボード・ブラウザへの保存 |
 
 ## 構成
 

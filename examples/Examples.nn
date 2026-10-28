@@ -1,24 +1,8 @@
--- 見本の入口（https://kimuracoki.github.io/nene/）。サンプルと部品の見本へのリンクを並べる
+-- 見本の入口（https://kimuracoki.github.io/nene/）。Nene の紹介と、見本へのリンクを並べる
 module Examples (main) where
 
 import Ui.Card
-
-
-type Sample =
-  { title       :: String
-  , page        :: String
-  , file        :: String
-  , description :: String
-  }
-
-samples :: [Sample]
-samples =
-  [ { title = "部品の見本", page = "/showcase.html", file = "Showcase.nn", description = "nene-lang-ui の部品を一通り並べたもの。見た目と動きを確かめられる" }
-  , { title = "タスク管理", page = "/todo.html", file = "Todo.nn", description = "入力欄・絞り込み・ブラウザへの保存。elm-sample のタスク管理画面に相当する" }
-  , { title = "ギャラリー", page = "/gallery.html", file = "Gallery.nn", description = "アルバムごとに写真が横に続く。開いた写真は URL に入り、戻るボタンや Esc で閉じる" }
-  , { title = "ストップウォッチ", page = "/stopwatch.html", file = "Stopwatch.nn", description = "タイマー・キーボード・ブラウザへの保存・ダークテーマ" }
-  , { title = "カウンター", page = "/counter.html", file = "Counter.nn", description = "いちばん小さいアプリ" }
-  ]
+import Ui.Chip
 
 
 main :: Program () ()
@@ -27,39 +11,177 @@ main = App.app { init = (), update = always identity, view = always view }
 
 view :: Html ()
 view =
-  <Column gap={L} class={css.page}>
-    <Column gap={XS}>
-      <h1>Nene の見本</h1>
-      <p class={css.lead}>どれも Nene で書いてある。ソースは GitHub の examples/ にある。</p>
-    </Column>
-    <Grid columns={2} gap={M} collapse={M}>{map sampleCard samples}</Grid>
-    <a href="https://github.com/kimuracoki/nene">GitHub のリポジトリ</a>
-  </Column>
+  <main class={css.page}>
+    <Column gap={XL}>
+      <header class={css.hero}>
+        <Column gap={M}>
+          <span class={css.eyebrow}>Simple rules. Beautiful structures.</span>
+          <h1 class={css.title}>Nene</h1>
+          <p class={css.lead}>Haskell の書き心地と JSX の見やすさを両立させる、UI 向けの関数型言語。タグを見れば画面の形が分かり、型が通れば実行時エラーは起きない。</p>
+          <Row gap={S} wrap>
+            <a class={css.primary} href="https://github.com/kimuracoki/nene/blob/main/docs/guide.md">入門を読む</a>
+            <a class={css.secondary} href="https://github.com/kimuracoki/nene">GitHub</a>
+          </Row>
+          <code class={css.install}>npm create nene-lang my-app</code>
+        </Column>
+      </header>
 
+      <Column gap={M}>
+        <h2 class={css.heading}>見本</h2>
+        <p class={css.muted}>どれも Nene と公式の部品集 nene-lang-ui だけで書いてある。</p>
+        <Grid columns={3} gap={M} collapse={M}>{map sampleCard samples}</Grid>
+      </Column>
+
+      <Column gap={M}>
+        <h2 class={css.heading}>書き方</h2>
+        <Grid columns={2} gap={M} collapse={M}>
+          <Card title="画面はタグで、計算は where で">
+            <pre class={css.code}>{viewCode}</pre>
+          </Card>
+          <Card title="状態の変わり方は等式で">
+            <pre class={css.code}>{updateCode}</pre>
+          </Card>
+        </Grid>
+      </Column>
+    </Column>
+  </main>
+
+
+type Sample =
+  { title       :: String
+  , page        :: String
+  , file        :: String
+  , description :: String
+  , parts       :: [String]
+  }
+
+samples :: [Sample]
+samples =
+  [ { title = "宿の予約", page = "/stay.html", file = "Stay.nn", description = "写真のスライド、日付と人数から出す料金、確かめるダイアログ。", parts = ["Carousel", "TextField", "Select", "Tabs", "Dialog", "Snackbar"] }
+  , { title = "メンバーの管理", page = "/admin.html", file = "Admin.nn", description = "検索・絞り込み・並べ替え・ページ送りのある表と、招待のフォーム。外したメンバーは元に戻せる。", parts = ["Table", "Pagination", "ToggleGroup", "Dialog", "Snackbar"] }
+  , { title = "部品の一覧", page = "/showcase.html", file = "Showcase.nn", description = "nene-lang-ui の部品を一通り並べたもの。見た目と動きを確かめられる。", parts = ["Button", "TextField", "Autocomplete", "Calendar", "Menu", "ほか"] }
+  ]
 
 sampleCard :: Sample -> Html ()
 sampleCard sample =
   <Card title={sample.title}>
-    <Column gap={S}>
+    <Column gap={M}>
       <p class={css.description}>{sample.description}</p>
-      <Row gap={M}>
-        <a href={sample.page}>開く</a>
-        <a href={source}>ソース</a>
+      <Row gap={XS} wrap>{map part sample.parts}</Row>
+      <Row gap={S}>
+        <a class={css.primary} href={sample.page}>開く</a>
+        <a class={css.secondary} href={source}>ソース</a>
       </Row>
     </Column>
   </Card>
   where
     source = "https://github.com/kimuracoki/nene/blob/main/examples/" ++ sample.file
+    part p = <Chip>{p}</Chip>
+
+
+viewCode :: String
+viewCode = unlines
+  [ "view n ="
+  , "  <Column gap={M} align={Center}>"
+  , "    <p class={count}>{show n}</p>"
+  , "    <Button onClick={Increment}>+</Button>"
+  , "  </Column>"
+  , "  where"
+  , "    count"
+  , "      | n >= 10   = css.big"
+  , "      | otherwise = css.count"
+  ]
+
+updateCode :: String
+updateCode = unlines
+  [ "update :: Msg -> Model -> Model"
+  , "update Increment n = n + 1"
+  , "update Decrement n"
+  , "  | n > 0     = n - 1"
+  , "  | otherwise = 0"
+  , ""
+  , "-- 漏れた場合があるとコンパイルエラー"
+  ]
 
 
 style
   .page {
-    max-width: 960px;
+    max-width: 1120px;
     margin: 0 auto;
-    padding: var(--space-xl) var(--space-m);
+    padding: 48px 16px 96px;
   }
-  .lead { color: var(--muted); }
-  .description {
-    min-height: 3em;
+  .hero {
+    padding: 48px 32px;
+    border-radius: 16px;
+    background:
+      radial-gradient(40rem 20rem at 0% 0%, color-mix(in srgb, var(--primary) 28%, transparent), transparent),
+      radial-gradient(30rem 20rem at 100% 100%, color-mix(in srgb, #ff6fa8 22%, transparent), transparent),
+      var(--surface);
+    box-shadow: var(--shadow-1);
+  }
+  .eyebrow {
+    color: var(--primary);
+    font-weight: 500;
+    letter-spacing: .04em;
+  }
+  .title {
+    font-size: clamp(3rem, 8vw, 5rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -.02em;
+  }
+  .lead {
+    max-width: 40em;
+    font-size: 1.125rem;
+    line-height: 1.8;
     color: var(--muted);
+  }
+  .install {
+    align-self: start;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--hover);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .9375rem;
+  }
+  .heading { font-size: 1.5rem; font-weight: 500; }
+  .muted { color: var(--muted); }
+  .description {
+    min-height: 4.8em;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .primary,
+  .secondary {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius);
+    font-weight: 500;
+    font-size: .875rem;
+    letter-spacing: .02857em;
+    text-decoration: none;
+    transition: background-color .2s, box-shadow .2s;
+  }
+  .primary {
+    background: var(--primary);
+    color: var(--on-tone);
+    box-shadow: var(--shadow-2);
+  }
+  .primary:hover { box-shadow: var(--shadow-4); }
+  .secondary {
+    border: 1px solid color-mix(in srgb, var(--primary) 50%, transparent);
+    color: var(--primary);
+  }
+  .secondary:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+  .code {
+    margin: 0;
+    padding: 16px;
+    overflow-x: auto;
+    border-radius: 8px;
+    background: var(--hover);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .875rem;
+    line-height: 1.7;
   }
